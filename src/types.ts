@@ -82,6 +82,7 @@ export type ViewState =
   | 'analysis'   // Validierung der Erkennung
   | 'twin'       // Dependency Graph
   | 'nextmove'   // Empfohlener Schritt
+  | 'projects'   // Projekte-Übersicht
   | 'today';     // Reduzierte Today-Ansicht
 
 // Simulation Result

@@ -3,34 +3,31 @@ import {
   Clock,
   AlertTriangle,
   Target,
-  Plus,
+  Zap,
   User,
   Landmark,
   FileText,
   ChevronRight,
-  Zap,
-  ArrowUpRight,
   Network,
-  Briefcase
+  Activity
 } from 'lucide-react'
-import { dummyProject, dummyActors, getNextMove } from '../data/dummyData'
+import { dummyProject, dummyActors, dummyRisks, getNextMove } from '../data/dummyData'
 
 interface TodayScreenProps {
-  onNewProject: () => void
   onOpenTwin: () => void
+  onNewInput: () => void
 }
 
-export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenProps) {
+export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps) {
   const nextMove = getNextMove()
   const targetActor = dummyActors.find(a => a.id === nextMove.targetActor)
 
   return (
     <div className="space-y-6 animate-in">
       
-      {/* HERO: Next Move + Proof */}
-      
+      {/* HERO: Next Move + Dependency Preview */}
       <section className="card-hero p-10 md:p-14">
-        <div className="grid-12">
+        <div className="grid-12 gap-8">
           
           {/* Links: Next Move */}
           <div className="col-7 flex flex-col justify-center">
@@ -67,15 +64,13 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
                 <Zap className="w-5 h-5 transition-transform group-hover:scale-110" />
                 Project Twin öffnen
               </button>
-              <button onClick={onNewProject} className="btn-secondary">
-                <Plus className="w-5 h-5" />
-                Neues Projekt
+              <button onClick={onNewInput} className="btn-secondary">
+                Neuer Input
               </button>
             </div>
           </div>
 
-          {/* Rechts: Dependency Proof */}
-          
+          {/* Rechts: Dependency Preview */}
           <div className="col-5">
             <div className="card-glass p-6 h-full">
               <div className="flex items-center justify-between mb-6">
@@ -86,43 +81,27 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
                 <span className="label">Simulation</span>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+              <div className="flex items-center justify-center gap-2 mb-6">
                 <DiagramNode
-                  icon={<User className="w-5 h-5" />}
+                  icon={<User className="w-4 h-4" />}
                   title="Steuerberater"
-                  subtitle="liefert BWA"
                   status="normal"
-                  delay="0s"
                 />
 
-                <DiagramConnector />
+                <ChevronRight className="w-4 h-4 text-zinc-600" />
 
                 <DiagramNode
-                  icon={<FileText className="w-5 h-5" />}
+                  icon={<FileText className="w-4 h-4" />}
                   title="BWA"
-                  subtitle="Fehlt"
                   status="blocked"
-                  delay="0.1s"
                 />
 
-                <DiagramConnector />
+                <ChevronRight className="w-4 h-4 text-zinc-600" />
 
                 <DiagramNode
-                  icon={<Landmark className="w-5 h-5" />}
+                  icon={<Landmark className="w-4 h-4" />}
                   title="Bank"
-                  subtitle="Prüfung"
-                  status="normal"
-                  delay="0.2s"
-                />
-
-                <DiagramConnector />
-
-                <DiagramNode
-                  icon={<Building2 className="w-5 h-5" />}
-                  title="Zusage"
-                  subtitle="Finanzierung"
-                  status="goal"
-                  delay="0.3s"
+                  status="waiting"
                 />
               </div>
 
@@ -140,90 +119,61 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
         </div>
       </section>
 
-      {/* SYSTEM STATUS: Kompakt */}
-      
-      <section>
-        <div className="grid-12">
-          <div className="col-3">
-            <StatusMicro icon={<Briefcase className="w-4 h-4" />} value="1" label="Projekte" />
-          </div>
-          <div className="col-3">
-            <StatusMicro icon={<Clock className="w-4 h-4" />} value="1" label="Offen" />
-          </div>
-          <div className="col-3">
-            <StatusMicro icon={<AlertTriangle className="w-4 h-4 text-[#ef4444]" />} value="3" label="Risiken" />
-          </div>
-          <div className="col-3">
-            <StatusMicro icon={<Target className="w-4 h-4 text-[#ef4444]" />} value="1" label="Blocker" />
-          </div>
-        </div>
-      </section>
-
-      {/* FOCUS PROJECT */}
-      
-      <section>
-        <div className="label mb-4">Aktives Projekt</div>
-        
-        <div className="card-focus p-8 md:p-10">
-          <div className="grid-12 gap-8">
+      {/* Active Project + Systemstatus */}
+      <div className="grid-12 gap-6">
+        {/* Active Project */}
+        <div className="col-8">
+          <section className="card-focus p-6">
+            <div className="label mb-4">Aktives Projekt</div>
             
-            <div className="col-7">
-              <div className="flex items-center gap-4 mb-5">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#8338ec] to-[#ff006e] flex items-center justify-center shadow-lg group cursor-pointer transition-transform hover:scale-105">
-                  <Building2 className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold">{dummyProject.name}</h3>
-                  <p className="text-zinc-500">{dummyProject.goal}</p>
-                </div>
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8338ec] to-[#ff006e] flex items-center justify-center shadow-lg">
+                <Building2 className="w-7 h-7 text-white" />
               </div>
-
-              <div className="flex flex-wrap gap-2 mb-6">
-                <span className="label label-blocked">Blockiert</span>
-                <span className="label">1 offene Aktion</span>
-                <span className="label">3 Risiken</span>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-[#0a0a0c] border border-white/5 mb-5">
-                <div className="text-xs text-zinc-500 mb-2 uppercase tracking-wider">Nächster Hebel</div>
-                <div className="text-lg font-semibold">Steuerberater Müller anschreiben</div>
-              </div>
-
-              <button onClick={onOpenTwin} className="btn-ghost group">
-                Öffnen
-                <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-              </button>
-            </div>
-
-            
-            <div className="col-5 border-l border-white/10 pl-8">
-              <div className="text-xs text-zinc-500 mb-4 uppercase tracking-wider">Kritischer Pfad</div>
               
-              <div className="space-y-3 mb-6">
-                <FlowStep icon={<FileText className="w-4 h-4" />} label="BWA" status="blocked" />
-                <div className="pl-5 border-l-2 border-zinc-800">
-                  <FlowStep icon={<Landmark className="w-4 h-4" />} label="Bankprüfung" status="waiting" />
-                </div>
-                <div className="pl-5 border-l-2 border-zinc-800">
-                  <FlowStep icon={<Building2 className="w-4 h-4" />} label="Zusage" status="waiting" />
-                </div>
-              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold mb-1">{dummyProject.name}</h3>
+                <p className="text-zinc-500 mb-4">{dummyProject.goal}</p>
 
-              <div className="space-y-3 pt-5 border-t border-white/5">
-                <StatRow label="Projektlast" value="8.0" />
-                <StatRow label="Blocker" value="BWA fehlt" highlight />
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <span className="label label-blocked">Blockiert</span>
+                  <span className="label">1 offene Aktion</span>
+                  <span className="label">{dummyRisks.length} Risiken</span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-[#0a0a0c] border border-white/5">
+                  <div className="text-xs text-zinc-500 mb-1 uppercase tracking-wider">Nächster Hebel</div>
+                  <div className="font-semibold">Steuerberater Müller anschreiben</div>
+                </div>
               </div>
             </div>
-          </div>
+          </section>
         </div>
-      </section>
+
+        {/* Systemstatus */}
+        <div className="col-4">
+          <section className="card-glass p-6 h-full">
+            <div className="flex items-center gap-2 mb-5">
+              <Activity className="w-4 h-4 text-zinc-500" />
+              <span className="text-sm font-medium">Systemstatus</span>
+            </div>
+
+            <div className="space-y-3">
+              <StatusRow label="Aktive Projekte" value="1" />
+              <StatusRow label="Offene Aktionen" value="1" />
+              <StatusRow label="Risiken" value="3" highlight />
+              <StatusRow label="Blocker" value="1" danger />
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   )
 }
 
 /* Components */
 
-function Pill({ icon, label, value, type }: { 
+function Pill({ icon, label, value, type }: {
   icon: React.ReactNode; 
   label: string; 
   value: string; 
@@ -244,70 +194,45 @@ function Pill({ icon, label, value, type }: {
   )
 }
 
-function DiagramNode({ icon, title, subtitle, status, delay }: { 
+function DiagramNode({ icon, title, status }: { 
   icon: React.ReactNode; 
   title: string; 
-  subtitle: string; 
-  status: 'normal' | 'blocked' | 'goal';
-  delay?: string;
+  status: 'normal' | 'blocked' | 'waiting'
 }) {
   const statusClasses = {
-    normal: '',
-    blocked: 'diagram-node-blocked',
-    goal: 'diagram-node-goal'
+    normal: 'border-white/10 bg-white/[0.03]',
+    blocked: 'border-[#ef4444]/40 bg-[#ef4444]/[0.05]',
+    waiting: 'border-white/10 bg-white/[0.03]'
+  }
+
+  const iconStyles = {
+    normal: 'bg-white/5 text-zinc-400',
+    blocked: 'bg-[#ef4444]/10 text-[#ef4444]',
+    waiting: 'bg-white/5 text-zinc-400'
   }
 
   return (
-    <div className={`diagram-node ${statusClasses[status]}`} style={{ animationDelay: delay }}>
-      <div className="diagram-icon">
+    <div className={`flex flex-col items-center gap-2 p-3 rounded-xl border ${statusClasses[status]}`}>
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconStyles[status]}`}>
         {icon}
       </div>
-      <div className="font-semibold text-sm">{title}</div>
-      <div className="text-xs text-zinc-500">{subtitle}</div>
+      <div className="text-xs font-medium">{title}</div>
     </div>
   )
 }
 
-function DiagramConnector() {
+function StatusRow({ label, value, highlight, danger }: { 
+  label: string; 
+  value: string; 
+  highlight?: boolean;
+  danger?: boolean;
+}) {
   return (
-    <div className="diagram-connector">
-      <div className="diagram-connector-line" />
-      <ChevronRight className="w-4 h-4" />
-    </div>
-  )
-}
-
-function StatusMicro({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
-  return (
-    <div className="status-micro">
-      <div className="text-zinc-500">{icon}</div>
-      <div>
-        <div className="status-micro-value">{value}</div>
-        <div className="status-micro-label">{label}</div>
-      </div>
-    </div>
-  )
-}
-
-function FlowStep({ icon, label, status }: { icon: React.ReactNode; label: string; status: 'blocked' | 'waiting' }) {
-  const colors = {
-    blocked: 'text-[#ef4444]',
-    waiting: 'text-zinc-500'
-  }
-
-  return (
-    <div className={`flex items-center gap-2 text-sm ${colors[status]}`}>
-      {icon}
-      <span className={status === 'blocked' ? 'font-semibold' : ''}>{label}</span>
-    </div>
-  )
-}
-
-function StatRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="flex justify-between text-sm">
-      <span className="text-zinc-500">{label}</span>
-      <span className={highlight ? 'text-[#ef4444] font-semibold' : 'font-medium'}>{value}</span>
+    <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+      <span className="text-sm text-zinc-500">{label}</span>
+      <span className={`font-semibold ${danger ? 'text-[#ef4444]' : highlight ? 'text-amber-400' : ''}`}>
+        {value}
+      </span>
     </div>
   )
 }
