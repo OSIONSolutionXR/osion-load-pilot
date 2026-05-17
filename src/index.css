@@ -1,77 +1,184 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   * {
-    @apply border-osion-surfaceLight;
+    @apply border-gray-200;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
   
-  body {
-    @apply bg-osion-black text-white antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+  html, body, #root {
+    @apply bg-white text-black;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Monospace for data/code elements */
+  .font-mono {
+    font-family: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
   }
 }
 
 @layer components {
-  .glass {
-    @apply bg-osion-surface/80 backdrop-blur-xl border border-osion-surfaceLight;
+  /* MiroFish-inspired Cards */
+  .card {
+    @apply bg-white border border-black rounded-none p-6 
+           hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
+           transition-all duration-200;
   }
   
-  .glass-panel {
-    @apply bg-osion-surface/60 backdrop-blur-md border border-osion-surfaceLight rounded-2xl;
+  .card-filled {
+    @apply bg-black text-white border border-black p-6
+           hover:bg-gray-900 transition-colors;
   }
   
+  /* MiroFish Buttons */
   .btn-primary {
-    @apply px-6 py-3 bg-gradient-to-r from-osion-violet to-osion-rose 
-           rounded-xl font-semibold text-white 
-           hover:opacity-90 transition-opacity
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-6 py-3 bg-black text-white font-mono text-sm
+           border border-black
+           hover:bg-gray-800 hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)]
+           active:shadow-none active:translate-x-[3px] active:translate-y-[3px]
+           transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed
+           disabled:hover:shadow-none disabled:active:translate-x-0 disabled:active:translate-y-0;
   }
   
   .btn-secondary {
-    @apply px-6 py-3 bg-osion-surfaceLight rounded-xl font-medium
-           hover:bg-osion-surface transition-colors;
+    @apply px-6 py-3 bg-white text-black font-mono text-sm
+           border border-black
+           hover:bg-gray-50 hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]
+           active:shadow-none active:translate-x-[3px] active:translate-y-[3px]
+           transition-all duration-150;
   }
   
-  .input-dark {
-    @apply w-full px-4 py-3 bg-osion-surface border border-osion-surfaceLight 
-           rounded-xl text-white placeholder-gray-500
-           focus:outline-none focus:border-osion-violet focus:ring-1 focus:ring-osion-violet;
+  .btn-ghost {
+    @apply px-4 py-2 text-black font-mono text-sm
+           border-b-2 border-transparent
+           hover:border-black
+           transition-all duration-150;
   }
   
-  .node-actor {
-    @apply glass-panel p-4 flex items-center gap-3 
-           hover:border-osion-violet/50 transition-colors cursor-pointer;
+  /* MiroFish Inputs */
+  .input-mono {
+    @apply w-full px-4 py-3 bg-white border-2 border-black 
+           font-mono text-sm
+           placeholder:text-gray-400
+           focus:outline-none focus:bg-gray-50
+           transition-colors;
   }
   
-  .node-project {
-    @apply glass-panel p-4 border-l-4 border-l-osion-violet;
+  .input-mono:focus {
+    box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
   }
   
-  .node-blocker {
-    @apply glass-panel p-4 border-l-4 border-l-osion-rose;
+  /* MiroFish Labels/Tags */
+  .tag {
+    @apply inline-flex items-center px-3 py-1 
+           border border-black font-mono text-xs
+           bg-white;
   }
   
-  .priority-high { @apply text-osion-rose; }
-  .priority-medium { @apply text-osion-amber; }
-  .priority-low { @apply text-osion-green; }
+  .tag-filled {
+    @apply inline-flex items-center px-3 py-1 
+           border border-black font-mono text-xs
+           bg-black text-white;
+  }
+  
+  /* MiroFish Nodes (for Graph) */
+  .node {
+    @apply border-2 border-black bg-white p-4
+           font-mono text-sm
+           hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+           hover:-translate-x-[2px] hover:-translate-y-[2px]
+           transition-all duration-150 cursor-pointer;
+  }
+  
+  .node-active {
+    @apply border-2 border-black bg-black text-white p-4
+           font-mono text-sm
+           shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)];
+  }
+  
+  .node-blocked {
+    @apply border-2 border-black bg-gray-100 p-4
+           font-mono text-sm opacity-60;
+  }
+  
+  /* Priority indicators */
+  .priority-critical {
+    @apply text-black font-bold;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.1) 2px,
+      rgba(0,0,0,0.1) 4px
+    );
+  }
+  
+  .priority-high {
+    @apply border-l-4 border-l-black pl-3;
+  }
+  
+  .priority-medium {
+    @apply border-l-2 border-l-gray-400 pl-3;
+  }
+  
+  /* MiroFish Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-black;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-700;
+  }
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Utility classes */
+.grid-mono {
+  font-family: 'JetBrains Mono', monospace;
 }
 
-::-webkit-scrollbar-track {
-  @apply bg-osion-black;
+.border-brutal {
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
 }
 
-::-webkit-scrollbar-thumb {
-  @apply bg-osion-surfaceLight rounded-full;
+.border-brutal-hover:hover {
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+  transform: translate(-2px, -2px);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-osion-violet;
+/* Animation for loading states */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Scanline effect (MiroFish style) */
+.scanlines {
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.03) 50%,
+    rgba(0,0,0,0.03) 50%
+  );
+  background-size: 100% 4px;
 }

@@ -8,97 +8,83 @@ interface TwinScreenProps {
 
 export default function TwinScreen({ onNextMove, onBack }: TwinScreenProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-b-2 border-black pb-4">
         <div>
-          <h2 className="text-2xl font-bold">Project Twin</h2>
-          <p className="text-gray-400 text-sm">Abhängigkeiten & Simulation</p>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="tag">SCHRITT 2/4</span>
+          </div>
+          <h2 className="font-mono font-bold text-3xl">PROJECT TWIN</h2>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onBack} className="btn-secondary flex items-center gap-2">
             <ArrowLeft className="w-4 h-4" />
-            Zurück
+            ZURÜCK
           </button>
           <button onClick={onNextMove} className="btn-primary flex items-center gap-2">
-            Nächster Schritt
+            NÄCHSTER SCHRITT
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Dependency Graph Visualization */}
-      <div className="glass-panel p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <GitGraph className="w-5 h-5 text-osion-violet" />
-          <h3 className="font-semibold">Dependency Graph</h3>
+      {/* Dependency Graph */}
+      <div className="card">
+        <div className="flex items-center gap-2 mb-6 border-b-2 border-black pb-2">
+          <GitGraph className="w-5 h-5" />
+          <span className="font-mono font-bold">DEPENDENCY GRAPH</span>
         </div>
 
-        {/* Visual Graph */}
-        <div className="relative">
+        {/* Vertical Graph Layout */}
+        <div className="space-y-6">
           {/* Steuerberater */}
-          <div className="flex justify-center mb-8">
+          <div className="flex justify-center">
             <ActorNode actor={dummyActors[2]} status="waiting" />
           </div>
 
-          {/* Arrow down */}
-          <div className="flex justify-center mb-8">
-            <div className="flex flex-col items-center text-osion-rose">
-              <span className="text-xs mb-1">liefert BWA</span>
-              <ArrowRight className="w-5 h-5 rotate-90" />
-            </div>
+          {/* Arrow */}
+          <div className="flex justify-center">
+            <ArrowDown label="liefert BWA" />
           </div>
 
-          {/* Martin & BWA */}
-          <div className="flex justify-center gap-16 mb-8">
+          {/* Martin & BWA Block */}
+          <div className="flex justify-center gap-8">
             <ActorNode actor={dummyActors[0]} status="blocked" />
-            <div className="glass-panel p-4 border border-osion-rose/50 bg-osion-rose/5">
-              <div className="text-center">
-                <div className="text-2xl mb-2">📄</div>
-                <div className="font-medium text-sm">BWA</div>
-                <div className="text-xs text-osion-rose">Fehlt</div>
-              </div>
-            </div>
+            <BlockerNode 
+              icon="📄" 
+              title="BWA" 
+              subtitle="Fehlt" 
+            />
           </div>
 
           {/* Arrow to Bank */}
-          <div className="flex justify-center mb-8">
-            <div className="flex items-center gap-4 text-osion-rose">
-              <span className="text-xs">wartet auf</span>
-              <ArrowRight className="w-5 h-5 rotate-90" />
-            </div>
+          <div className="flex justify-center">
+            <ArrowDown label="wartet auf" />
           </div>
 
           {/* Bank */}
-          <div className="flex justify-center mb-8">
+          <div className="flex justify-center">
             <ActorNode actor={dummyActors[1]} status="waiting" />
           </div>
 
-          {/* Arrow to Zusage */}
-          <div className="flex justify-center mb-8">
-            <div className="flex items-center gap-4 text-osion-amber">
-              <span className="text-xs">Prüfung</span>
-              <ArrowRight className="w-5 h-5 rotate-90" />
-              <span className="text-xs">3-5 Tage</span>
-            </div>
+          {/* Arrow to Goal */}
+          <div className="flex justify-center">
+            <ArrowDown label="3-5 Tage Prüfung" />
           </div>
 
           {/* Project Goal */}
-          <div className="flex justify-center mb-8">
-            <div className="glass-panel p-6 border-l-4 border-l-osion-violet text-center max-w-sm">
-              <div className="text-2xl mb-2">🏦</div>
-              <div className="font-bold mb-1">Zusage Bankfinanzierung</div>
-              <div className="text-sm text-gray-400">KS19 Sanierung</div>
-            </div>
+          <div className="flex justify-center">
+            <GoalNode 
+              icon="🏦" 
+              title="Zusage Bankfinanzierung" 
+              subtitle="KS19 Sanierung" 
+            />
           </div>
 
-          {/* Arrow to Verkäufer */}
-          <div className="flex justify-center mb-8">
-            <div className="flex items-center gap-4 text-osion-rose">
-              <AlertTriangle className="w-4 h-4" />
-              <span className="text-xs">Deadline: Freitag</span>
-              <ArrowRight className="w-5 h-5 rotate-90" />
-            </div>
+          {/* Arrow to Deadline */}
+          <div className="flex justify-center">
+            <ArrowDown label="⚠️ Deadline: Freitag" />
           </div>
 
           {/* Verkäufer */}
@@ -108,92 +94,110 @@ export default function TwinScreen({ onNextMove, onBack }: TwinScreenProps) {
         </div>
       </div>
 
-      {/* Risk Section */}
-      <div className="glass-panel p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle className="w-5 h-5 text-osion-rose" />
-          <h3 className="font-semibold">Simulierte Risiken</h3>
+      {/* Risks */}
+      <div className="card border-l-4 border-l-osion-red">
+        <div className="flex items-center gap-2 mb-4 border-b-2 border-black pb-2">
+          <AlertTriangle className="w-5 h-5 text-osion-red" />
+          <span className="font-mono font-bold">SIMULIERTE RISIKEN</span>
         </div>
 
-        <div className="space-y-3">
+        <div className="grid grid-cols-3 gap-4">
           {dummyRisks.map((risk) => (
-            <div key={risk.id} className="p-4 bg-osion-rose/5 border border-osion-rose/20 rounded-xl">
-              <div className="flex items-start justify-between mb-2">
-                <div className="font-medium">{risk.description}</div>
-                <RiskBadge probability={risk.probability} impact={risk.impact} />
-              </div>
-              <div className="text-sm text-gray-400 mb-2">Wenn: {risk.timeline}</div>
-              <div className="text-xs">
-                <span className="text-osion-green">Lösung:</span> {risk.mitigation[0]}
-              </div>
+            <div key={risk.id} className="p-4 border-2 border-black">
+              <div className="font-mono text-xs text-gray-400 mb-2">RISIKO #{risk.id.split('-')[1]}</div>
+              <div className="font-mono font-bold text-sm mb-3">{risk.description}</div>
+              <div className="font-mono text-xs text-gray-500 mb-2">WENN: {risk.timeline}</div>
+              <RiskBadge probability={risk.probability} impact={risk.impact} />
             </div>
           ))}
         </div>
       </div>
 
-      {/* Key Metrics */}
+      {/* Metrics */}
       <div className="grid grid-cols-4 gap-4">
-        <MetricCard icon={<Users className="w-5 h-5" />} value="5" label="Actoren" color="violet" />
-        <MetricCard icon={<GitGraph className="w-5 h-5" />} value="4" label="Dependencies" color="rose" />
-        <MetricCard icon={<Clock className="w-5 h-5" />} value="5 Tg" label="Krit. Pfad" color="amber" />
-        <MetricCard icon={<AlertTriangle className="w-5 h-5" />} value="3" label="Risiken" color="rose" />
+        <MetricCard icon={<Users className="w-5 h-5" />} value="5" label="ACTOREN" />
+        <MetricCard icon={<GitGraph className="w-5 h-5" />} value="4" label="DEPS" />
+        <MetricCard icon={<Clock className="w-5 h-5" />} value="5T" label="KRIT. PFAD" />
+        <MetricCard icon={<AlertTriangle className="w-5 h-5" />} value="3" label="RISIKEN" />
       </div>
     </div>
   )
 }
 
 function ActorNode({ actor, status }: { actor: typeof dummyActors[0]; status: 'waiting' | 'blocked' | 'urgent' }) {
-  const statusColors = {
-    waiting: 'border-osion-amber/50',
-    blocked: 'border-osion-rose/50 bg-osion-rose/5',
-    urgent: 'border-osion-rose animate-pulse',
+  const styles = {
+    waiting: 'border-2 border-black bg-white',
+    blocked: 'border-2 border-osion-red bg-osion-red/5',
+    urgent: 'border-2 border-osion-red bg-black text-white',
   }
 
   return (
-    <div className={`glass-panel p-4 text-center min-w-[140px] ${statusColors[status]}`}>
+    <div className={`p-4 text-center min-w-[160px] ${styles[status]}`}>
       <div className="text-3xl mb-2">{actor.avatar}</div>
-      <div className="font-medium text-sm truncate">{actor.name}</div>
-      <div className="text-xs text-gray-500">{actor.role}</div>
+      <div className="font-mono font-bold text-sm">{actor.name}</div>
+      <div className="font-mono text-xs opacity-60">{actor.role}</div>
+    </div>
+  )
+}
+
+function BlockerNode({ icon, title, subtitle }: { icon: string; title: string; subtitle: string }) {
+  return (
+    <div className="p-4 text-center min-w-[120px] border-2 border-osion-red bg-osion-red/5">
+      <div className="text-2xl mb-1">{icon}</div>
+      <div className="font-mono font-bold text-sm">{title}</div>
+      <div className="font-mono text-xs text-osion-red">{subtitle}</div>
+    </div>
+  )
+}
+
+function GoalNode({ icon, title, subtitle }: { icon: string; title: string; subtitle: string }) {
+  return (
+    <div className="p-6 text-center border-l-4 border-l-osion-red bg-black text-white min-w-[240px]">
+      <div className="text-3xl mb-2">{icon}</div>
+      <div className="font-mono font-bold mb-1">{title}</div>
+      <div className="font-mono text-sm opacity-60">{subtitle}</div>
+    </div>
+  )
+}
+
+function ArrowDown({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="font-mono text-xs text-gray-400 mb-1">{label}</span>
+      <ArrowRight className="w-5 h-5 rotate-90 text-gray-400" />
     </div>
   )
 }
 
 function RiskBadge({ probability, impact }: { probability: number; impact: number }) {
   const combined = probability * impact
-  let color = 'bg-osion-green/20 text-osion-green'
-  let label = 'Niedrig'
+  let style = 'bg-gray-100 text-gray-600'
+  let label = 'NIEDRIG'
 
   if (combined > 4) {
-    color = 'bg-osion-amber/20 text-osion-amber'
-    label = 'Mittel'
+    style = 'border-2 border-black'
+    label = 'MITTEL'
   }
   if (combined > 6) {
-    color = 'bg-osion-rose/20 text-osion-rose'
-    label = 'Hoch'
+    style = 'bg-osion-red text-white'
+    label = 'HOCH'
   }
 
   return (
-    <span className={`px-2 py-1 rounded text-xs font-medium ${color}`}>
+    <span className={`inline-block px-2 py-1 font-mono text-xs ${style}`}>
       {label} ({Math.round(probability * 100)}% × {impact})
     </span>
   )
 }
 
-function MetricCard({ icon, value, label, color }: { icon: React.ReactNode; value: string; label: string; color: string }) {
-  const colorClasses: Record<string, string> = {
-    violet: 'text-osion-violet bg-osion-violet/10',
-    rose: 'text-osion-rose bg-osion-rose/10',
-    amber: 'text-osion-amber bg-osion-amber/10',
-    green: 'text-osion-green bg-osion-green/10',
-  }
-
+function MetricCard({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
   return (
-    <div className="glass-panel p-4 text-center">
-      <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg mb-2 ${colorClasses[color]}`}>
+    <div className="card text-center py-6">
+      <div className="inline-flex items-center justify-center w-12 h-12 bg-black text-white mb-3">
         {icon}
       </div>
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs text-gray-500">{label}</div>
+      <div className="font-mono text-3xl font-bold mb-1">{value}</div>
+      <div className="font-mono text-xs text-gray-500">{label}</div>
     </div>
   )
 }

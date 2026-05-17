@@ -1,5 +1,5 @@
-import { Check, ArrowLeft, Mail, Clock, Zap, Target, Calendar } from 'lucide-react'
-import { dummyActions, dummyActors, formatPriority, formatEffort, formatImpact, getNextMove } from '../data/dummyData'
+import { Check, ArrowLeft, Mail, Clock, Zap, Target, Calendar, Copy } from 'lucide-react'
+import { dummyActions, dummyActors, formatPriority, getNextMove } from '../data/dummyData'
 import { useState } from 'react'
 
 interface NextMoveScreenProps {
@@ -13,71 +13,86 @@ export default function NextMoveScreen({ onDone, onBack }: NextMoveScreenProps) 
   const [done, setDone] = useState(false)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Dein nächster Schritt</h2>
-        <p className="text-gray-400">Optimale Aktion basierend auf Simulation</p>
+      <div className="flex items-center justify-between border-b-2 border-black pb-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="tag">SCHRITT 3/4</span>
+          </div>
+          <h2 className="font-mono font-bold text-3xl">DEIN NÄCHSTER SCHRITT</h2>
+        </div>
+        <div className="tag-filled bg-osion-red flex items-center gap-2">
+          <Zap className="w-4 h-4" />
+          EMPFOHLEN
+        </div>
       </div>
 
-      {/* Priority Badge */}
+      {/* Priority */}
       <div className="flex justify-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-osion-rose/20 text-osion-rose rounded-full font-medium">
-          <Zap className="w-5 h-5" />
-          {formatPriority(nextMove.priority)}
+        <div className="text-center">
+          <div className="font-mono text-6xl font-bold">{nextMove.priority}</div>
+          <div className="font-mono text-sm text-gray-500">PRIORITY SCORE</div>
         </div>
       </div>
 
       {/* Main Action Card */}
-      <div className="glass-panel p-8 border-2 border-osion-violet/50">
-        <div className="text-center mb-6">
-          <div className="text-6xl mb-4">⚡</div>
-          <h3 className="text-xl font-bold mb-2">{nextMove.description}</h3>
-          <div className="flex items-center justify-center gap-2 text-gray-400">
+      <div className="card border-2 border-osion-red">
+        <div className="text-center mb-8">
+          <div className="w-24 h-24 bg-black text-white flex items-center justify-center mx-auto mb-4 text-4xl shadow-[8px_8px_0px_0px_#dc2626]">
+            ⚡
+          </div>
+          
+          <h3 className="font-mono font-bold text-2xl mb-2">{nextMove.description}</h3>
+          <div className="flex items-center justify-center gap-2 font-mono text-gray-600">
             <Target className="w-4 h-4" />
-            <span>Ziel: {targetActor?.name}</span>
+            <span>ZIEL: {targetActor?.name}</span>
           </div>
         </div>
 
-        {/* Metrics */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
           <MetricBox
             icon={<Clock className="w-5 h-5" />}
-            value={formatEffort(nextMove.effort)}
-            label="Aufwand"
+            value={nextMove.effort.toUpperCase()}
+            label="AUFWAND"
           />
           <MetricBox
             icon={<Target className="w-5 h-5" />}
-            value={formatImpact(nextMove.impact)}
-            label="Impact"
+            value={nextMove.impact.toUpperCase()}
+            label="IMPACT"
           />
           <MetricBox
             icon={<Calendar className="w-5 h-5" />}
-            value={nextMove.deadline ? 'Heute' : 'Flexibel'}
-            label="Zeit"
+            value={nextMove.deadline ? 'HEUTE' : 'FLEXIBEL'}
+            label="ZEIT"
           />
         </div>
 
-        {/* Template Preview */}
-        {nextMove.template && (
-          <div className="bg-osion-black/50 rounded-xl p-4 mb-6">
-            <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
-              <Mail className="w-4 h-4" />
-              <span>Vorgeschlagene Nachricht</span>
+        {/* Email Template */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Mail className="w-4 h-4 text-gray-400" />
+              <span className="font-mono text-xs text-gray-500">VORGESCHLAGENE NACHRICHT</span>
             </div>
-            <div className="text-sm leading-relaxed text-gray-300">
-              <p className="mb-2">Betreff: BWA für Bankfinanzierung – dringend benötigt</p>
-              <p className="mb-2">Sehr geehrter Herr Müller,</p>
-              <p className="mb-2">
-                für die Bankfinanzierung des Objekts Kirchstraße 19 benötige ich die aktuelle BWA
-                bis spätestens Mittwoch. Die Bank hat die Prüfung bereits begonnen und wartet
-                auf die Unterlagen.
-              </p>
-              <p>Könnten Sie mir die BWA bis Dienstagabend zukommen lassen?</p>
-              <p className="mt-2">Mit freundlichen Grüßen<br />Martin</p>
-            </div>
+            <button className="btn-ghost flex items-center gap-1 text-xs">
+              <Copy className="w-3 h-3" />
+              Kopieren
+            </button>
           </div>
-        )}
+          
+          <div className="bg-gray-50 border-2 border-black p-4 font-mono text-sm">
+            <p className="font-bold mb-2">Betreff: BWA für Bankfinanzierung – dringend benötigt</p>
+            <p className="mb-2">Sehr geehrter Herr Müller,</p>
+            <p className="mb-2">
+              für die Bankfinanzierung des Objekts Kirchstraße 19 benötige ich die aktuelle BWA
+              bis spätestens Mittwoch.
+            </p>
+            <p className="mb-2">Könnten Sie mir die BWA bis Dienstagabend zukommen lassen?</p>
+            <p>mit freundlichen Grüßen<br />Martin</p>
+          </div>
+        </div>
 
         {/* Action Buttons */}
         {!done ? (
@@ -87,39 +102,38 @@ export default function NextMoveScreen({ onDone, onBack }: NextMoveScreenProps) 
               className="btn-primary flex-1 flex items-center justify-center gap-2"
             >
               <Check className="w-5 h-5" />
-              Als erledigt markieren
+              ALS ERLEDIGT MARKIEREN
             </button>
             <button
-              onClick={() => window.open(`mailto:${targetActor?.contact}`)}
               className="btn-secondary flex items-center justify-center gap-2"
             >
               <Mail className="w-5 h-5" />
-              Öffnen
+              ÖFFNEN
             </button>
           </div>
         ) : (
-          <div className="text-center p-4 bg-osion-green/20 text-osion-green rounded-xl">
-            ✅ Erledigt! Nächster Schritt wird berechnet...
+          <div className="text-center p-4 bg-black text-white font-mono">
+            ✅ ERLEDIGT! NÄCHSTER SCHRITT WIRD BERECHNET...
           </div>
         )}
       </div>
 
       {/* Alternative Actions */}
-      <div className="glass-panel p-6">
-        <h3 className="font-semibold mb-4">Weitere Optionen</h3>
+      <div className="card">
+        <div className="font-mono font-bold mb-4 border-b-2 border-black pb-2">WEITERE OPTIONEN</div>
         <div className="space-y-3">
           {dummyActions.filter(a => a.id !== nextMove.id).map(action => {
             const actor = dummyActors.find(a => a.id === action.targetActor)
             return (
-              <div key={action.id} className="flex items-center gap-4 p-3 bg-osion-surface rounded-lg opacity-60">
+              <div key={action.id} className="flex items-center gap-4 p-3 border-2 border-gray-200 opacity-60">
                 <div className="text-2xl">{actor?.avatar}</div>
                 <div className="flex-1">
-                  <div className="font-medium text-sm">{action.description}</div>
-                  <div className="text-xs text-gray-500">
-                    {actor?.name} • {formatImpact(action.impact)}
+                  <div className="font-mono font-bold text-sm">{action.description}</div>
+                  <div className="font-mono text-xs text-gray-500">
+                    {actor?.name} • {action.impact.toUpperCase()}
                   </div>
                 </div>
-                <div className="text-xs text-gray-500">Prio: {action.priority}</div>
+                <div className="font-mono text-xs text-gray-500">P{action.priority}</div>
               </div>
             )
           })}
@@ -130,10 +144,10 @@ export default function NextMoveScreen({ onDone, onBack }: NextMoveScreenProps) 
       <div className="flex justify-between">
         <button onClick={onBack} className="btn-secondary flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" />
-          Zurück zum Graph
+          ZURÜCK ZUM GRAPH
         </button>
         <button onClick={onDone} className="btn-primary flex items-center gap-2">
-          Zur Today-Ansicht
+          ZUR TODAY-ANSICHT
           <Check className="w-4 h-4" />
         </button>
       </div>
@@ -143,10 +157,10 @@ export default function NextMoveScreen({ onDone, onBack }: NextMoveScreenProps) 
 
 function MetricBox({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
   return (
-    <div className="text-center p-3 bg-osion-surface rounded-lg">
-      <div className="flex justify-center text-gray-400 mb-1">{icon}</div>
-      <div className="font-semibold text-sm">{value}</div>
-      <div className="text-xs text-gray-500">{label}</div>
+    <div className="text-center p-4 border-2 border-black">
+      <div className="flex justify-center text-black mb-2">{icon}</div>
+      <div className="font-mono font-bold">{value}</div>
+      <div className="font-mono text-xs text-gray-500">{label}</div>
     </div>
   )
 }
