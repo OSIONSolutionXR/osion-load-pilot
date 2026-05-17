@@ -1,20 +1,20 @@
 import { 
   ArrowLeft,
-  ArrowRight, 
   AlertTriangle, 
   Users, 
-  Clock, 
   GitBranch,
   Landmark,
   FileText,
   Building2,
-  Target,
   Activity,
   Shield,
   Zap,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  User,
+  FileCheck,
+  Clock
 } from 'lucide-react'
 import { dummyProject, dummyActors, dummyRisks } from '../data/dummyData'
 
@@ -69,7 +69,7 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
         </div>
       </header>
 
-      {/* Main Dependency Graph */}
+      {/* Main Dependency Graph - Full Width Organigramm */}
       <section className="card-glass p-8 md:p-12">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
@@ -79,54 +79,71 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
           <p className="text-zinc-500">Systemische Abhängigkeiten im Projekt</p>
         </div>
 
-        <div className="flex items-center justify-center gap-4 flex-wrap mb-8">
-          <DependencyNode
-            icon={<Building2 className="w-6 h-6" />}
-            title="Steuerberater Müller"
-            subtitle="Wartet auf Handlung"
-            status="normal"
-          />
-          
-          <ArrowConnector />
-          
-          <DependencyNode
-            icon={<FileText className="w-6 h-6" />}
-            title="BWA"
-            subtitle="Fehlt"
-            status="blocked"
-            pulse
-          />
-          
-          <ArrowConnector />
-          
-          <DependencyNode
-            icon={<Landmark className="w-6 h-6" />}
-            title="Bankprüfung"
-            subtitle="Blockiert"
-            status="blocked"
-          />
-          
-          <ArrowConnector />
-          
-          <DependencyNode
-            icon={<Target className="w-6 h-6" />}
-            title="Finanzierungszusage"
-            subtitle="Nicht möglich"
-            status="waiting"
-          />
-          
-          <ArrowConnector />
-          
-          <DependencyNode
-            icon={<Shield className="w-6 h-6" />}
-            title="Verkäuferentscheidung"
-            subtitle="Gefährdet"
-            status="warning"
-          />
+        <div className="relative">
+          {/* SVG Verbindungslinien im Hintergrund */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+            <defs>
+              <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                <polygon points="0 0, 10 5, 0 10" fill="rgba(239,68,68,0.6)" />
+              </marker>
+              <marker id="arrowWhite" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                <polygon points="0 0, 10 5, 0 10" fill="rgba(255,255,255,0.3)" />
+              </marker>
+            </defs>
+            {/* Pfade zwischen Nodes */}
+            <path d="M 200 60 L 200 100" stroke="rgba(239,68,68,0.4)" strokeWidth="2" strokeDasharray="6,4" markerEnd="url(#arrowRed)" />
+            <path d="M 200 180 L 200 220" stroke="rgba(239,68,68,0.4)" strokeWidth="2" strokeDasharray="6,4" markerEnd="url(#arrowRed)" />
+            <path d="M 200 300 L 200 340" stroke="rgba(255,255,255,0.15)" strokeWidth="2" markerEnd="url(#arrowWhite)" />
+            <path d="M 200 420 L 200 460" stroke="rgba(255,255,255,0.15)" strokeWidth="2" markerEnd="url(#arrowWhite)" />
+          </svg>
+
+          {/* Organigramm Nodes - Vertikal zentriert */}
+          <div className="relative z-10 flex flex-col items-center gap-0 max-w-md mx-auto">
+            {/* Level 1: Steuerberater */}
+            <OrgNode
+              icon={<User className="w-5 h-5" />}
+              title="Steuerberater Müller"
+              subtitle="Wartet auf Handlung"
+              status="normal"
+            />
+
+            {/* Level 2: BWA (Blocker) */}
+            <OrgNode
+              icon={<FileText className="w-5 h-5" />}
+              title="BWA"
+              subtitle="Fehlt - Blockiert den Fluss"
+              status="blocked"
+              pulse
+            />
+
+            {/* Level 3: Bankprüfung */}
+            <OrgNode
+              icon={<Landmark className="w-5 h-5" />}
+              title="Bankprüfung"
+              subtitle="Kann nicht beginnen"
+              status="blocked"
+            />
+
+            {/* Level 4: Finanzierungszusage */}
+            <OrgNode
+              icon={<FileCheck className="w-5 h-5" />}
+              title="Finanzierungszusage"
+              subtitle="Nicht möglich"
+              status="waiting"
+            />
+
+            {/* Level 5: Verkäuferentscheidung */}
+            <OrgNode
+              icon={<Building2 className="w-5 h-5" />}
+              title="Verkäuferentscheidung"
+              subtitle="Wird gefährdet"
+              status="warning"
+            />
+          </div>
         </div>
 
         {/* Blocker Warning */}
-        <div className="p-5 rounded-2xl bg-[#ef4444]/5 border border-[#ef4444]/20 text-center">
+        <div className="p-5 rounded-2xl bg-[#ef4444]/5 border border-[#ef4444]/20 text-center mt-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <AlertTriangle className="w-5 h-5 text-[#ef4444]" />
             <span className="font-semibold">Kritischer Pfad blockiert</span>
@@ -249,32 +266,15 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
 
 /* Components */
 
-function StatusItem({ label, value, danger, urgent, warning }: { 
-  label: string
-  value: string
-  danger?: boolean
-  urgent?: boolean
-  warning?: boolean
-}) {
-  const colorClass = danger ? 'text-[#ef4444]' : urgent ? 'text-amber-400' : warning ? 'text-amber-400' : 'text-white'
-  
-  return (
-    <div>
-      <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{label}</div>
-      <div className={`font-semibold ${colorClass}`}>{value}</div>
-    </div>
-  )
-}
-
-function DependencyNode({ icon, title, subtitle, status, pulse }: { 
+function OrgNode({ icon, title, subtitle, status, pulse }: { 
   icon: React.ReactNode
   title: string
   subtitle: string
   status: 'normal' | 'blocked' | 'waiting' | 'warning'
   pulse?: boolean
 }) {
-  const statusStyles = {
-    normal: 'border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02]',
+  const statusClasses = {
+    normal: 'border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02]',
     blocked: 'border-[#ef4444]/40 bg-gradient-to-br from-[#ef4444]/10 to-[#ef4444]/5',
     waiting: 'border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02]',
     warning: 'border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-amber-500/5'
@@ -288,23 +288,33 @@ function DependencyNode({ icon, title, subtitle, status, pulse }: {
   }
 
   return (
-    <div className={`flex flex-col items-center gap-3 p-5 rounded-2xl border min-w-[160px] ${statusStyles[status]} ${pulse ? 'animate-pulse' : ''}`}>
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconStyles[status]}`}>
-        {icon}
-      </div>
-      <div className="text-center">
-        <div className="font-semibold text-sm">{title}</div>
-        <div className={`text-xs ${status === 'blocked' || status === 'warning' ? 'text-[#ef4444]' : 'text-zinc-500'}`}>{subtitle}</div>
+    <div className={`w-full p-4 rounded-xl border mb-4 ${statusClasses[status]} ${pulse ? 'animate-pulse' : ''} transition-all hover:scale-[1.02]`}>
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${iconStyles[status]}`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="font-semibold text-sm">{title}</div>
+          <div className={`text-xs ${status === 'blocked' ? 'text-[#ef4444]' : status === 'warning' ? 'text-amber-400' : 'text-zinc-500'}`}>{subtitle}</div>
+        </div>
       </div>
     </div>
   )
 }
 
-function ArrowConnector() {
+function StatusItem({ label, value, danger, urgent, warning }: { 
+  label: string
+  value: string
+  danger?: boolean
+  urgent?: boolean
+  warning?: boolean
+}) {
+  const colorClass = danger ? 'text-[#ef4444]' : urgent ? 'text-amber-400' : warning ? 'text-amber-400' : 'text-white'
+  
   return (
-    <div className="flex flex-col items-center">
-      <div className="w-8 h-px bg-gradient-to-r from-zinc-700 via-zinc-600 to-zinc-700" />
-      <ArrowRight className="w-4 h-4 text-zinc-600 -mt-2 bg-[#0a0a0c] px-1" />
+    <div>
+      <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{label}</div>
+      <div className={`font-semibold ${colorClass}`}>{value}</div>
     </div>
   )
 }

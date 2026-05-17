@@ -7,7 +7,6 @@ import {
   User,
   Landmark,
   FileText,
-  ChevronRight,
   Network,
   Activity
 } from 'lucide-react'
@@ -70,7 +69,7 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
             </div>
           </div>
 
-          {/* Rechts: Dependency Preview */}
+          {/* Rechts: Organigramm Preview */}
           <div className="col-5">
             <div className="card-glass p-6 h-full">
               <div className="flex items-center justify-between mb-6">
@@ -81,31 +80,51 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
                 <span className="label">Simulation</span>
               </div>
 
-              <div className="flex items-center justify-center gap-2 mb-6">
-                <DiagramNode
-                  icon={<User className="w-4 h-4" />}
-                  title="Steuerberater"
-                  status="normal"
-                />
+              {/* Organigramm mit Verbindungslinien */}
+              <div className="relative">
+                {/* SVG Verbindungslinien */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1, minHeight: '280px' }}>
+                  <defs>
+                    <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                      <polygon points="0 0, 8 4, 0 8" fill="rgba(255,255,255,0.2)" />
+                    </marker>
+                  </defs>
+                  {/* Linie: Steuerberater -> BWA */}
+                  <line x1="50%" y1="75" x2="50%" y2="135" stroke="rgba(239,68,68,0.5)" strokeWidth="2" markerEnd="url(#arrowhead)" />
+                  {/* Linie: BWA -> Bank */}
+                  <line x1="50%" y1="195" x2="50%" y2="255" stroke="rgba(255,255,255,0.15)" strokeWidth="2" markerEnd="url(#url(#arrowhead)" />
+                </svg>
 
-                <ChevronRight className="w-4 h-4 text-zinc-600" />
+                {/* Nodes */}
+                <div className="relative z-10 flex flex-col items-center gap-0">
+                  {/* Level 1: Steuerberater */}
+                  <OrgNode
+                    icon={<User className="w-4 h-4" />}
+                    title="Steuerberater Müller"
+                    subtitle="Wartet"
+                    status="normal"
+                  />
 
-                <DiagramNode
-                  icon={<FileText className="w-4 h-4" />}
-                  title="BWA"
-                  status="blocked"
-                />
+                  {/* Level 2: BWA (Blocker) */}
+                  <OrgNode
+                    icon={<FileText className="w-4 h-4" />}
+                    title="BWA"
+                    subtitle="Fehlt"
+                    status="blocked"
+                    pulse
+                  />
 
-                <ChevronRight className="w-4 h-4 text-zinc-600" />
-
-                <DiagramNode
-                  icon={<Landmark className="w-4 h-4" />}
-                  title="Bank"
-                  status="waiting"
-                />
+                  {/* Level 3: Bank */}
+                  <OrgNode
+                    icon={<Landmark className="w-4 h-4" />}
+                    title="Bank"
+                    subtitle="Prüfung"
+                    status="waiting"
+                  />
+                </div>
               </div>
 
-              <div className="risk-warning p-4">
+              <div className="risk-warning p-4 mt-4">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-[#ef4444] flex-shrink-0 mt-0.5" />
                   <div>
@@ -173,7 +192,41 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
 
 /* Components */
 
-function Pill({ icon, label, value, type }: {
+function OrgNode({ icon, title, subtitle, status, pulse }: { 
+  icon: React.ReactNode
+  title: string
+  subtitle: string
+  status: 'normal' | 'blocked' | 'waiting'
+  pulse?: boolean
+}) {
+  const statusClasses = {
+    normal: 'border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02]',
+    blocked: 'border-[#ef4444]/40 bg-gradient-to-br from-[#ef4444]/10 to-[#ef4444]/5',
+    waiting: 'border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02]'
+  }
+
+  const iconStyles = {
+    normal: 'bg-white/5 text-zinc-400',
+    blocked: 'bg-[#ef4444]/20 text-[#ef4444]',
+    waiting: 'bg-white/5 text-zinc-400'
+  }
+
+  return (
+    <div className={`w-full p-4 rounded-xl border ${statusClasses[status]} ${pulse ? 'animate-pulse' : ''} transition-all hover:scale-[1.02]`}>
+      <div className="flex items-center gap-3">
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${iconStyles[status]}`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="font-semibold text-sm truncate">{title}</div>
+          <div className={`text-xs ${status === 'blocked' ? 'text-[#ef4444]' : 'text-zinc-500'}`}>{subtitle}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Pill({ icon, label, value, type }: { 
   icon: React.ReactNode; 
   label: string; 
   value: string; 
@@ -190,33 +243,6 @@ function Pill({ icon, label, value, type }: {
     <div className={`pill ${typeClasses[type]}`}>
       {icon}
       <span>{label}: {value}</span>
-    </div>
-  )
-}
-
-function DiagramNode({ icon, title, status }: { 
-  icon: React.ReactNode; 
-  title: string; 
-  status: 'normal' | 'blocked' | 'waiting'
-}) {
-  const statusClasses = {
-    normal: 'border-white/10 bg-white/[0.03]',
-    blocked: 'border-[#ef4444]/40 bg-[#ef4444]/[0.05]',
-    waiting: 'border-white/10 bg-white/[0.03]'
-  }
-
-  const iconStyles = {
-    normal: 'bg-white/5 text-zinc-400',
-    blocked: 'bg-[#ef4444]/10 text-[#ef4444]',
-    waiting: 'bg-white/5 text-zinc-400'
-  }
-
-  return (
-    <div className={`flex flex-col items-center gap-2 p-3 rounded-xl border ${statusClasses[status]}`}>
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconStyles[status]}`}>
-        {icon}
-      </div>
-      <div className="text-xs font-medium">{title}</div>
     </div>
   )
 }
