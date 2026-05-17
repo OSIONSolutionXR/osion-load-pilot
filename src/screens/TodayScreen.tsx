@@ -4,9 +4,6 @@ import {
   AlertTriangle,
   Target,
   Zap,
-  User,
-  Landmark,
-  FileText,
   Network,
   Activity
 } from 'lucide-react'
@@ -21,31 +18,6 @@ interface TodayScreenProps {
 export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps) {
   const nextMove = getNextMove()
   const targetActor = dummyActors.find(a => a.id === nextMove.targetActor)
-
-  // Organigram data
-  const organigramNodes = [
-    {
-      id: '1',
-      icon: <User className="w-5 h-5" />,
-      title: 'Steuerberater Müller',
-      subtitle: 'Wartet',
-      status: 'normal' as const
-    },
-    {
-      id: '2',
-      icon: <FileText className="w-5 h-5" />,
-      title: 'BWA',
-      subtitle: 'Fehlt',
-      status: 'blocked' as const
-    },
-    {
-      id: '3',
-      icon: <Landmark className="w-5 h-5" />,
-      title: 'Bank',
-      subtitle: 'Prüfung',
-      status: 'waiting' as const
-    }
-  ]
 
   return (
     <div className="space-y-6 animate-in">
@@ -107,7 +79,7 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
               </div>
 
               <div className="flex-1 flex items-center justify-center">
-                <Organigram nodes={organigramNodes} />
+                <Organigram variant="compact" />
               </div>
 
               <div className="risk-warning p-4 mt-6">

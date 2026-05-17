@@ -3,20 +3,16 @@ import {
   AlertTriangle, 
   Users, 
   GitBranch,
-  Landmark,
-  FileText,
-  Building2,
   Activity,
   Shield,
   Zap,
   CheckCircle2,
   XCircle,
   AlertCircle,
-  User,
-  FileCheck,
   Clock
 } from 'lucide-react'
 import Organigram from '../components/Organigram'
+
 import { dummyProject, dummyActors, dummyRisks } from '../data/dummyData'
 
 interface ProjectTwinScreenProps {
@@ -24,45 +20,6 @@ interface ProjectTwinScreenProps {
 }
 
 export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
-  // Full 5-level organigram
-  const organigramNodes = [
-    {
-      id: '1',
-      icon: <User className="w-5 h-5" />,
-      title: 'Steuerberater Müller',
-      subtitle: 'Wartet auf Handlung',
-      status: 'normal' as const
-    },
-    {
-      id: '2',
-      icon: <FileText className="w-5 h-5" />,
-      title: 'BWA',
-      subtitle: 'Fehlt - Blockiert den Fluss',
-      status: 'blocked' as const
-    },
-    {
-      id: '3',
-      icon: <Landmark className="w-5 h-5" />,
-      title: 'Bankprüfung',
-      subtitle: 'Kann nicht beginnen',
-      status: 'blocked' as const
-    },
-    {
-      id: '4',
-      icon: <FileCheck className="w-5 h-5" />,
-      title: 'Finanzierungszusage',
-      subtitle: 'Nicht möglich',
-      status: 'waiting' as const
-    },
-    {
-      id: '5',
-      icon: <Building2 className="w-5 h-5" />,
-      title: 'Verkäuferentscheidung',
-      subtitle: 'Wird gefährdet',
-      status: 'warning' as const
-    }
-  ]
-
   return (
     <div className="space-y-6 animate-in">
       
@@ -120,7 +77,7 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
         </div>
 
         <div className="flex justify-center">
-          <Organigram nodes={organigramNodes} />
+          <Organigram variant="full" />
         </div>
 
         {/* Blocker Warning */}
