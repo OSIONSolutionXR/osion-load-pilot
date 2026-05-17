@@ -23,7 +23,7 @@ function App() {
 
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff006e] to-[#8338ec] flex items-center justify-center shadow-lg shadow-[#ff006e]/25">
@@ -61,7 +61,7 @@ function App() {
 
       {/* Main Content */}
       <main className="pt-24 pb-12 px-6 relative z-10">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {currentView === 'today' && (
             <TodayScreen 
               onNewProject={() => navigateTo('input')}
