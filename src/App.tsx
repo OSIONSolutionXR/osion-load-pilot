@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Home, Network, Plus, Zap } from 'lucide-react'
 import type { ViewState } from './types'
 
-// Screens
 import TodayScreen from './screens/TodayScreen'
 import ProjectTwinScreen from './screens/ProjectTwinScreen'
 import InputScreen from './screens/InputScreen'
@@ -17,26 +16,26 @@ function App() {
 
   return (
     <div className="min-h-screen grid-bg">
-      {/* Ambient Background Glows */}
-      <div className="ambient-glow top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-[#ff006e] to-[#8338ec]" />
-      <div className="ambient-glow bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-[#3a86ff] to-[#00f5ff]" />
+      {/* Ambient Glows */}
+      <div className="ambient-glow top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full bg-gradient-to-br from-[#ff006e] to-[#8338ec]" />
+      <div className="ambient-glow bottom-0 right-1/4 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-[#3a86ff] to-[#00f5ff]" />
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 z-50 py-6">
+        <div className="container-premium flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff006e] to-[#8338ec] flex items-center justify-center shadow-lg shadow-[#ff006e]/25">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#ff006e] to-[#8338ec] flex items-center justify-center shadow-lg shadow-[#ff006e]/30">
               <Zap className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-semibold text-base tracking-tight text-white">Load Pilot</h1>
+              <h1 className="font-bold text-lg tracking-tight">Load Pilot</h1>
               <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Project Twin System</p>
             </div>
           </div>
 
-          {/* Pill Navigation */}
-          <nav className="pill-nav">
+          {/* Navigation */}
+          <nav className="nav-premium">
             <NavButton 
               active={currentView === 'today'} 
               onClick={() => navigateTo('today')}
@@ -60,8 +59,8 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="pt-24 pb-12 px-6 relative z-10">
-        <div className="max-w-7xl mx-auto">
+      <main className="pt-28 pb-16 relative z-10">
+        <div className="container-premium">
           {currentView === 'today' && (
             <TodayScreen 
               onNewProject={() => navigateTo('input')}
@@ -96,7 +95,7 @@ function NavButton({ active, onClick, icon, label }: NavButtonProps) {
   return (
     <button
       onClick={onClick}
-      className={`pill-nav-item ${active ? 'active' : ''}`}
+      className={`nav-item ${active ? 'active' : ''}`}
     >
       {icon}
       <span>{label}</span>

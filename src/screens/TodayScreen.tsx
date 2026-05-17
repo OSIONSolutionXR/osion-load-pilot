@@ -9,7 +9,9 @@ import {
   FileText,
   ChevronRight,
   Zap,
-  ArrowUpRight
+  ArrowUpRight,
+  Network,
+  Briefcase
 } from 'lucide-react'
 import { dummyProject, dummyActors, dummyRisks, getNextMove } from '../data/dummyData'
 
@@ -23,204 +25,179 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
   const targetActor = dummyActors.find(a => a.id === nextMove.targetActor)
 
   return (
-    <div className="space-y-8 animate-fade-in-up">
-      {/* HERO: 2-Spalten Layout */}
-      <section className="card-primary p-8 md:p-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          
-          {/* Links: Next Move */}
-          <div className="lg:col-span-7 flex flex-col justify-center">
-            {/* Label */}
-            <div className="flex items-center gap-3 mb-4">
-              <span className="label label-accent">Heute</span>
-              <span className="text-zinc-600">•</span>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#ef4444] animate-pulse" />
-                <span className="text-sm text-[#ef4444] font-medium">Blocker erkannt</span>
-              </div>
-            </div>
-
-            {/* Headline */}
-            <h1 className="text-5xl md:text-6xl font-bold mb-4">
-              Der nächste{' '}
-              <span className="gradient-text-accent">wirksamste Schritt</span>
-            </h1>
-
-            {/* Empfehlung */}
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff006e]/20 to-[#8338ec]/20 flex items-center justify-center border border-[#ff006e]/30">
-                <User className="w-5 h-5 text-[#ff006e]" />
-              </div>
-              <span className="text-xl font-semibold">{targetActor?.name} anschreiben: BWA bis Mittwoch benötigt</span>
-            </div>
-
-            <p className="text-body max-w-xl mb-5">
-              Die Bank wartet auf die BWA. Ohne diese Unterlage kann die Prüfung nicht beginnen. Der Verkäufer hat eine Deadline gesetzt.
-            </p>
-
-            {/* Status Pills */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              <StatusPill icon={<Target className="w-3.5 h-3.5" />} label="Wirkung" value="Hoch" type="high" />
-              <StatusPill icon={<Clock className="w-3.5 h-3.5" />} label="Aufwand" value="Niedrig" type="low" />
-              <StatusPill icon={<AlertTriangle className="w-3.5 h-3.5" />} label="Frist" value="Heute" type="urgent" />
-              <StatusPill icon={<FileText className="w-3.5 h-3.5" />} label="Blocker" value="BWA fehlt" type="amber" />
-            </div>
-
-            {/* CTAs */}
-            <div className="flex flex-wrap gap-3">
-              <button onClick={onOpenTwin} className="btn-primary">
-                <Zap className="w-4 h-4" />
-                Project Twin öffnen
-              </button>
-              <button onClick={onNewProject} className="btn-secondary">
-                <Plus className="w-4 h-4" />
-                Neues Projekt
-              </button>
+    <div className="space-y-10 animate-in">
+      {/* HERO - Dominant, Mittig */}
+      <section className="card-premium p-10 md:p-14">
+        <div className="max-w-4xl mx-auto text-center">
+          {/* Label Row */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <span className="label-premium label-accent">Heute</span>
+            <span className="text-zinc-600">•</span>
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444] animate-pulse" />
+              <span className="text-base text-[#ef4444] font-semibold">Blocker erkannt</span>
             </div>
           </div>
 
-          {/* Rechts: Dependency Panel */}
-          <div className="lg:col-span-5">
-            <div className="bg-[#0a0a0c]/80 border border-white/10 rounded-2xl p-6 h-full">
-              <div className="flex items-center justify-between mb-6">
-                <span className="text-sm font-medium text-zinc-400">Erkannte Abhängigkeit</span>
-                <span className="label">Simulation</span>
-              </div>
+          {/* MASSIVE Headline */}
+          <h1 className="hero-headline mb-6">
+            Der nächste{' '}
+            <span className="gradient-text">wirksamste Schritt</span>
+          </h1>
 
-              {/* Horizontal Diagram */}
-              <div className="diagram-container mb-6">
-                <DiagramNode
-                  icon={<User className="w-4 h-4" />}
-                  title="Steuerberater"
-                  subtitle="liefert BWA"
-                  status="normal"
-                />
+          {/* Empfehlung als Subline */}
+          <p className="hero-subline text-zinc-300 mb-4">
+            {targetActor?.name} anschreiben: BWA bis Mittwoch benötigt
+          </p>
 
-                <DiagramConnector />
+          <p className="text-lg text-zinc-500 max-w-2xl mx-auto mb-8">
+            Die Bank wartet auf die BWA. Ohne diese Unterlage kann die Prüfung nicht beginnen.
+          </p>
 
-                <DiagramNode
-                  icon={<FileText className="w-4 h-4" />}
-                  title="BWA"
-                  subtitle="Fehlt"
-                  status="blocked"
-                />
+          {/* Status Pills */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
+            <Pill icon={<Target className="w-4 h-4" />} label="Wirkung" value="Hoch" type="high" />
+            <Pill icon={<Clock className="w-4 h-4" />} label="Aufwand" value="Niedrig" type="low" />
+            <Pill icon={<AlertTriangle className="w-4 h-4" />} label="Frist" value="Heute" type="urgent" />
+            <Pill icon={<FileText className="w-4 h-4" />} label="Blocker" value="BWA fehlt" type="amber" />
+          </div>
 
-                <DiagramConnector />
+          {/* CTAs */}
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <button onClick={onOpenTwin} className="btn-glow">
+              <Zap className="w-5 h-5" />
+              Project Twin öffnen
+            </button>
+            <button onClick={onNewProject} className="btn-outline">
+              <Plus className="w-5 h-5" />
+              Neues Projekt
+            </button>
+          </div>
+        </div>
+      </section>
 
-                <DiagramNode
-                  icon={<Landmark className="w-4 h-4" />}
-                  title="Bank"
-                  subtitle="Prüfung"
-                  status="normal"
-                />
+      {/* DEPENDENCY PANEL - Horizontales Premium-Diagramm */}
+      <section className="card-dark p-8">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <Network className="w-5 h-5 text-zinc-500" />
+            <span className="text-lg font-semibold">Erkannte Abhängigkeit</span>
+          </div>
+          <span className="label-premium">Simulation</span>
+        </div>
 
-                <DiagramConnector />
+        {/* Horizontal Flow */}
+        <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mb-8">
+          <Node
+            icon={<User className="w-5 h-5" />}
+            title="Steuerberater"
+            subtitle="liefert BWA"
+            status="normal"
+          />
 
-                <DiagramNode
-                  icon={<Building2 className="w-4 h-4" />}
-                  title="Zusage"
-                  subtitle="Finanzierung"
-                  status="goal"
-                />
-              </div>
+          <Connector />
 
-              {/* Risk Warning */}
-              <div className="p-4 rounded-xl bg-[#ef4444]/5 border border-[#ef4444]/20">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-[#ef4444] flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-zinc-300 leading-relaxed">
-                    <span className="font-medium text-white">Wenn heute nichts passiert:</span>{' '}
-                    Risiko steigt, Bankprüfung bleibt blockiert, Verkäufer wird unsicher.
-                  </p>
-                </div>
-              </div>
+          <Node
+            icon={<FileText className="w-5 h-5" />}
+            title="BWA"
+            subtitle="Fehlt"
+            status="blocked"
+          />
+
+          <Connector />
+
+          <Node
+            icon={<Landmark className="w-5 h-5" />}
+            title="Bank"
+            subtitle="Prüfung"
+            status="normal"
+          />
+
+          <Connector />
+
+          <Node
+            icon={<Building2 className="w-5 h-5" />}
+            title="Zusage"
+            subtitle="Finanzierung"
+            status="goal"
+          />
+        </div>
+
+        {/* Risk Warning */}
+        <div className="max-w-2xl mx-auto p-5 rounded-2xl bg-[#ef4444]/5 border border-[#ef4444]/20">
+          <div className="flex items-start gap-4">
+            <AlertTriangle className="w-6 h-6 text-[#ef4444] flex-shrink-0" />
+            <div>
+              <p className="font-medium text-lg mb-1">Wenn heute nichts passiert</p>
+              <p className="text-zinc-400">Risiko steigt, Bankprüfung bleibt blockiert, Verkäufer wird unsicher.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SYSTEM STATUS: Kompakt */}
+      {/* SYSTEM STATUS - Kompakt Horizontal */}
       <section>
         <div className="grid grid-cols-4 gap-4">
-          <MiniStat icon={<Building2 className="w-4 h-4" />} value="1" label="Projekte" />
-          <MiniStat icon={<Clock className="w-4 h-4" />} value="1" label="Offen" />
-          <MiniStat icon={<AlertTriangle className="w-4 h-4" />} value="3" label="Risiken" />
-          <MiniStat icon={<Target className="w-4 h-4" />} value="1" label="Blocker" />
+          <StatCard icon={<Briefcase className="w-5 h-5" />} value="1" label="Projekte" />
+          <StatCard icon={<Clock className="w-5 h-5" />} value="1" label="Offen" />
+          <StatCard icon={<AlertTriangle className="w-5 h-5" />} value="3" label="Risiken" />
+          <StatCard icon={<Target className="w-5 h-5" />} value="1" label="Blocker" />
         </div>
       </section>
 
-      {/* AKTIVES PROJEKT: Große Card */}
+      {/* AKTIVES PROJEKT - Premium Card */}
       <section>
-        <div className="label mb-4">Aktives Projekt</div>
+        <div className="label-premium mb-4">Aktives Projekt</div>
         
-        <div className="card-primary p-6">
+        <div className="card-premium p-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            {/* Links: Projekt-Info */}
+            {/* Links: Projekt */}
             <div className="lg:col-span-2">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8338ec] to-[#ff006e] flex items-center justify-center shadow-lg">
-                  <Building2 className="w-7 h-7 text-white" />
+              <div className="flex items-center gap-4 mb-5">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#8338ec] to-[#ff006e] flex items-center justify-center shadow-lg">
+                  <Building2 className="w-8 h-8 text-white" />
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold">{dummyProject.name}</h3>
-                  <p className="text-zinc-400">{dummyProject.goal}</p>
+                  <p className="text-zinc-500">{dummyProject.goal}</p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 mb-5">
-                <span className="label label-blocked">Blockiert</span>
-                <span className="label">1 offene Aktion</span>
-                <span className="label">{dummyRisks.length} Risiken</span>
+              <div className="flex flex-wrap gap-2 mb-6">
+                <span className="label-premium label-blocked">Blockiert</span>
+                <span className="label-premium">1 offene Aktion</span>
+                <span className="label-premium">{dummyRisks.length} Risiken</span>
               </div>
 
-              <div className="p-4 rounded-xl bg-[#0a0a0c] border border-white/5 mb-4">
-                <div className="text-xs text-zinc-500 mb-1 uppercase tracking-wider">Nächster Hebel</div>
-                <div className="text-lg font-medium">Steuerberater Müller anschreiben</div>
+              <div className="p-5 rounded-2xl bg-[#0a0a0c] border border-white/5 mb-5">
+                <div className="text-xs text-zinc-500 mb-2 uppercase tracking-wider">Nächster Hebel</div>
+                <div className="text-xl font-semibold">Steuerberater Müller anschreiben</div>
               </div>
 
-              <button onClick={onOpenTwin} className="btn-ghost">
-                Öffnen
+              <button onClick={onOpenTwin} className="btn-outline">
+                Projekt öffnen
                 <ArrowUpRight className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Rechts: Mini-Flow + Stats */}
+            {/* Rechts: Stats + Flow */}
             <div className="border-l border-white/10 lg:pl-8">
-              <div className="text-xs text-zinc-500 mb-3 uppercase tracking-wider">Kritischer Pfad</div>
+              <div className="text-xs text-zinc-500 mb-4 uppercase tracking-wider">Kritischer Pfad</div>
               
-              <div className="space-y-2 mb-6">
-                <div className="flex items-center gap-2 text-sm">
-                  <FileText className="w-4 h-4 text-[#ef4444]" />
-                  <span className="text-[#ef4444]">BWA</span>
+              <div className="space-y-3 mb-6">
+                <FlowStep icon={<FileText className="w-4 h-4" />} label="BWA" status="blocked" />
+                <div className="pl-6 border-l-2 border-zinc-800">
+                  <FlowStep icon={<Landmark className="w-4 h-4" />} label="Bankprüfung" status="waiting" />
                 </div>
-                <div className="pl-2 border-l-2 border-zinc-800">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Landmark className="w-4 h-4 text-zinc-500" />
-                    <span className="text-zinc-400">Bankprüfung</span>
-                  </div>
-                </div>
-                <div className="pl-2 border-l-2 border-zinc-800">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Building2 className="w-4 h-4 text-zinc-500" />
-                    <span className="text-zinc-400">Zusage</span>
-                  </div>
+                <div className="pl-6 border-l-2 border-zinc-800">
+                  <FlowStep icon={<Building2 className="w-4 h-4" />} label="Zusage" status="waiting" />
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-500">Projektlast</span>
-                  <span className="font-semibold">{dummyProject.loadScore.toFixed(1)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-500">Blocker</span>
-                  <span className="text-[#ef4444]">BWA fehlt</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-500">Status</span>
-                  <span className="text-[#ef4444]">Prüfung blockiert</span>
-                </div>
+              <div className="space-y-3 pt-5 border-t border-white/5">
+                <StatRow label="Projektlast" value={dummyProject.loadScore.toFixed(1)} />
+                <StatRow label="Blocker" value="BWA fehlt" highlight />
+                <StatRow label="Status" value="Prüfung blockiert" />
               </div>
             </div>
           </div>
@@ -232,78 +209,96 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
 
 /* Components */
 
-function StatusPill({ icon, label, value, type }: {
+function Pill({ icon, label, value, type }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   type: 'high' | 'low' | 'urgent' | 'amber'
 }) {
   const typeClasses = {
-    high: 'status-pill-high',
-    low: 'status-pill-low',
-    urgent: 'status-pill-urgent',
-    amber: 'status-pill-amber'
+    high: 'pill-high',
+    low: 'pill-low',
+    urgent: 'pill-urgent',
+    amber: 'pill-amber'
   }
 
   return (
-    <div className={`status-pill ${typeClasses[type]}`}>
+    <div className={`pill ${typeClasses[type]}`}>
       {icon}
       <span>{label}: {value}</span>
     </div>
   )
 }
 
-function DiagramNode({
-  icon,
-  title,
-  subtitle,
-  status
-}: {
+function Node({ icon, title, subtitle, status }: {
   icon: React.ReactNode;
   title: string;
   subtitle: string;
   status: 'normal' | 'blocked' | 'goal'
 }) {
-  const statusStyles = {
+  const statusClasses = {
     normal: '',
-    blocked: 'diagram-node-blocked',
-    goal: 'border-[#8338ec]/50 bg-[#8338ec]/5'
+    blocked: 'node-blocked',
+    goal: 'node-goal'
   }
 
-  const iconStyles = {
+  const iconClasses = {
     normal: 'bg-zinc-800 text-zinc-400',
-    blocked: 'bg-[#ef4444]/10 text-[#ef4444]',
-    goal: 'bg-[#8338ec]/10 text-[#8338ec]'
+    blocked: 'bg-[#ef4444]/15 text-[#ef4444]',
+    goal: 'bg-[#8338ec]/15 text-[#8338ec]'
   }
 
   return (
-    <div className={`diagram-node ${statusStyles[status]}`}>
-      <div className={`diagram-node-icon ${iconStyles[status]}`}>
+    <div className={`node ${statusClasses[status]}`}>
+      <div className={`node-icon ${iconClasses[status]}`}>
         {icon}
       </div>
-      <div className="font-medium text-sm">{title}</div>
-      <div className="text-xs text-zinc-500">{subtitle}</div>
+      <div className="font-semibold text-base">{title}</div>
+      <div className="text-sm text-zinc-500">{subtitle}</div>
     </div>
   )
 }
 
-function DiagramConnector() {
+function Connector() {
   return (
-    <div className="diagram-connector">
-      <div className="diagram-connector-line" />
-      <ChevronRight className="w-4 h-4" />
+    <div className="connector">
+      <div className="connector-line" />
+      <ChevronRight className="w-5 h-5" />
     </div>
   )
 }
 
-function MiniStat({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
+function StatCard({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
   return (
-    <div className="stat-card">
-      <div className="flex items-center justify-center gap-2 mb-2">
-        {icon}
-        <span className="stat-card-value">{value}</span>
+    <div className="stat-mini">
+      <div className="text-zinc-500">{icon}</div>
+      <div>
+        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-xs text-zinc-500 uppercase tracking-wider">{label}</div>
       </div>
-      <div className="stat-card-label">{label}</div>
+    </div>
+  )
+}
+
+function FlowStep({ icon, label, status }: { icon: React.ReactNode; label: string; status: 'blocked' | 'waiting' }) {
+  const colors = {
+    blocked: 'text-[#ef4444]',
+    waiting: 'text-zinc-500'
+  }
+
+  return (
+    <div className={`flex items-center gap-2 text-base ${colors[status]}`}>
+      {icon}
+      <span className={status === 'blocked' ? 'font-semibold' : ''}>{label}</span>
+    </div>
+  )
+}
+
+function StatRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className="flex justify-between text-sm">
+      <span className="text-zinc-500">{label}</span>
+      <span className={highlight ? 'text-[#ef4444] font-semibold' : 'font-medium'}>{value}</span>
     </div>
   )
 }
