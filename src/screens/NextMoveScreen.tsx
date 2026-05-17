@@ -1,5 +1,5 @@
 import { Check, ArrowLeft, Mail, Clock, Zap, Target, Calendar, Copy } from 'lucide-react'
-import { dummyActions, dummyActors, formatPriority, getNextMove } from '../data/dummyData'
+import { dummyActions, dummyActors, getNextMove } from '../data/dummyData'
 import { useState } from 'react'
 
 interface NextMoveScreenProps {

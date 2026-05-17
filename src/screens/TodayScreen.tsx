@@ -1,5 +1,5 @@
 import { Plus, ChevronRight, AlertCircle, CheckCircle2, Clock, Calendar } from 'lucide-react'
-import { dummyProject, dummyActions, dummyActors, getNextMove } from '../data/dummyData'
+import { dummyProject, dummyActors, getNextMove } from '../data/dummyData'
 
 interface TodayScreenProps {
   onNewProject: () => void

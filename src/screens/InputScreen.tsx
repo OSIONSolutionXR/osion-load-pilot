@@ -7,7 +7,7 @@ interface InputScreenProps {
 
 export default function InputScreen({ onSubmit }: InputScreenProps) {
   const [text, setText] = useState('')
-  const [isFocused, setIsFocused] = useState(false)
+  
 
   const handleSubmit = () => {
     if (text.trim()) {
@@ -52,8 +52,6 @@ export default function InputScreen({ onSubmit }: InputScreenProps) {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
           placeholder="Martin wartet auf eine Bankfinanzierung für KS19. Bank braucht Unterlagen zur Prüfung. Steuerberater muss BWA liefern..."
           className="input-mono min-h-[160px] resize-none mb-4"
         />
