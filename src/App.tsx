@@ -26,7 +26,7 @@ function App() {
           <div className="max-w-6xl mx-auto card-primary px-6 py-4 flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff006e] to-[#8338ec] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff006e] to-[#8338ec] flex items-center justify-center shadow-lg shadow-[#ff006e]/20">
                 <span className="text-white font-bold text-lg">LP</span>
               </div>
               <div>
@@ -35,8 +35,8 @@ function App() {
               </div>
             </div>
 
-            {/* Navigation */}
-            <nav className="flex items-center gap-1">
+            {/* Navigation - Klare Buttons */}
+            <nav className="flex items-center gap-2">
               <NavButton 
                 active={currentView === 'today'} 
                 onClick={() => navigateTo('today')}
@@ -93,11 +93,7 @@ function NavButton({ active, onClick, label }: NavButtonProps) {
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-        active 
-          ? 'bg-white/10 text-white' 
-          : 'text-zinc-500 hover:text-zinc-300'
-      }`}
+      className={`nav-button ${active ? 'active' : ''}`}
     >
       {label}
     </button>

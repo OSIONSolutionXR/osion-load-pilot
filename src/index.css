@@ -124,11 +124,13 @@ html, body, #root {
   border: 1px solid var(--border-subtle);
   border-radius: 20px;
   transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 .card-secondary:hover {
   border-color: var(--border-strong);
   background: var(--bg-tertiary);
+  transform: translateY(-2px);
 }
 
 .card-glow {
@@ -154,6 +156,56 @@ html, body, #root {
   opacity: 1;
 }
 
+/* NAV BUTTONS - The fix */
+.nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 0, 110, 0.1), rgba(131, 56, 236, 0.1));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.nav-button:hover {
+  border-color: var(--accent-magenta);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(255, 0, 110, 0.2);
+}
+
+.nav-button:hover::before {
+  opacity: 1;
+}
+
+.nav-button.active {
+  background: linear-gradient(135deg, var(--accent-magenta), var(--accent-purple));
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 4px 20px rgba(255, 0, 110, 0.4);
+}
+
+.nav-button.active:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(255, 0, 110, 0.5);
+}
+
 /* Buttons */
 .btn-primary {
   display: inline-flex;
@@ -170,11 +222,30 @@ html, body, #root {
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 4px 20px var(--glow-magenta);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 30px var(--glow-magenta);
+}
+
+.btn-primary:hover::before {
+  opacity: 1;
+}
+
+.btn-primary:active {
+  transform: translateY(0);
 }
 
 .btn-secondary {
@@ -191,11 +262,31 @@ html, body, #root {
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-secondary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 .btn-secondary:hover {
   border-color: var(--border-strong);
   background: var(--bg-tertiary);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:hover::before {
+  opacity: 1;
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
 }
 
 .btn-ghost {
@@ -207,7 +298,7 @@ html, body, #root {
   color: var(--text-secondary);
   font-size: 0.875rem;
   font-weight: 500;
-  border: none;
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -216,6 +307,7 @@ html, body, #root {
 .btn-ghost:hover {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-strong);
 }
 
 /* Labels / Badges */
@@ -354,4 +446,14 @@ html, body, #root {
 ::selection {
   background: var(--accent-magenta);
   color: white;
+}
+
+/* Interactive elements cursor */
+button, a, .cursor-pointer {
+  cursor: pointer;
+}
+
+/* Click feedback */
+button:active, .nav-button:active {
+  transform: scale(0.98);
 }
