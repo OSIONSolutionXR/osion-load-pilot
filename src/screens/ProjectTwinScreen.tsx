@@ -16,6 +16,7 @@ import {
   FileCheck,
   Clock
 } from 'lucide-react'
+import Organigram from '../components/Organigram'
 import { dummyProject, dummyActors, dummyRisks } from '../data/dummyData'
 
 interface ProjectTwinScreenProps {
@@ -23,6 +24,45 @@ interface ProjectTwinScreenProps {
 }
 
 export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
+  // Full 5-level organigram
+  const organigramNodes = [
+    {
+      id: '1',
+      icon: <User className="w-5 h-5" />,
+      title: 'Steuerberater Müller',
+      subtitle: 'Wartet auf Handlung',
+      status: 'normal' as const
+    },
+    {
+      id: '2',
+      icon: <FileText className="w-5 h-5" />,
+      title: 'BWA',
+      subtitle: 'Fehlt - Blockiert den Fluss',
+      status: 'blocked' as const
+    },
+    {
+      id: '3',
+      icon: <Landmark className="w-5 h-5" />,
+      title: 'Bankprüfung',
+      subtitle: 'Kann nicht beginnen',
+      status: 'blocked' as const
+    },
+    {
+      id: '4',
+      icon: <FileCheck className="w-5 h-5" />,
+      title: 'Finanzierungszusage',
+      subtitle: 'Nicht möglich',
+      status: 'waiting' as const
+    },
+    {
+      id: '5',
+      icon: <Building2 className="w-5 h-5" />,
+      title: 'Verkäuferentscheidung',
+      subtitle: 'Wird gefährdet',
+      status: 'warning' as const
+    }
+  ]
+
   return (
     <div className="space-y-6 animate-in">
       
@@ -79,67 +119,8 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
           <p className="text-zinc-500">Systemische Abhängigkeiten im Projekt</p>
         </div>
 
-        <div className="relative">
-          {/* SVG Verbindungslinien im Hintergrund */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
-            <defs>
-              <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-                <polygon points="0 0, 10 5, 0 10" fill="rgba(239,68,68,0.6)" />
-              </marker>
-              <marker id="arrowWhite" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-                <polygon points="0 0, 10 5, 0 10" fill="rgba(255,255,255,0.3)" />
-              </marker>
-            </defs>
-            {/* Pfade zwischen Nodes */}
-            <path d="M 200 60 L 200 100" stroke="rgba(239,68,68,0.4)" strokeWidth="2" strokeDasharray="6,4" markerEnd="url(#arrowRed)" />
-            <path d="M 200 180 L 200 220" stroke="rgba(239,68,68,0.4)" strokeWidth="2" strokeDasharray="6,4" markerEnd="url(#arrowRed)" />
-            <path d="M 200 300 L 200 340" stroke="rgba(255,255,255,0.15)" strokeWidth="2" markerEnd="url(#arrowWhite)" />
-            <path d="M 200 420 L 200 460" stroke="rgba(255,255,255,0.15)" strokeWidth="2" markerEnd="url(#arrowWhite)" />
-          </svg>
-
-          {/* Organigramm Nodes - Vertikal zentriert */}
-          <div className="relative z-10 flex flex-col items-center gap-0 max-w-md mx-auto">
-            {/* Level 1: Steuerberater */}
-            <OrgNode
-              icon={<User className="w-5 h-5" />}
-              title="Steuerberater Müller"
-              subtitle="Wartet auf Handlung"
-              status="normal"
-            />
-
-            {/* Level 2: BWA (Blocker) */}
-            <OrgNode
-              icon={<FileText className="w-5 h-5" />}
-              title="BWA"
-              subtitle="Fehlt - Blockiert den Fluss"
-              status="blocked"
-              pulse
-            />
-
-            {/* Level 3: Bankprüfung */}
-            <OrgNode
-              icon={<Landmark className="w-5 h-5" />}
-              title="Bankprüfung"
-              subtitle="Kann nicht beginnen"
-              status="blocked"
-            />
-
-            {/* Level 4: Finanzierungszusage */}
-            <OrgNode
-              icon={<FileCheck className="w-5 h-5" />}
-              title="Finanzierungszusage"
-              subtitle="Nicht möglich"
-              status="waiting"
-            />
-
-            {/* Level 5: Verkäuferentscheidung */}
-            <OrgNode
-              icon={<Building2 className="w-5 h-5" />}
-              title="Verkäuferentscheidung"
-              subtitle="Wird gefährdet"
-              status="warning"
-            />
-          </div>
+        <div className="flex justify-center">
+          <Organigram nodes={organigramNodes} />
         </div>
 
         {/* Blocker Warning */}
@@ -265,42 +246,6 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
 }
 
 /* Components */
-
-function OrgNode({ icon, title, subtitle, status, pulse }: { 
-  icon: React.ReactNode
-  title: string
-  subtitle: string
-  status: 'normal' | 'blocked' | 'waiting' | 'warning'
-  pulse?: boolean
-}) {
-  const statusClasses = {
-    normal: 'border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02]',
-    blocked: 'border-[#ef4444]/40 bg-gradient-to-br from-[#ef4444]/10 to-[#ef4444]/5',
-    waiting: 'border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02]',
-    warning: 'border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-amber-500/5'
-  }
-
-  const iconStyles = {
-    normal: 'bg-white/5 text-zinc-400',
-    blocked: 'bg-[#ef4444]/20 text-[#ef4444]',
-    waiting: 'bg-white/5 text-zinc-400',
-    warning: 'bg-amber-500/20 text-amber-400'
-  }
-
-  return (
-    <div className={`w-full p-4 rounded-xl border mb-4 ${statusClasses[status]} ${pulse ? 'animate-pulse' : ''} transition-all hover:scale-[1.02]`}>
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${iconStyles[status]}`}>
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <div className="font-semibold text-sm">{title}</div>
-          <div className={`text-xs ${status === 'blocked' ? 'text-[#ef4444]' : status === 'warning' ? 'text-amber-400' : 'text-zinc-500'}`}>{subtitle}</div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function StatusItem({ label, value, danger, urgent, warning }: { 
   label: string

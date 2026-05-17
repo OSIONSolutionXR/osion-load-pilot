@@ -10,6 +10,7 @@ import {
   Network,
   Activity
 } from 'lucide-react'
+import Organigram from '../components/Organigram'
 import { dummyProject, dummyActors, dummyRisks, getNextMove } from '../data/dummyData'
 
 interface TodayScreenProps {
@@ -21,11 +22,36 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
   const nextMove = getNextMove()
   const targetActor = dummyActors.find(a => a.id === nextMove.targetActor)
 
+  // Organigram data
+  const organigramNodes = [
+    {
+      id: '1',
+      icon: <User className="w-5 h-5" />,
+      title: 'Steuerberater Müller',
+      subtitle: 'Wartet',
+      status: 'normal' as const
+    },
+    {
+      id: '2',
+      icon: <FileText className="w-5 h-5" />,
+      title: 'BWA',
+      subtitle: 'Fehlt',
+      status: 'blocked' as const
+    },
+    {
+      id: '3',
+      icon: <Landmark className="w-5 h-5" />,
+      title: 'Bank',
+      subtitle: 'Prüfung',
+      status: 'waiting' as const
+    }
+  ]
+
   return (
     <div className="space-y-6 animate-in">
       
       {/* HERO: Next Move + Dependency Preview */}
-      <section className="card-hero p-10 md:p-14">
+      <section className="card-hero p-8 md:p-12">
         <div className="grid-12 gap-8">
           
           {/* Links: Next Move */}
@@ -71,7 +97,7 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
 
           {/* Rechts: Organigramm Preview */}
           <div className="col-5">
-            <div className="card-glass p-6 h-full">
+            <div className="card-glass p-6 h-full flex flex-col">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <Network className="w-4 h-4 text-zinc-500" />
@@ -80,51 +106,11 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
                 <span className="label">Simulation</span>
               </div>
 
-              {/* Organigramm mit Verbindungslinien */}
-              <div className="relative">
-                {/* SVG Verbindungslinien */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1, minHeight: '280px' }}>
-                  <defs>
-                    <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                      <polygon points="0 0, 8 4, 0 8" fill="rgba(255,255,255,0.2)" />
-                    </marker>
-                  </defs>
-                  {/* Linie: Steuerberater -> BWA */}
-                  <line x1="50%" y1="75" x2="50%" y2="135" stroke="rgba(239,68,68,0.5)" strokeWidth="2" markerEnd="url(#arrowhead)" />
-                  {/* Linie: BWA -> Bank */}
-                  <line x1="50%" y1="195" x2="50%" y2="255" stroke="rgba(255,255,255,0.15)" strokeWidth="2" markerEnd="url(#url(#arrowhead)" />
-                </svg>
-
-                {/* Nodes */}
-                <div className="relative z-10 flex flex-col items-center gap-0">
-                  {/* Level 1: Steuerberater */}
-                  <OrgNode
-                    icon={<User className="w-4 h-4" />}
-                    title="Steuerberater Müller"
-                    subtitle="Wartet"
-                    status="normal"
-                  />
-
-                  {/* Level 2: BWA (Blocker) */}
-                  <OrgNode
-                    icon={<FileText className="w-4 h-4" />}
-                    title="BWA"
-                    subtitle="Fehlt"
-                    status="blocked"
-                    pulse
-                  />
-
-                  {/* Level 3: Bank */}
-                  <OrgNode
-                    icon={<Landmark className="w-4 h-4" />}
-                    title="Bank"
-                    subtitle="Prüfung"
-                    status="waiting"
-                  />
-                </div>
+              <div className="flex-1 flex items-center justify-center">
+                <Organigram nodes={organigramNodes} />
               </div>
 
-              <div className="risk-warning p-4 mt-4">
+              <div className="risk-warning p-4 mt-6">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-[#ef4444] flex-shrink-0 mt-0.5" />
                   <div>
@@ -191,40 +177,6 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
 }
 
 /* Components */
-
-function OrgNode({ icon, title, subtitle, status, pulse }: { 
-  icon: React.ReactNode
-  title: string
-  subtitle: string
-  status: 'normal' | 'blocked' | 'waiting'
-  pulse?: boolean
-}) {
-  const statusClasses = {
-    normal: 'border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02]',
-    blocked: 'border-[#ef4444]/40 bg-gradient-to-br from-[#ef4444]/10 to-[#ef4444]/5',
-    waiting: 'border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02]'
-  }
-
-  const iconStyles = {
-    normal: 'bg-white/5 text-zinc-400',
-    blocked: 'bg-[#ef4444]/20 text-[#ef4444]',
-    waiting: 'bg-white/5 text-zinc-400'
-  }
-
-  return (
-    <div className={`w-full p-4 rounded-xl border ${statusClasses[status]} ${pulse ? 'animate-pulse' : ''} transition-all hover:scale-[1.02]`}>
-      <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${iconStyles[status]}`}>
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <div className="font-semibold text-sm truncate">{title}</div>
-          <div className={`text-xs ${status === 'blocked' ? 'text-[#ef4444]' : 'text-zinc-500'}`}>{subtitle}</div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function Pill({ icon, label, value, type }: { 
   icon: React.ReactNode; 
