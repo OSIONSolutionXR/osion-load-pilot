@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, Sparkles, X, FileText, Send } from 'lucide-react'
+import { Sparkles, X, Send } from 'lucide-react'
 
 interface InputScreenProps {
   onSubmit: () => void

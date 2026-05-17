@@ -5,7 +5,6 @@ import {
   Users, 
   Clock, 
   GitBranch,
-  Building2,
   Landmark,
   FileText
 } from 'lucide-react'
