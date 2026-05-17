@@ -4,6 +4,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* OSION Color Palette */
+:root {
+  --osion-red: #dc2626;
+  --osion-red-dark: #991b1b;
+  --osion-red-light: #fca5a5;
+}
+
 @layer base {
   * {
     @apply border-gray-200;

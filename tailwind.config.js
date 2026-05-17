@@ -8,17 +8,17 @@ export default {
     extend: {
       colors: {
         'osion': {
-          black: '#0a0a0f',
-          surface: '#141419',
-          surfaceLight: '#1e1e26',
-          violet: '#8b5cf6',
-          rose: '#f43f5e',
-          cyan: '#06b6d4',
-          amber: '#f59e0b',
+          red: '#dc2626',
+          'red-dark': '#991b1b',
+          'red-light': '#fca5a5',
+          black: '#000000',
+          white: '#ffffff',
+          gray: '#f3f4f6',
           green: '#10b981',
         }
       },
       fontFamily: {
+        mono: ['JetBrains Mono', 'SF Mono', 'Monaco', 'monospace'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
     },
