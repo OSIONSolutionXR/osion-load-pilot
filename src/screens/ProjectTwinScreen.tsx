@@ -57,10 +57,10 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
           <span className="text-lg font-semibold">Abhängigkeits-Karte</span>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-4 mb-10">
+        <div className="flex items-center justify-center gap-3 mb-10 overflow-x-auto pb-2">
           <FlowNode 
-            icon={<Building2 className="w-6 h-6" />}
-            title="Steuerberater Müller"
+            icon={<Building2 className="w-5 h-5" />}
+            title="Steuerberater"
             subtitle="liefert BWA"
             status="normal"
           />
@@ -68,7 +68,7 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
           <FlowConnector />
           
           <FlowNode 
-            icon={<FileText className="w-6 h-6" />}
+            icon={<FileText className="w-5 h-5" />}
             title="BWA"
             subtitle="Fehlt"
             status="blocked"
@@ -78,7 +78,7 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
           <FlowConnector />
           
           <FlowNode 
-            icon={<Landmark className="w-6 h-6" />}
+            icon={<Landmark className="w-5 h-5" />}
             title="Bank"
             subtitle="Prüfung"
             status="waiting"
@@ -87,7 +87,7 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
           <FlowConnector />
           
           <FlowNode 
-            icon={<Target className="w-6 h-6" />}
+            icon={<Target className="w-5 h-5" />}
             title="Zusage"
             subtitle="Finanzierung"
             status="goal"
@@ -229,8 +229,8 @@ function FlowNode({ icon, title, subtitle, status, pulse }: {
   }
 
   return (
-    <div className={`flex flex-col items-center gap-3 p-5 rounded-2xl border ${statusClasses[status]} ${pulse ? 'animate-pulse' : ''} min-w-[140px] transition-all hover:border-white/20`}>
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+    <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl border ${statusClasses[status]} ${pulse ? 'animate-pulse' : ''} flex-shrink-0 transition-all hover:border-white/20`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
         status === 'blocked' ? 'bg-[#ef4444]/10 text-[#ef4444]' : 
         status === 'goal' ? 'bg-[#8338ec]/10 text-[#8338ec]' : 
         'bg-white/5 text-zinc-400'
@@ -238,8 +238,8 @@ function FlowNode({ icon, title, subtitle, status, pulse }: {
         {icon}
       </div>
       <div className="text-center">
-        <div className="font-semibold">{title}</div>
-        <div className={`text-sm ${
+        <div className="font-semibold text-sm whitespace-nowrap">{title}</div>
+        <div className={`text-xs ${
           status === 'blocked' ? 'text-[#ef4444]' : 'text-zinc-500'
         }`}>{subtitle}</div>
       </div>
