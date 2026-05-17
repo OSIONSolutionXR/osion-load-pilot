@@ -89,10 +89,10 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
             <span className="label-premium">Simulation</span>
           </div>
 
-          {/* Horizontal Flow - Centered */}
-          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mb-8">
+          {/* Horizontal Flow - Compact, No Wrap */}
+          <div className="flex items-center justify-center gap-2 md:gap-4 mb-8 overflow-x-auto">
             <Node
-              icon={<User className="w-5 h-5" />}
+              icon={<User className="w-4 h-4 md:w-5 md:h-5" />}
               title="Steuerberater"
               subtitle="liefert BWA"
               status="normal"
@@ -101,7 +101,7 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
             <Connector />
 
             <Node
-              icon={<FileText className="w-5 h-5" />}
+              icon={<FileText className="w-4 h-4 md:w-5 md:h-5" />}
               title="BWA"
               subtitle="Fehlt"
               status="blocked"
@@ -110,7 +110,7 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
             <Connector />
 
             <Node
-              icon={<Landmark className="w-5 h-5" />}
+              icon={<Landmark className="w-4 h-4 md:w-5 md:h-5" />}
               title="Bank"
               subtitle="Prüfung"
               status="normal"
@@ -119,7 +119,7 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
             <Connector />
 
             <Node
-              icon={<Building2 className="w-5 h-5" />}
+              icon={<Building2 className="w-4 h-4 md:w-5 md:h-5" />}
               title="Zusage"
               subtitle="Finanzierung"
               status="goal"
@@ -246,8 +246,8 @@ function Node({ icon, title, subtitle, status }: {
 }) {
   const statusClasses = {
     normal: '',
-    blocked: 'node-blocked',
-    goal: 'node-goal'
+    blocked: 'border-[#ef4444]/50 bg-[#ef4444]/5',
+    goal: 'border-[#8338ec]/50 bg-[#8338ec]/5'
   }
 
   const iconClasses = {
@@ -257,21 +257,21 @@ function Node({ icon, title, subtitle, status }: {
   }
 
   return (
-    <div className={`node ${statusClasses[status]}`}>
-      <div className={`node-icon ${iconClasses[status]}`}>
+    <div className={`flex flex-col items-center gap-2 p-3 md:p-4 rounded-xl border border-white/10 bg-[#0a0a0c] min-w-[100px] md:min-w-[120px] text-center ${statusClasses[status]}`}>
+      <div className={`w-10 h-10 md:w-11 md:h-11 rounded-lg flex items-center justify-center ${iconClasses[status]}`}>
         {icon}
       </div>
-      <div className="font-semibold text-base">{title}</div>
-      <div className="text-sm text-zinc-500">{subtitle}</div>
+      <div className="font-semibold text-sm md:text-base whitespace-nowrap">{title}</div>
+      <div className="text-xs md:text-sm text-zinc-500 whitespace-nowrap">{subtitle}</div>
     </div>
   )
 }
 
 function Connector() {
   return (
-    <div className="connector">
-      <div className="connector-line" />
-      <ChevronRight className="w-5 h-5" />
+    <div className="flex items-center text-zinc-600">
+      <div className="w-6 md:w-10 h-0.5 bg-gradient-to-r from-zinc-800 to-zinc-700" />
+      <ChevronRight className="w-4 h-4 -ml-1" />
     </div>
   )
 }
