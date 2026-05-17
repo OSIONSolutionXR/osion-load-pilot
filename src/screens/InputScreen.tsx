@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Sparkles, X, FileText, Send } from 'lucide-react'
 
 interface InputScreenProps {
   onSubmit: () => void
@@ -16,11 +16,11 @@ export default function InputScreen({ onSubmit, onCancel }: InputScreenProps) {
   }
 
   return (
-    <div className="max-w-3xl mx-auto animate-fade-in-up">
+    <div className="max-w-3xl mx-auto animate-fade-in-up pt-8">
       {/* Header */}
       <header className="flex items-center justify-between mb-8">
         <div>
-          <span className="label label-accent mb-2 inline-block">New Project</span>
+          <span className="label label-accent mb-2 inline-block">Neues Projekt</span>
           <h2 className="text-headline">Projekt eingeben</h2>
         </div>
         <button onClick={onCancel} className="btn-ghost">
@@ -29,10 +29,10 @@ export default function InputScreen({ onSubmit, onCancel }: InputScreenProps) {
       </header>
 
       {/* Input Card */}
-      <div className="card-primary card-glow p-8 md:p-12">
+      <div className="card-primary p-8 md:p-10">
         {/* Label */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff006e]/20 to-[#8338ec]/20 flex items-center justify-center">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#ff006e]/20 to-[#8338ec]/20 flex items-center justify-center border border-[#ff006e]/30">
             <Sparkles className="w-5 h-5 text-[#ff006e]" />
           </div>
           <div>
@@ -47,8 +47,8 @@ export default function InputScreen({ onSubmit, onCancel }: InputScreenProps) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Martin wartet auf eine Bankfinanzierung für KS19. Bank braucht Unterlagen zur Prüfung. Steuerberater muss BWA liefern..."
-            className="w-full bg-[#0a0a0c] rounded-2xl p-6 text-base leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-[#ff006e]/50 transition-all"
-            style={{ minHeight: '200px', border: '1px solid rgba(255,255,255,0.08)' }}
+            className="w-full bg-[#0a0a0c] rounded-2xl p-6 text-base leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-[#ff006e]/50 transition-all placeholder:text-zinc-600"
+            style={{ minHeight: '200px', border: '1px solid rgba(255,255,255,0.06)' }}
           />
         </div>
 
@@ -66,7 +66,7 @@ export default function InputScreen({ onSubmit, onCancel }: InputScreenProps) {
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Analysieren
-              <ArrowRight className="w-4 h-4" />
+              <Send className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -85,7 +85,7 @@ export default function InputScreen({ onSubmit, onCancel }: InputScreenProps) {
 function TipCard({ number, title, description }: { number: string; title: string; description: string }) {
   return (
     <div className="card-secondary p-5">
-      <div className="text-3xl font-bold text-zinc-700 mb-3">{number}</div>
+      <div className="text-3xl font-bold text-zinc-800 mb-3">{number}</div>
       <h4 className="text-sm font-semibold mb-1">{title}</h4>
       <p className="text-xs text-zinc-500 leading-relaxed">{description}</p>
     </div>

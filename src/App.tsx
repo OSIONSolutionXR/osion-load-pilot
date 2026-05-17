@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Home, Network, Plus, Zap } from 'lucide-react'
 import type { ViewState } from './types'
 
 // Screens
@@ -21,45 +22,46 @@ function App() {
       <div className="ambient-glow bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-[#3a86ff] to-[#00f5ff]" />
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50">
-        <div className="mx-6 mt-6">
-          <div className="max-w-6xl mx-auto card-primary px-6 py-4 flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff006e] to-[#8338ec] flex items-center justify-center shadow-lg shadow-[#ff006e]/20">
-                <span className="text-white font-bold text-lg">LP</span>
-              </div>
-              <div>
-                <h1 className="font-semibold text-lg tracking-tight">Load Pilot</h1>
-                <p className="text-xs text-zinc-500">Project Twin System</p>
-              </div>
+      <header className="fixed top-0 left-0 right-0 z-50 px-6 py-5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#ff006e] to-[#8338ec] flex items-center justify-center shadow-lg shadow-[#ff006e]/25">
+              <Zap className="w-5 h-5 text-white" />
             </div>
-
-            {/* Navigation - Klare Buttons */}
-            <nav className="flex items-center gap-2">
-              <NavButton 
-                active={currentView === 'today'} 
-                onClick={() => navigateTo('today')}
-                label="Today"
-              />
-              <NavButton 
-                active={currentView === 'twin'} 
-                onClick={() => navigateTo('twin')}
-                label="Projects"
-              />
-              <NavButton 
-                active={currentView === 'input'} 
-                onClick={() => navigateTo('input')}
-                label="New"
-              />
-            </nav>
+            <div>
+              <h1 className="font-semibold text-lg tracking-tight text-white">Load Pilot</h1>
+              <p className="text-xs text-zinc-500">Project Twin System</p>
+            </div>
           </div>
+
+          {/* Pill Navigation */}
+          <nav className="pill-nav">
+            <NavButton 
+              active={currentView === 'today'} 
+              onClick={() => navigateTo('today')}
+              icon={<Home className="w-4 h-4" />}
+              label="Heute"
+            />
+            <NavButton 
+              active={currentView === 'twin'} 
+              onClick={() => navigateTo('twin')}
+              icon={<Network className="w-4 h-4" />}
+              label="Projekte"
+            />
+            <NavButton 
+              active={currentView === 'input'} 
+              onClick={() => navigateTo('input')}
+              icon={<Plus className="w-4 h-4" />}
+              label="Neu"
+            />
+          </nav>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="pt-32 pb-12 px-6 relative z-10">
-        <div className="max-w-5xl mx-auto">
+      <main className="pt-28 pb-12 px-6 relative z-10">
+        <div className="max-w-7xl mx-auto">
           {currentView === 'today' && (
             <TodayScreen 
               onNewProject={() => navigateTo('input')}
@@ -86,16 +88,18 @@ function App() {
 interface NavButtonProps {
   active: boolean
   onClick: () => void
+  icon: React.ReactNode
   label: string
 }
 
-function NavButton({ active, onClick, label }: NavButtonProps) {
+function NavButton({ active, onClick, icon, label }: NavButtonProps) {
   return (
     <button
       onClick={onClick}
-      className={`nav-button ${active ? 'active' : ''}`}
+      className={`pill-nav-item ${active ? 'active' : ''}`}
     >
-      {label}
+      {icon}
+      <span>{label}</span>
     </button>
   )
 }
