@@ -28,8 +28,8 @@ export default function InputScreen({ onSubmit, onCancel }: InputScreenProps) {
         </button>
       </header>
 
-      {/* Main Input Card */}
-      <div className="card-premium p-8 md:p-12">
+      {/* Main Input Card - Full Width */}
+      <div className="card-premium p-8 md:p-16">
         <div className="max-w-2xl mx-auto text-center mb-10">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-[#ff006e]/20 to-[#8338ec]/20 flex items-center justify-center border border-[#ff006e]/30 mb-6">
             <Sparkles className="w-7 h-7 text-[#ff006e]" />
