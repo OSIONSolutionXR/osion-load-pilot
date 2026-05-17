@@ -3,7 +3,6 @@ import {
   Clock,
   AlertTriangle,
   Target,
-  ArrowRight,
   Plus,
   User,
   Landmark,
