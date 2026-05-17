@@ -42,7 +42,6 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
 
         {/* Vertical Flow */}
         <div className="space-y-6 max-w-2xl mx-auto">
-          <!-- Actor 1: Steuerberater -->
           <ActorNode 
             actor={dummyActors[2]} 
             status="waiting"
@@ -50,7 +49,6 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
 
           <Connector label="liefert BWA" />
 
-          <!-- Actor 2: Martin + Blocker -->
           <div className="flex justify-center gap-4">
             <ActorNode 
               actor={dummyActors[0]} 
@@ -61,7 +59,6 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
 
           <Connector label="wartet auf" />
 
-          <!-- Actor 3: Bank -->
           <ActorNode 
             actor={dummyActors[1]} 
             status="waiting"
@@ -69,12 +66,10 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
 
           <Connector label="Prüfung (3-5 Tage)" />
 
-          <!-- Goal -->
           <GoalCard />
 
           <Connector label="⚠️ Deadline: Freitag" warning />
 
-          <!-- Actor 4: Verkäufer -->
           <ActorNode 
             actor={dummyActors[3]} 
             status="urgent"
