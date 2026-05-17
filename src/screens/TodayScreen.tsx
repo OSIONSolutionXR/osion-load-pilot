@@ -13,7 +13,7 @@ import {
   Network,
   Briefcase
 } from 'lucide-react'
-import { dummyProject, dummyActors, dummyRisks, getNextMove } from '../data/dummyData'
+import { dummyProject, dummyActors, getNextMove } from '../data/dummyData'
 
 interface TodayScreenProps {
   onNewProject: () => void
@@ -27,14 +27,14 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
   return (
     <div className="space-y-6 animate-in">
       
-      {/* HERO: 7/5 Grid - Next Move + Proof */}
-      <section className="card-hero p-8 md:p-12">
+      {/* HERO: Next Move + Proof */}
+      
+      <section className="card-hero p-10 md:p-14">
         <div className="grid-12">
           
-          {/* Links (7): Next Move */}
+          {/* Links: Next Move */}
           <div className="col-7 flex flex-col justify-center">
-            {/* Label */}
-            <div className="flex items-center gap-3 mb-5">
+            <div className="flex items-center gap-3 mb-6">
               <span className="label label-accent">Heute</span>
               <span className="text-zinc-600">•</span>
               <div className="flex items-center gap-2">
@@ -43,32 +43,28 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
               </div>
             </div>
 
-            {/* Headline */}
-            <h1 className="hero-headline mb-5">
+            <h1 className="hero-headline mb-6">
               Der nächste{' '}
               <span className="gradient-text">wirksamste Schritt</span>
             </h1>
 
-            {/* Empfehlung */}
-            <p className="hero-subline text-zinc-300 mb-3">
+            <p className="hero-subline text-zinc-300 mb-4">
               {targetActor?.name} anschreiben: BWA bis Mittwoch benötigt
             </p>
 
-            <p className="text-zinc-500 max-w-lg mb-6">
+            <p className="text-zinc-500 max-w-lg mb-8">
               Die Bank wartet auf die BWA. Ohne diese Unterlage kann die Prüfung nicht beginnen.
             </p>
 
-            {/* Status Pills */}
-            <div className="flex flex-wrap gap-2 mb-8">
+            <div className="flex flex-wrap gap-2 mb-10">
               <Pill icon={<Target className="w-3.5 h-3.5" />} label="Wirkung" value="Hoch" type="high" />
               <Pill icon={<Clock className="w-3.5 h-3.5" />} label="Aufwand" value="Niedrig" type="low" />
               <Pill icon={<AlertTriangle className="w-3.5 h-3.5" />} label="Frist" value="Heute" type="urgent" />
             </div>
 
-            {/* CTAs */}
             <div className="flex flex-wrap gap-3">
-              <button onClick={onOpenTwin} className="btn-primary">
-                <Zap className="w-5 h-5" />
+              <button onClick={onOpenTwin} className="btn-primary group">
+                <Zap className="w-5 h-5 transition-transform group-hover:scale-110" />
                 Project Twin öffnen
               </button>
               <button onClick={onNewProject} className="btn-secondary">
@@ -78,9 +74,10 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
             </div>
           </div>
 
-          {/* Rechts (5): Dependency Proof */}
+          {/* Rechts: Dependency Proof */}
+          
           <div className="col-5">
-            <div className="card-panel p-6 h-full">
+            <div className="card-glass p-6 h-full">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <Network className="w-4 h-4 text-zinc-500" />
@@ -89,13 +86,13 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
                 <span className="label">Simulation</span>
               </div>
 
-              {/* Horizontal Flow */}
               <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
                 <DiagramNode
                   icon={<User className="w-5 h-5" />}
                   title="Steuerberater"
                   subtitle="liefert BWA"
                   status="normal"
+                  delay="0s"
                 />
 
                 <DiagramConnector />
@@ -105,6 +102,7 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
                   title="BWA"
                   subtitle="Fehlt"
                   status="blocked"
+                  delay="0.1s"
                 />
 
                 <DiagramConnector />
@@ -114,6 +112,7 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
                   title="Bank"
                   subtitle="Prüfung"
                   status="normal"
+                  delay="0.2s"
                 />
 
                 <DiagramConnector />
@@ -123,11 +122,11 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
                   title="Zusage"
                   subtitle="Finanzierung"
                   status="goal"
+                  delay="0.3s"
                 />
               </div>
 
-              {/* Risk Warning */}
-              <div className="p-4 rounded-xl bg-[#ef4444]/5 border border-[#ef4444]/20">
+              <div className="risk-warning p-4">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-[#ef4444] flex-shrink-0 mt-0.5" />
                   <div>
@@ -142,6 +141,7 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
       </section>
 
       {/* SYSTEM STATUS: Kompakt */}
+      
       <section>
         <div className="grid-12">
           <div className="col-3">
@@ -160,15 +160,16 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
       </section>
 
       {/* FOCUS PROJECT */}
+      
       <section>
         <div className="label mb-4">Aktives Projekt</div>
         
-        <div className="card-focus p-8">
+        <div className="card-focus p-8 md:p-10">
           <div className="grid-12 gap-8">
-            {/* Links: Projekt Info */}
+            
             <div className="col-7">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8338ec] to-[#ff006e] flex items-center justify-center shadow-lg">
+              <div className="flex items-center gap-4 mb-5">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#8338ec] to-[#ff006e] flex items-center justify-center shadow-lg group cursor-pointer transition-transform hover:scale-105">
                   <Building2 className="w-7 h-7 text-white" />
                 </div>
                 <div>
@@ -177,24 +178,24 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 mb-5">
+              <div className="flex flex-wrap gap-2 mb-6">
                 <span className="label label-blocked">Blockiert</span>
                 <span className="label">1 offene Aktion</span>
-                <span className="label">{dummyRisks.length} Risiken</span>
+                <span className="label">3 Risiken</span>
               </div>
 
-              <div className="p-5 rounded-xl bg-[#0a0a0c] border border-white/5 mb-4">
+              <div className="p-5 rounded-2xl bg-[#0a0a0c] border border-white/5 mb-5">
                 <div className="text-xs text-zinc-500 mb-2 uppercase tracking-wider">Nächster Hebel</div>
                 <div className="text-lg font-semibold">Steuerberater Müller anschreiben</div>
               </div>
 
-              <button onClick={onOpenTwin} className="btn-ghost">
+              <button onClick={onOpenTwin} className="btn-ghost group">
                 Öffnen
-                <ArrowUpRight className="w-4 h-4" />
+                <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </button>
             </div>
 
-            {/* Rechts: Mini Flow + Stats */}
+            
             <div className="col-5 border-l border-white/10 pl-8">
               <div className="text-xs text-zinc-500 mb-4 uppercase tracking-wider">Kritischer Pfad</div>
               
@@ -209,7 +210,7 @@ export default function TodayScreen({ onNewProject, onOpenTwin }: TodayScreenPro
               </div>
 
               <div className="space-y-3 pt-5 border-t border-white/5">
-                <StatRow label="Projektlast" value={dummyProject.loadScore.toFixed(1)} />
+                <StatRow label="Projektlast" value="8.0" />
                 <StatRow label="Blocker" value="BWA fehlt" highlight />
               </div>
             </div>
@@ -243,11 +244,12 @@ function Pill({ icon, label, value, type }: {
   )
 }
 
-function DiagramNode({ icon, title, subtitle, status }: { 
+function DiagramNode({ icon, title, subtitle, status, delay }: { 
   icon: React.ReactNode; 
   title: string; 
   subtitle: string; 
-  status: 'normal' | 'blocked' | 'goal'
+  status: 'normal' | 'blocked' | 'goal';
+  delay?: string;
 }) {
   const statusClasses = {
     normal: '',
@@ -256,7 +258,7 @@ function DiagramNode({ icon, title, subtitle, status }: {
   }
 
   return (
-    <div className={`diagram-node ${statusClasses[status]}`}>
+    <div className={`diagram-node ${statusClasses[status]}`} style={{ animationDelay: delay }}>
       <div className="diagram-icon">
         {icon}
       </div>
