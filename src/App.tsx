@@ -21,15 +21,15 @@ function App() {
       <div className="ambient-glow bottom-0 right-1/4 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-[#3a86ff] to-[#00f5ff]" />
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 py-6">
+      <header className="fixed top-0 left-0 right-0 z-50 py-5">
         <div className="container-premium flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#ff006e] to-[#8338ec] flex items-center justify-center shadow-lg shadow-[#ff006e]/30">
+          <div className="flex items-center gap-3 group cursor-pointer" onClick={() => navigateTo('today')}>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff006e] to-[#8338ec] flex items-center justify-center shadow-lg shadow-[#ff006e]/20 transition-all group-hover:shadow-[#ff006e]/30 group-hover:scale-105">
               <Zap className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-lg tracking-tight">Load Pilot</h1>
+              <h1 className="font-bold text-base tracking-tight">Load Pilot</h1>
               <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Project Twin System</p>
             </div>
           </div>
@@ -46,7 +46,7 @@ function App() {
               active={currentView === 'twin'} 
               onClick={() => navigateTo('twin')}
               icon={<Network className="w-4 h-4" />}
-              label="Projekte"
+              label="Twin"
             />
             <NavButton 
               active={currentView === 'input'} 
@@ -59,7 +59,7 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="pt-28 pb-16 relative z-10">
+      <main className="pt-24 pb-16 relative z-10">
         <div className="container-premium">
           {currentView === 'today' && (
             <TodayScreen 
