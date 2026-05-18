@@ -1,1 +1,1 @@
-export { default } from './DependencyGraphPanel'
+export { default } from './DependencySimulationPanel'

@@ -6,7 +6,7 @@ import {
   Zap,
   Activity
 } from 'lucide-react'
-import Organigram from '../components/Organigram'
+import DependencySimulationPanel from '../components/DependencySimulationPanel'
 import { dummyProject, dummyActors, dummyRisks, getNextMove } from '../data/dummyData'
 
 interface TodayScreenProps {
@@ -108,10 +108,8 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
         </div>
       </section>
 
-      {/* NEU: Process Flow als eigene Section */}
-      <section className="card-glass p-8">
-        <Organigram variant="compact" />
-      </section>
+      {/* Dependency Simulation Panel */}
+      <DependencySimulationPanel variant="compact" />
 
       {/* Active Project + Systemstatus */}
       <div className="grid-12 gap-6">

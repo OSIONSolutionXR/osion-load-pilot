@@ -1,8 +1,6 @@
 import { 
   ArrowLeft,
-  AlertTriangle, 
   Users, 
-  GitBranch,
   Activity,
   Shield,
   Zap,
@@ -11,7 +9,7 @@ import {
   AlertCircle,
   Clock
 } from 'lucide-react'
-import Organigram from '../components/Organigram'
+import DependencySimulationPanel from '../components/DependencySimulationPanel'
 
 import { dummyProject, dummyActors, dummyRisks } from '../data/dummyData'
 
@@ -66,29 +64,8 @@ export default function ProjectTwinScreen({ onBack }: ProjectTwinScreenProps) {
         </div>
       </header>
 
-      {/* Main Dependency Graph - Full Width Organigramm */}
-      <section className="card-glass p-8 md:p-12">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <GitBranch className="w-5 h-5 text-[#ff006e]" />
-            <span className="text-lg font-semibold">Warum ist das der richtige Schritt?</span>
-          </div>
-          <p className="text-zinc-500">Systemische Abhängigkeiten im Projekt</p>
-        </div>
-
-        <div className="flex justify-center">
-          <Organigram variant="full" />
-        </div>
-
-        {/* Blocker Warning */}
-        <div className="p-5 rounded-2xl bg-[#ef4444]/5 border border-[#ef4444]/20 text-center mt-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <AlertTriangle className="w-5 h-5 text-[#ef4444]" />
-            <span className="font-semibold">Kritischer Pfad blockiert</span>
-          </div>
-          <p className="text-sm text-zinc-400">Ohne BWA kann die Bankprüfung nicht beginnen. Die Verkäuferentscheidung wird unsicher.</p>
-        </div>
-      </section>
+      {/* Main Dependency Graph */}
+      <DependencySimulationPanel variant="full" />
 
       {/* Scenario Comparison */}
       <section className="grid-12 gap-6">
