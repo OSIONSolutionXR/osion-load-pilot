@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   Target,
   Zap,
-  Network,
   Activity
 } from 'lucide-react'
 import Organigram from '../components/Organigram'
@@ -22,7 +21,7 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
   return (
     <div className="space-y-6 animate-in">
       
-      {/* HERO: Next Move + Dependency Preview */}
+      {/* HERO: Next Move - ohne Organigram */}
       <section className="card-hero p-8 md:p-12">
         <div className="grid-12 gap-8">
           
@@ -67,19 +66,32 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
             </div>
           </div>
 
-          {/* Rechts: Organigramm Preview */}
+          {/* Rechts: Context/Preview - ohne Organigram */}
           <div className="col-5">
             <div className="card-glass p-6 h-full flex flex-col">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
-                  <Network className="w-4 h-4 text-zinc-500" />
-                  <span className="text-sm font-medium text-zinc-400">Erkannte Abhängigkeit</span>
+                  <Activity className="w-4 h-4 text-zinc-500" />
+                  <span className="text-sm font-medium text-zinc-400">Systemstatus</span>
                 </div>
-                <span className="label">Simulation</span>
+                <span className="label">Live</span>
               </div>
 
-              <div className="flex-1 flex items-center justify-center">
-                <Organigram variant="compact" />
+              <div className="flex-1 space-y-4">
+                <div className="p-4 rounded-xl bg-[#0a0a0c] border border-white/5">
+                  <div className="text-xs text-zinc-500 mb-1 uppercase tracking-wider">Blockiert durch</div>
+                  <div className="font-semibold text-[#ef4444]">BWA fehlt</div>
+                </div>
+                
+                <div className="p-4 rounded-xl bg-[#0a0a0c] border border-white/5">
+                  <div className="text-xs text-zinc-500 mb-1 uppercase tracking-wider">Auswirkung</div>
+                  <div className="font-semibold text-zinc-300">Bankprüfung verzögert</div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-[#0a0a0c] border border-white/5">
+                  <div className="text-xs text-zinc-500 mb-1 uppercase tracking-wider">Nächster Hebel</div>
+                  <div className="font-semibold text-emerald-400">Steuerberater Müller</div>
+                </div>
               </div>
 
               <div className="risk-warning p-4 mt-6">
@@ -94,6 +106,11 @@ export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps
             </div>
           </div>
         </div>
+      </section>
+
+      {/* NEU: Process Flow als eigene Section */}
+      <section className="card-glass p-8">
+        <Organigram variant="compact" />
       </section>
 
       {/* Active Project + Systemstatus */}
