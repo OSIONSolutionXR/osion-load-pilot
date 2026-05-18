@@ -20,7 +20,7 @@ export default function Organigram({ variant: _variant = 'compact' }: Organigram
     {
       id: '1',
       step: 1,
-      icon: <User className="w-6 h-6" />,
+      icon: <User className="w-5 h-5" />,
       title: 'Steuerberater\nMüller',
       subtitle: 'Auslöser',
       status: 'complete',
@@ -28,7 +28,7 @@ export default function Organigram({ variant: _variant = 'compact' }: Organigram
     {
       id: '2',
       step: 2,
-      icon: <FileText className="w-6 h-6" />,
+      icon: <FileText className="w-5 h-5" />,
       title: 'BWA',
       subtitle: 'Fehlt',
       status: 'blocked',
@@ -36,7 +36,7 @@ export default function Organigram({ variant: _variant = 'compact' }: Organigram
     {
       id: '3',
       step: 3,
-      icon: <Landmark className="w-6 h-6" />,
+      icon: <Landmark className="w-5 h-5" />,
       title: 'Bank',
       subtitle: 'Prüfung wartet',
       status: 'waiting',
@@ -44,7 +44,7 @@ export default function Organigram({ variant: _variant = 'compact' }: Organigram
     {
       id: '4',
       step: 4,
-      icon: <Shield className="w-6 h-6" />,
+      icon: <Shield className="w-5 h-5" />,
       title: 'Zusage',
       subtitle: 'Finanzierung',
       status: 'pending',
@@ -94,7 +94,7 @@ export default function Organigram({ variant: _variant = 'compact' }: Organigram
       <div className="rounded-xl border border-red-500/30 bg-gradient-to-r from-red-500/10 to-red-900/5 p-5">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0">
-            <AlertTriangle className="w-6 h-6 text-red-400" />
+            <AlertTriangle className="w-5 h-5 text-red-400" />
           </div>
           <div>
             <p className="font-medium text-white mb-1">Wenn heute nichts passiert:</p>
@@ -145,7 +145,7 @@ function ProcessCard({ data }: { data: ProcessStep }) {
         )}
 
         {/* Icon */}
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 overflow-hidden ${
           isBlocked
             ? 'bg-red-500/20 text-red-400'
             : isComplete
@@ -154,7 +154,9 @@ function ProcessCard({ data }: { data: ProcessStep }) {
                 ? 'bg-zinc-700/50 text-zinc-400'
                 : 'bg-zinc-800/50 text-zinc-500'
         }`}>
-          {data.icon}
+          <div className="w-5 h-5 flex items-center justify-center">
+            {data.icon}
+          </div>
         </div>
 
         {/* Title */}
