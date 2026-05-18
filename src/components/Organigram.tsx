@@ -1,4 +1,4 @@
-import { User, FileText, Landmark, FileCheck, Building2, AlertTriangle } from 'lucide-react';
+import { User, FileText, Landmark, AlertTriangle, ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 interface OrgNodeData {
@@ -6,7 +6,8 @@ interface OrgNodeData {
   icon: ReactNode;
   title: string;
   subtitle: string;
-  status: 'normal' | 'blocked' | 'waiting' | 'warning';
+  status: 'normal' | 'blocked' | 'waiting' | 'active';
+  step: number;
 }
 
 interface OrganigramProps {
@@ -17,23 +18,26 @@ export default function Organigram({ variant = 'compact' }: OrganigramProps) {
   const compactNodes: OrgNodeData[] = [
     {
       id: '1',
+      step: 1,
       icon: <User className="w-5 h-5" />,
       title: 'Steuerberater Müller',
-      subtitle: 'Wartet',
-      status: 'normal',
+      subtitle: 'Auslöser',
+      status: 'active',
     },
     {
       id: '2',
+      step: 2,
       icon: <FileText className="w-5 h-5" />,
       title: 'BWA',
-      subtitle: 'Fehlt',
+      subtitle: 'Fehlt → Blockiert',
       status: 'blocked',
     },
     {
       id: '3',
+      step: 3,
       icon: <Landmark className="w-5 h-5" />,
       title: 'Bank',
-      subtitle: 'Prüfung',
+      subtitle: 'Prüfung wartet',
       status: 'waiting',
     },
   ];
@@ -41,125 +45,189 @@ export default function Organigram({ variant = 'compact' }: OrganigramProps) {
   const fullNodes: OrgNodeData[] = [
     {
       id: '1',
+      step: 1,
       icon: <User className="w-5 h-5" />,
       title: 'Steuerberater Müller',
-      subtitle: 'Wartet auf Handlung',
-      status: 'normal',
+      subtitle: 'Auslöser',
+      status: 'active',
     },
     {
       id: '2',
+      step: 2,
       icon: <FileText className="w-5 h-5" />,
       title: 'BWA',
-      subtitle: 'Fehlt - Blockiert',
+      subtitle: 'Fehlt',
       status: 'blocked',
     },
     {
       id: '3',
+      step: 3,
       icon: <Landmark className="w-5 h-5" />,
-      title: 'Bankprüfung',
-      subtitle: 'Kann nicht beginnen',
+      title: 'Bank',
+      subtitle: 'Prüfung blockiert',
       status: 'blocked',
     },
     {
       id: '4',
-      icon: <FileCheck className="w-5 h-5" />,
-      title: 'Finanzierungszusage',
+      step: 4,
+      icon: <Landmark className="w-5 h-5" />,
+      title: 'Finanzierung',
       subtitle: 'Nicht möglich',
       status: 'waiting',
-    },
-    {
-      id: '5',
-      icon: <Building2 className="w-5 h-5" />,
-      title: 'Verkäuferentscheidung',
-      subtitle: 'Wird gefährdet',
-      status: 'warning',
     },
   ];
 
   const nodes = variant === 'compact' ? compactNodes : fullNodes;
 
   return (
-    <div className="w-full py-4">
-      {nodes.map((node, index) => (
-        <div key={node.id} className="flex flex-col items-center">
-          <NodeCard data={node} />
-          {index < nodes.length - 1 && <Connector fromStatus={node.status} toStatus={nodes[index + 1].status} />}
-        </div>
-      ))}
+    <div className="w-full">
+      {/* Horizontal Process Flow */}
+      <div className="flex items-center justify-center">
+        {nodes.map((node, index) => (
+          <div key={node.id} className="flex items-center">
+            <ProcessNode data={node} />
+            {index < nodes.length - 1 && (
+              <ProcessConnector fromStatus={node.status} toStatus={nodes[index + 1].status} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Legend below */}
+      <div className="mt-6 flex justify-center gap-6 text-xs">
+        <LegendItem color="bg-emerald-500" label="Aktiv" />
+        <LegendItem color="bg-[#ef4444]" label="Blockiert" />
+        <LegendItem color="bg-zinc-500" label="Wartend" />
+      </div>
     </div>
   );
 }
 
-function NodeCard({ data }: { data: OrgNodeData }) {
-  const statusStyles = {
-    normal: 'border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02]',
-    blocked: 'border-[#ef4444]/50 bg-gradient-to-br from-[#ef4444]/15 to-[#ef4444]/5 shadow-[0_0_30px_rgba(239,68,68,0.15)]',
-    waiting: 'border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02]',
-    warning: 'border-amber-500/50 bg-gradient-to-br from-amber-500/15 to-amber-500/5',
+function ProcessNode({ data }: { data: OrgNodeData }) {
+  const statusRingColors = {
+    normal: 'border-zinc-500/30',
+    blocked: 'border-[#ef4444] shadow-[0_0_20px_rgba(239,68,68,0.3)]',
+    waiting: 'border-zinc-600/30',
+    active: 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]',
   };
 
-  const iconStyles = {
-    normal: 'bg-white/5 text-zinc-400',
-    blocked: 'bg-[#ef4444]/20 text-[#ef4444]',
-    waiting: 'bg-white/5 text-zinc-400',
-    warning: 'bg-amber-500/20 text-amber-400',
+  const statusBgColors = {
+    normal: 'bg-zinc-800/50',
+    blocked: 'bg-[#ef4444]/10',
+    waiting: 'bg-zinc-800/30',
+    active: 'bg-emerald-500/10',
   };
 
-  const textColors = {
-    normal: 'text-zinc-500',
+  const statusIconColors = {
+    normal: 'text-zinc-400',
     blocked: 'text-[#ef4444]',
     waiting: 'text-zinc-500',
-    warning: 'text-amber-400',
+    active: 'text-emerald-400',
   };
 
-  const showWarning = data.status === 'blocked' || data.status === 'warning';
+  const statusTextColors = {
+    normal: 'text-zinc-400',
+    blocked: 'text-[#ef4444]',
+    waiting: 'text-zinc-500',
+    active: 'text-emerald-400',
+  };
+
+  const isBlocked = data.status === 'blocked';
+  const isActive = data.status === 'active';
 
   return (
-    <div className="relative w-full max-w-[220px]">
-      <div
-        className={`p-4 rounded-xl border ${statusStyles[data.status]} ${
-          data.status === 'blocked' ? 'animate-pulse' : ''
-        } transition-all duration-300 hover:scale-[1.02]`}
-      >
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${iconStyles[data.status]}`}>
+    <div className="flex flex-col items-center group">
+      {/* Step Number */}
+      <div className={`mb-3 text-xs font-medium ${statusTextColors[data.status]}`}>
+        Schritt {data.step}
+      </div>
+
+      {/* Node Card */}
+      <div className="relative">
+        {/* Status Ring */}
+        <div 
+          className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${statusRingColors[data.status]} ${statusBgColors[data.status]} group-hover:scale-110`}
+        >
+          <div className={statusIconColors[data.status]}>
             {data.icon}
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="font-semibold text-sm truncate">{data.title}</div>
-            <div className={`text-xs ${textColors[data.status]}`}>{data.subtitle}</div>
+        </div>
+
+        {/* Warning Badge */}
+        {isBlocked && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#ef4444] flex items-center justify-center animate-pulse">
+            <AlertTriangle className="w-3 h-3 text-white" />
           </div>
-        </div>
+        )}
+
+        {/* Active Badge */}
+        {isActive && (
+          <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+            <div className="w-2 h-2 bg-white rounded-full" />
+          </div>
+        )}
       </div>
-      
-      {showWarning && (
-        <div className="absolute -top-2 -right-2">
-          <AlertTriangle className="w-4 h-4 text-[#ef4444]" />
-        </div>
-      )}
+
+      {/* Label */}
+      <div className="mt-3 text-center max-w-[120px]">
+        <div className="font-semibold text-sm text-white truncate">{data.title}</div>
+        <div className={`text-xs ${statusTextColors[data.status]} mt-0.5`}>{data.subtitle}</div>
+      </div>
     </div>
   );
 }
 
-function Connector({ fromStatus, toStatus }: { fromStatus: string; toStatus: string }) {
+function ProcessConnector({ fromStatus, toStatus }: { fromStatus: string; toStatus: string }) {
   const isBlocked = fromStatus === 'blocked' || toStatus === 'blocked';
-  
+  const isFlowing = fromStatus === 'active' && !isBlocked;
+
   return (
-    <div className="flex flex-col items-center py-2">
-      {/* Line */}
-      <div 
-        className={`w-0.5 h-8 ${
-          isBlocked 
-            ? 'bg-gradient-to-b from-[#ef4444]/60 to-[#ef4444]/20' 
-            : 'bg-gradient-to-b from-white/20 to-white/5'
-        }`} 
-      />
-      {/* Arrow head using CSS border trick */}
-      <div 
-        className={`w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent -mt-0.5 ${
-          isBlocked ? 'border-t-[#ef4444]/60' : 'border-t-white/20'
-        }`}
-      />
+    <div className="flex flex-col items-center mx-2">
+      {/* Horizontal Line with Arrow */}
+      <div className="relative flex items-center w-12">
+        {/* Line */}
+        <div 
+          className={`h-0.5 flex-1 transition-all duration-500 ${
+            isBlocked 
+              ? 'bg-gradient-to-r from-[#ef4444]/80 to-[#ef4444]/40' 
+              : isFlowing
+                ? 'bg-gradient-to-r from-emerald-500 to-emerald-500/60'
+                : 'bg-gradient-to-r from-zinc-600 to-zinc-700'
+          }`}
+        />
+        
+        {/* Arrow */}
+        <ArrowRight 
+          className={`w-4 h-4 -ml-0.5 transition-all duration-300 ${
+            isBlocked 
+              ? 'text-[#ef4444]' 
+              : isFlowing 
+                ? 'text-emerald-400' 
+                : 'text-zinc-600'
+          }`}
+        />
+
+        {/* Flow Animation for blocked state */}
+        {isBlocked && (
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="w-2 h-full bg-gradient-to-r from-transparent via-[#ef4444]/40 to-transparent animate-pulse" />
+          </div>
+        )}
+      </div>
+
+      {/* Status Text below connector */}
+      <div className="mt-1 text-[10px] text-zinc-600 font-medium">
+        {isBlocked ? '→ blockiert' : isFlowing ? '→ fließt' : '→ wartet'}
+      </div>
+    </div>
+  );
+}
+
+function LegendItem({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className={`w-2 h-2 rounded-full ${color}`} />
+      <span className="text-zinc-500">{label}</span>
     </div>
   );
 }
