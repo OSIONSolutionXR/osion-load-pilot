@@ -1,5 +1,14 @@
-import type { Node } from '../data/demoProject'
 import type { DependencyStatus, ProjectTwinAnalysis, ProjectStatus, RiskSeverity } from '../types/projectTwin'
+
+export interface DerivedDependencyNode {
+  id: string
+  step: number
+  title: string
+  subtitle: string
+  status: 'complete' | 'active' | 'blocked' | 'pending'
+  state?: 'critical'
+  icon: 'user' | 'file-text' | 'building' | 'check-circle'
+}
 
 function statusSubtitle(status: ProjectStatus) {
   if (status === 'blocked') return 'Blockiert'
@@ -21,7 +30,7 @@ function severityText(severity: RiskSeverity) {
   return 'Niedrig'
 }
 
-export function deriveDependencyNodes(analysis: ProjectTwinAnalysis): Node[] {
+export function deriveDependencyNodes(analysis: ProjectTwinAnalysis): DerivedDependencyNode[] {
   const actor = analysis.actors[0]
   const blocker = analysis.dependencies.find((dependency) => dependency.isBlocker)
   const blockerTarget = blocker?.to ?? analysis.project.title

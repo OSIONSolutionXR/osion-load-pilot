@@ -69,7 +69,7 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Beschreibe chaotisch, was gerade los ist ... z. B. 'Bank wartet auf die BWA. Steuerberater Müller hat noch nicht geliefert. Verkäufer will bis Freitag Rückmeldung.'"
+              placeholder="Beschreibe konkret, was du erreichen willst, was offen ist, wer beteiligt ist und welche Frist oder Entscheidung ansteht."
               className="w-full h-44 p-5 rounded-2xl bg-white/[0.03] border border-white/10 text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none focus:border-violet-500/50 transition-colors text-base leading-relaxed"
             />
           </div>

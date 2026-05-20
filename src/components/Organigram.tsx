@@ -1,1 +1,1 @@
-export { default } from './DependencySimulationPanel'
+export { DependencySimulationPanel as default } from './dependency/DependencySimulationPanel'
