@@ -1,201 +1,283 @@
-import {
-  Building2,
-  Clock,
-  AlertTriangle,
-  Target,
-  Zap,
-  Activity
-} from 'lucide-react'
-import DependencySimulationPanel from '../components/DependencySimulationPanel'
-import { dummyProject, dummyActors, dummyRisks, getNextMove } from '../data/dummyData'
+import { motion } from 'motion/react'
+import { Target, Clock, AlertTriangle, Zap, Activity, Building2 } from 'lucide-react'
+import { Button } from '../components/ui/Button'
+import { Badge } from '../components/ui/Badge'
+import { Panel } from '../components/ui/Panel'
+import { DependencySimulationPanel } from '../components/dependency/DependencySimulationPanel'
+import type { StoredProjectTwin } from '../lib/projectTwinStore'
 
 interface TodayScreenProps {
   onOpenTwin: () => void
   onNewInput: () => void
+  activeTwin: StoredProjectTwin | null
 }
 
-export default function TodayScreen({ onOpenTwin, onNewInput }: TodayScreenProps) {
-  const nextMove = getNextMove()
-  const targetActor = dummyActors.find(a => a.id === nextMove.targetActor)
+export default function TodayScreen({ onOpenTwin, onNewInput, activeTwin }: TodayScreenProps) {
+  const analysis = activeTwin?.analysis ?? null
+  const hasTwin = Boolean(activeTwin)
 
   return (
-    <div className="space-y-6 animate-in">
+    <div className="space-y-10">
       
-      {/* HERO: Next Move - ohne Organigram */}
-      <section className="card-hero p-8 md:p-12">
-        <div className="grid-12 gap-8">
+      {/* Hero Section */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="panel-premium p-8 md:p-12"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:items-start">
           
-          {/* Links: Next Move */}
-          <div className="col-7 flex flex-col justify-center">
+          {/* Left: Hero Content */}
+          <div className="lg:col-span-7 flex flex-col">
             <div className="flex items-center gap-3 mb-6">
-              <span className="label label-accent">Heute</span>
-              <span className="text-zinc-600">•</span>
+              <Badge variant="violet" icon={Zap}>Heute</Badge>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#ef4444] animate-pulse" />
-                <span className="text-sm text-[#ef4444] font-semibold">Blocker erkannt</span>
+                <span className="status-dot status-dot-critical"></span>
+                <span className="text-sm text-[#fb7185] font-medium">Blocker erkannt</span>
               </div>
             </div>
 
-            <h1 className="hero-headline mb-6">
+            <h1 className="text-display text-balance mb-6">
               Der nächste{' '}
               <span className="gradient-text">wirksamste Schritt</span>
             </h1>
 
-            <p className="hero-subline text-zinc-300 mb-4">
-              {targetActor?.name} anschreiben: BWA bis Mittwoch benötigt
+            <p className="text-subhead text-zinc-300 mb-4">
+              {analysis ? analysis.nextMove.title : 'Steuerberater Müller anschreiben: BWA bis Mittwoch benötigt'}
             </p>
 
-            <p className="text-zinc-500 max-w-lg mb-8">
-              Die Bank wartet auf die BWA. Ohne diese Unterlage kann die Prüfung nicht beginnen.
+            <p className="text-body max-w-xl mb-8">
+              {analysis ? analysis.nextMove.reason : 'Die Bank wartet auf die BWA. Ohne diese Unterlage kann die Prüfung nicht beginnen.'}
             </p>
 
-            <div className="flex flex-wrap gap-2 mb-10">
-              <Pill icon={<Target className="w-3.5 h-3.5" />} label="Wirkung" value="Hoch" type="high" />
-              <Pill icon={<Clock className="w-3.5 h-3.5" />} label="Aufwand" value="Niedrig" type="low" />
-              <Pill icon={<AlertTriangle className="w-3.5 h-3.5" />} label="Frist" value="Heute" type="urgent" />
+            {/* Pills */}
+            <div className="flex flex-wrap gap-3 mb-10">
+              <Pill icon={Target} label="Wirkung" value={analysis ? analysis.nextMove.impact : 'Hoch'} variant="high" />
+              <Pill icon={Clock} label="Aufwand" value={analysis ? analysis.nextMove.effort : 'Niedrig'} variant="low" />
+              <Pill icon={AlertTriangle} label="Frist" value={analysis?.nextMove.deadline ?? 'Heute'} variant="urgent" />
             </div>
 
+            {/* CTAs */}
             <div className="flex flex-wrap gap-3">
-              <button onClick={onOpenTwin} className="btn-primary group">
-                <Zap className="w-5 h-5 transition-transform group-hover:scale-110" />
-                Project Twin öffnen
-              </button>
-              <button onClick={onNewInput} className="btn-secondary">
+              {hasTwin ? (
+                <Button onClick={onOpenTwin} icon={Zap}>
+                  Project Twin öffnen
+                </Button>
+              ) : (
+                <Button onClick={onNewInput} icon={Zap}>
+                  Neuen Input erfassen
+                </Button>
+              )}
+              <Button variant="secondary" onClick={onNewInput}>
                 Neuer Input
-              </button>
+              </Button>
             </div>
           </div>
 
-          {/* Rechts: Context/Preview - ohne Organigram */}
-          <div className="col-5">
-            <div className="card-glass p-6 h-full flex flex-col">
+          {/* Right: Context Panel */}
+          <div className="lg:col-span-5">
+            <div className="panel-card p-6 h-full">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-zinc-500" />
                   <span className="text-sm font-medium text-zinc-400">Systemstatus</span>
                 </div>
-                <span className="label">Live</span>
+                <Badge variant="neutral">Live</Badge>
               </div>
 
-              <div className="flex-1 space-y-4">
-                <div className="p-4 rounded-xl bg-[#0a0a0c] border border-white/5">
-                  <div className="text-xs text-zinc-500 mb-1 uppercase tracking-wider">Blockiert durch</div>
-                  <div className="font-semibold text-[#ef4444]">BWA fehlt</div>
-                </div>
-                
-                <div className="p-4 rounded-xl bg-[#0a0a0c] border border-white/5">
-                  <div className="text-xs text-zinc-500 mb-1 uppercase tracking-wider">Auswirkung</div>
-                  <div className="font-semibold text-zinc-300">Bankprüfung verzögert</div>
-                </div>
-
-                <div className="p-4 rounded-xl bg-[#0a0a0c] border border-white/5">
-                  <div className="text-xs text-zinc-500 mb-1 uppercase tracking-wider">Nächster Hebel</div>
-                  <div className="font-semibold text-emerald-400">Steuerberater Müller</div>
-                </div>
+              <div className="space-y-4">
+                <StatusCard 
+                  label="Blockiert durch" 
+                  value={analysis?.dependencies.find((dependency) => dependency.isBlocker)?.from ?? 'Noch keine Analyse'} 
+                  variant="danger" 
+                />
+                <StatusCard 
+                  label="Auswirkung" 
+                  value={analysis?.risks[0]?.title ?? 'Bitte zuerst Projektlage erfassen'} 
+                />
+                <StatusCard 
+                  label="Nächster Hebel" 
+                  value={analysis?.nextMove.title ?? 'Neuen Input erfassen'} 
+                  variant="success" 
+                />
               </div>
 
-              <div className="risk-warning p-4 mt-6">
+              {/* Risk Warning */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="mt-6 p-4 rounded-2xl bg-[#fb7185]/5 border border-[#fb7185]/20"
+              >
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-[#ef4444] flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-5 h-5 text-[#fb7185] flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-sm mb-1">Wenn heute nichts passiert</p>
-                    <p className="text-xs text-zinc-400">Risiko steigt, Bankprüfung bleibt blockiert.</p>
+                    <p className="font-medium text-sm text-zinc-200 mb-1">
+                      Wenn heute nichts passiert
+                    </p>
+                    <p className="text-xs text-zinc-400">
+                      {analysis?.risks[0]?.explanation ?? 'Sobald eine Projektlage erfasst ist, zeigt Load Pilot hier den wichtigsten Risikokontext.'}
+                    </p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Dependency Simulation Panel */}
-      <DependencySimulationPanel variant="compact" />
+      <DependencySimulationPanel variant="compact" analysis={analysis} />
 
-      {/* Active Project + Systemstatus */}
-      <div className="grid-12 gap-6">
+      {/* Bottom Section: Active Project + System Stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
         {/* Active Project */}
-        <div className="col-8">
-          <section className="card-focus p-6">
-            <div className="label mb-4">Aktives Projekt</div>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="lg:col-span-8"
+        >
+          <Panel variant="compact">
+            {/* Header mit Label */}
+            <div className="flex items-center gap-2 mb-6">
+              <div className="text-label text-zinc-500">AKTIVES PROJEKT</div>
+              <div className="h-px flex-1 bg-white/10"></div>
+            </div>
             
-            <div className="flex items-start gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8338ec] to-[#ff006e] flex items-center justify-center shadow-lg">
-                <Building2 className="w-7 h-7 text-white" />
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Project Icon */}
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-[#ff006e] flex items-center justify-center shadow-lg flex-shrink-0">
+                <Building2 className="w-8 h-8 text-white" />
               </div>
               
-              <div className="flex-1">
-                <h3 className="text-xl font-bold mb-1">{dummyProject.name}</h3>
-                <p className="text-zinc-500 mb-4">{dummyProject.goal}</p>
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-headline mb-2">{analysis?.project.title ?? 'Noch kein Project Twin aktiv'}</h3>
+                <p className="text-body mb-5">
+                  {analysis?.project.description ?? 'Erfasse zuerst eine Projektlage, damit Load Pilot einen echten Project Twin erzeugen und hier anzeigen kann.'}
+                </p>
 
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <span className="label label-blocked">Blockiert</span>
-                  <span className="label">1 offene Aktion</span>
-                  <span className="label">{dummyRisks.length} Risiken</span>
+                {/* Badges Row */}
+                <div className="flex flex-wrap gap-2 mb-5">
+                  <Badge variant={analysis?.project.status === 'blocked' ? 'rose' : 'blue'}>
+                    {analysis?.project.status ?? 'Kein Twin'}
+                  </Badge>
+                  <Badge variant="neutral">{analysis?.actions.length ?? 0} offene Aktionen</Badge>
+                  <Badge variant="neutral">{analysis?.risks.length ?? 0} Risiken</Badge>
                 </div>
 
-                <div className="p-4 rounded-xl bg-[#0a0a0c] border border-white/5">
-                  <div className="text-xs text-zinc-500 mb-1 uppercase tracking-wider">Nächster Hebel</div>
-                  <div className="font-semibold">Steuerberater Müller anschreiben</div>
+                {/* Next Lever Section */}
+                <div className="panel-card p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="w-4 h-4 text-violet-400" />
+                    <span className="text-label text-violet-400">NÄCHSTER HEBEL</span>
+                  </div>
+                  <div className="text-lg font-semibold text-zinc-200">{analysis?.nextMove.title ?? 'Neuen Input erfassen'}</div>
+                  <p className="text-sm text-zinc-500 mt-1">{analysis?.nextMove.deadline ?? 'Noch keine Analyse vorhanden'}</p>
                 </div>
               </div>
             </div>
-          </section>
-        </div>
+          </Panel>
+        </motion.div>
 
-        {/* Systemstatus */}
-        <div className="col-4">
-          <section className="card-glass p-6 h-full">
-            <div className="flex items-center gap-2 mb-5">
-              <Activity className="w-4 h-4 text-zinc-500" />
-              <span className="text-sm font-medium">Systemstatus</span>
+        {/* System Stats */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="lg:col-span-4"
+        >
+          <Panel variant="compact">
+            {/* Header mit Icon und Titel */}
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
+              <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center">
+                <Activity className="w-4 h-4 text-violet-400" />
+              </div>
+              <span className="text-base font-semibold">Systemstatus</span>
             </div>
 
+            {/* Stats Grid mit konsistenter Spacing */}
             <div className="space-y-3">
-              <StatusRow label="Aktive Projekte" value="1" />
-              <StatusRow label="Offene Aktionen" value="1" />
-              <StatusRow label="Risiken" value="3" highlight />
-              <StatusRow label="Blocker" value="1" danger />
+              <StatRow label="Aktive Projekte" value={hasTwin ? '1' : '0'} />
+              <StatRow label="Offene Aktionen" value={String(analysis?.actions.length ?? 0)} />
+              <StatRow label="Risiken" value={String(analysis?.risks.length ?? 0)} warning />
+              <StatRow label="Blocker" value={String(analysis?.dependencies.filter((dependency) => dependency.isBlocker).length ?? 0)} danger />
             </div>
-          </section>
-        </div>
+          </Panel>
+        </motion.div>
       </div>
     </div>
   )
 }
 
-/* Components */
+// Components
 
-function Pill({ icon, label, value, type }: { 
-  icon: React.ReactNode; 
-  label: string; 
-  value: string; 
-  type: 'high' | 'low' | 'urgent' | 'amber'
+function Pill({ 
+  icon: Icon, 
+  label, 
+  value, 
+  variant 
+}: { 
+  icon: typeof Target
+  label: string
+  value: string
+  variant: 'high' | 'low' | 'urgent'
 }) {
-  const typeClasses = {
-    high: 'pill-high',
-    low: 'pill-low',
-    urgent: 'pill-urgent',
-    amber: 'pill-amber'
+  const colors = {
+    high: 'border-rose-500/30 text-rose-400',
+    low: 'border-emerald-500/30 text-emerald-400',
+    urgent: 'border-[#fb7185]/30 text-[#fb7185]'
   }
 
   return (
-    <div className={`pill ${typeClasses[type]}`}>
-      {icon}
-      <span>{label}: {value}</span>
+    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border ${colors[variant]} bg-white/5`}>
+      <Icon className="w-4 h-4" />
+      <span className="text-sm font-medium">{label}: {value}</span>
     </div>
   )
 }
 
-function StatusRow({ label, value, highlight, danger }: { 
-  label: string; 
-  value: string; 
-  highlight?: boolean;
-  danger?: boolean;
+function StatusCard({ 
+  label, 
+  value, 
+  variant = 'default' 
+}: { 
+  label: string
+  value: string
+  variant?: 'default' | 'danger' | 'success'
+}) {
+  const colors = {
+    default: 'text-zinc-300',
+    danger: 'text-[#fb7185]',
+    success: 'text-emerald-400'
+  }
+
+  return (
+    <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5">
+      <div className="text-label text-zinc-500 mb-1">{label}</div>
+      <div className={`font-semibold ${colors[variant]}`}>{value}</div>
+    </div>
+  )
+}
+
+function StatRow({ 
+  label, 
+  value, 
+  warning, 
+  danger 
+}: { 
+  label: string
+  value: string
+  warning?: boolean
+  danger?: boolean
 }) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-      <span className="text-sm text-zinc-500">{label}</span>
-      <span className={`font-semibold ${danger ? 'text-[#ef4444]' : highlight ? 'text-amber-400' : ''}`}>
+    <div className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
+      <span className="text-sm text-zinc-400">{label}</span>
+      <span className={`font-semibold ${danger ? 'text-[#fb7185]' : warning ? 'text-amber-400' : 'text-zinc-200'}`}>
         {value}
       </span>
     </div>

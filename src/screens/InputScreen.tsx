@@ -1,234 +1,284 @@
+import { motion } from 'motion/react'
+import { Sparkles, X, Loader2, AlertTriangle, ArrowRight, Users, GitBranch, ShieldAlert, Waypoints } from 'lucide-react'
 import { useState } from 'react'
-import { Sparkles, ArrowRight, Users, GitBranch, AlertTriangle, Target, CheckCircle2, X, Loader2 } from 'lucide-react'
+import { Button } from '../components/ui/Button'
+import { Badge } from '../components/ui/Badge'
+import { Panel } from '../components/ui/Panel'
+import { analyzeProjectInput, ProjectAnalysisError } from '../services/projectAnalysisApi'
+import type { ProjectTwinAnalysis } from '../types/projectTwin'
 
 interface InputScreenProps {
-  onCreateTwin: () => void
+  onCreateTwin: (sourceInput: string, analysis: ProjectTwinAnalysis) => void
   onCancel: () => void
 }
 
 export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps) {
   const [text, setText] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [showPreview, setShowPreview] = useState(false)
+  const [analysis, setAnalysis] = useState<ProjectTwinAnalysis | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleAnalyze = () => {
-    if (!text.trim()) return
+  const handleAnalyze = async () => {
+    if (!text.trim()) {
+      setError('Bitte beschreibe zuerst die aktuelle Projektlage.')
+      return
+    }
+
     setIsAnalyzing(true)
-    // Simulate analysis
-    setTimeout(() => {
-      setIsAnalyzing(false)
-      setShowPreview(true)
-    }, 1500)
-  }
+    setError(null)
+    setAnalysis(null)
 
-  const handleCreateTwin = () => {
-    onCreateTwin()
+    try {
+      const result = await analyzeProjectInput(text)
+      setAnalysis(result)
+    } catch (err) {
+      const message = err instanceof ProjectAnalysisError ? err.message : 'Die Analyse konnte nicht durchgeführt werden.'
+      setError(message)
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
   return (
-    <div className="animate-in space-y-6">
-      
-      {/* Page Header */}
-      <header className="card-glass p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={onCancel} className="btn-ghost">
-              <X className="w-5 h-5" />
-            </button>
-            
-            <div className="h-8 w-px bg-white/10" />
-            
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-4 h-4 text-[#ff006e]" />
-                <span className="label label-accent">Neuer Input</span>
-              </div>
-              <h2 className="text-2xl font-bold">Projektlage erfassen</h2>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="space-y-6"
+    >
+      <Panel>
+        <div className="flex items-center gap-4 mb-8">
+          <Button variant="ghost" onClick={onCancel}>
+            <X className="w-5 h-5" />
+          </Button>
+
+          <div className="h-8 w-px bg-white/10" />
+
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="w-4 h-4 text-[#ff006e]" />
+              <Badge variant="violet">Neuer Input</Badge>
             </div>
+            <h1 className="text-headline">Projektlage erfassen</h1>
           </div>
         </div>
-      </header>
 
-      {!showPreview ? (
-        <>
-          {/* Input Hero */}
-          
-          <section className="card-hero p-10 md:p-16">
-            <div className="max-w-3xl mx-auto text-center">
-              <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-[#ff006e]/20 to-[#8338ec]/20 flex items-center justify-center border border-[#ff006e]/30 mb-6 shadow-lg shadow-[#ff006e]/10">
-                <Sparkles className="w-9 h-9 text-[#ff006e]" />
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <label className="text-label text-zinc-500">Was passiert gerade?</label>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Beschreibe chaotisch, was gerade los ist ... z. B. 'Bank wartet auf die BWA. Steuerberater Müller hat noch nicht geliefert. Verkäufer will bis Freitag Rückmeldung.'"
+              className="w-full h-44 p-5 rounded-2xl bg-white/[0.03] border border-white/10 text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none focus:border-violet-500/50 transition-colors text-base leading-relaxed"
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-2xl border border-[#fb7185]/30 bg-[#fb7185]/8 p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-[#fb7185] mt-0.5 flex-shrink-0" />
+              <div>
+                <div className="font-medium text-[#fb7185] mb-1">Analysefehler</div>
+                <p className="text-sm text-zinc-300">{error}</p>
               </div>
-              
-              <h3 className="text-3xl font-bold mb-3">Was ist gerade offen?</h3>
-              <p className="text-zinc-400 text-lg mb-8">
-                Schreib Deine Projektlage ungeordnet rein. OSION erkennt Projekte, Akteure, Fristen, Blocker und Abhängigkeiten.
-              </p>
+            </div>
+          )}
 
-              <div className="mb-6">
-                <textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Bank wartet auf BWA, Steuerberater Müller hat noch nicht geliefert, Verkäufer will bis Freitag Rückmeldung, Cityhouse Preise müssen geprüft werden..."
-                  className="w-full bg-[#0a0a0c] rounded-2xl p-6 text-lg leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-[#ff006e]/50 transition-all placeholder:text-zinc-600"
-                  style={{ minHeight: '200px', border: '1px solid rgba(255,255,255,0.06)' }}
+          {isAnalyzing && (
+            <div className="rounded-2xl border border-violet-500/20 bg-violet-500/8 p-4 flex items-start gap-3">
+              <Loader2 className="w-5 h-5 text-violet-400 animate-spin mt-0.5 flex-shrink-0" />
+              <div>
+                <div className="font-medium text-violet-300 mb-1">Analyse läuft</div>
+                <p className="text-sm text-zinc-300">OSION analysiert Projektlage über OpenClaw …</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={handleAnalyze} disabled={!text.trim() || isAnalyzing}>
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Projektlage wird analysiert
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Projektlage analysieren
+                </>
+              )}
+            </Button>
+
+            <Button variant="secondary" onClick={onCancel}>
+              Abbrechen
+            </Button>
+          </div>
+        </div>
+
+        <motion.div
+          initial={false}
+          animate={{
+            height: analysis ? 'auto' : 0,
+            opacity: analysis ? 1 : 0
+          }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="overflow-hidden"
+        >
+          {analysis && (
+            <div className="mt-8 pt-8 border-t border-white/5 space-y-6">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <h3 className="text-title mb-1">Project-Twin Preview</h3>
+                  <p className="text-sm text-zinc-500">Die Analyse kann jetzt als lokaler Twin uebernommen werden.</p>
+                </div>
+                <Button onClick={() => onCreateTwin(text, analysis)}>
+                  <ArrowRight className="w-4 h-4" />
+                  Project Twin öffnen
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                <PreviewCard title="Erkanntes Projekt" icon={Sparkles}>
+                  <div className="space-y-2">
+                    <div className="text-xl font-semibold text-zinc-100">{analysis.project.title}</div>
+                    <p className="text-sm text-zinc-400">{analysis.project.description}</p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Badge variant="neutral">Typ: {analysis.project.type}</Badge>
+                      <Badge variant={analysis.project.status === 'blocked' ? 'rose' : 'blue'}>
+                        Status: {analysis.project.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </PreviewCard>
+
+                <PreviewCard title="Nächster wirksamster Schritt" icon={Waypoints}>
+                  <div className="space-y-2">
+                    <div className="text-lg font-semibold text-zinc-100">{analysis.nextMove.title}</div>
+                    <p className="text-sm text-zinc-400">{analysis.nextMove.reason}</p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Badge variant="neutral">Aufwand: {analysis.nextMove.effort}</Badge>
+                      <Badge variant="neutral">Impact: {analysis.nextMove.impact}</Badge>
+                      <Badge variant="neutral">Deadline: {analysis.nextMove.deadline ?? 'offen'}</Badge>
+                    </div>
+                  </div>
+                </PreviewCard>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                <PreviewListCard
+                  title="Erkannte Akteure"
+                  icon={Users}
+                  items={analysis.actors.map((actor, index) => ({
+                    key: `${actor.name}-${index}`,
+                    title: `${actor.name} · ${actor.role}`,
+                    meta: `Einfluss: ${actor.influence}`,
+                    body: actor.waitingFor ? `Wartet auf: ${actor.waitingFor}` : 'Keine direkte Warteinformation erkannt.'
+                  }))}
+                />
+
+                <PreviewListCard
+                  title="Erkannte Abhängigkeiten"
+                  icon={GitBranch}
+                  items={analysis.dependencies.map((dependency, index) => ({
+                    key: `${dependency.from}-${dependency.to}-${index}`,
+                    title: `${dependency.from} → ${dependency.to}`,
+                    meta: `${dependency.status}${dependency.isBlocker ? ' · Blocker' : ''}`,
+                    body: dependency.explanation
+                  }))}
                 />
               </div>
 
-              <div className="flex items-center justify-center gap-4">
-                <button 
-                  onClick={handleAnalyze}
-                  disabled={!text.trim() || isAnalyzing}
-                  className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed group"
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Analysiere...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5" />
-                      Projektlage analysieren
-                      <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                    </>
-                  )}
-                </button>
-                
-                <button onClick={onCancel} className="btn-secondary">
-                  Abbrechen
-                </button>
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+                <PreviewListCard
+                  title="Risiken"
+                  icon={ShieldAlert}
+                  items={analysis.risks.map((risk, index) => ({
+                    key: `${risk.title}-${index}`,
+                    title: risk.title,
+                    meta: `Severity: ${risk.severity}`,
+                    body: risk.explanation
+                  }))}
+                />
+
+                <PreviewListCard
+                  title="Szenarien"
+                  icon={Sparkles}
+                  items={analysis.scenarios.map((scenario, index) => ({
+                    key: `${scenario.title}-${index}`,
+                    title: scenario.title,
+                    meta: `Risiko: ${scenario.riskLevel}`,
+                    body: `${scenario.outcome} · Empfehlung: ${scenario.recommendation}`
+                  }))}
+                />
+
+                <PreviewListCard
+                  title="Empfohlene Aktionen"
+                  icon={ArrowRight}
+                  items={analysis.actions.map((action, index) => ({
+                    key: `${action.title}-${index}`,
+                    title: action.title,
+                    meta: `Owner: ${action.owner} · Priorität: ${action.priority}`,
+                    body: action.messageDraft ?? 'Keine Nachrichtenvorlage erforderlich.'
+                  }))}
+                />
               </div>
             </div>
-          </section>
+          )}
+        </motion.div>
+      </Panel>
+    </motion.div>
+  )
+}
 
-          {/* Example */}
-          
-          <section className="card-glass p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Target className="w-4 h-4 text-zinc-500" />
-              <span className="text-sm font-medium">Beispiel</span>
+function PreviewCard({
+  title,
+  icon: Icon,
+  children
+}: {
+  title: string
+  icon: typeof Sparkles
+  children: React.ReactNode
+}) {
+  return (
+    <div className="panel-card p-5 md:p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Icon className="w-4 h-4 text-violet-400" />
+        <span className="text-label text-zinc-500">{title}</span>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function PreviewListCard({
+  title,
+  icon: Icon,
+  items
+}: {
+  title: string
+  icon: typeof Sparkles
+  items: Array<{ key: string; title: string; meta: string; body: string }>
+}) {
+  return (
+    <div className="panel-card p-5 md:p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Icon className="w-4 h-4 text-violet-400" />
+        <span className="text-label text-zinc-500">{title}</span>
+      </div>
+
+      <div className="space-y-3">
+        {items.length === 0 ? (
+          <div className="text-sm text-zinc-500">Keine Daten erkannt.</div>
+        ) : (
+          items.map((item) => (
+            <div key={item.key} className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+              <div className="font-medium text-zinc-200 mb-1">{item.title}</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-zinc-500 mb-2">{item.meta}</div>
+              <p className="text-sm text-zinc-400 leading-relaxed">{item.body}</p>
             </div>
-            
-            <div className="p-4 rounded-xl bg-[#0a0a0c] border border-white/5 text-zinc-400 text-sm leading-relaxed">
-              „Bank wartet auf BWA, Steuerberater Müller hat noch nicht geliefert, Verkäufer will bis Freitag Rückmeldung, Cityhouse Preise müssen noch geprüft werden. Martin überlegt, ob er das alleine stemmen kann oder Unterstützung braucht. Zeitdruck steigt.“
-            </div>
-          </section>
-        </>
-      ) : (
-        <>
-          {/* Analysis Preview */}
-          
-          <section className="card-glass p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <span className="font-semibold">Analyse erkannt</span>
-              </div>
-              
-              <button onClick={() => setShowPreview(false)} className="btn-ghost text-sm">
-                Neue Eingabe
-              </button>
-            </div>
-
-            <div className="grid-12 gap-4">
-              {/* Erkannte Projekte */}
-              
-              <div className="col-6">
-                <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Target className="w-4 h-4 text-[#ff006e]" />
-                    <span className="font-semibold text-sm">Erkannte Projekte</span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="p-3 rounded-lg bg-white/[0.03]">
-                      <div className="font-medium text-sm">Bankfinanzierung KS19</div>
-                      <div className="text-xs text-zinc-500">Kredit zur Sanierung sicherstellen</div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-white/[0.03]">
-                      <div className="font-medium text-sm">Cityhouse Preisstrategie</div>
-                      <div className="text-xs text-zinc-500">Preise prüfen und entscheiden</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Erkannte Akteure */}
-              
-              <div className="col-6">
-                <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Users className="w-4 h-4 text-[#3a86ff]" />
-                    <span className="font-semibold text-sm">Erkannte Akteure</span>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    <span className="px-3 py-1 rounded-full bg-[#3a86ff]/10 border border-[#3a86ff]/30 text-sm">Steuerberater Müller</span>
-                    <span className="px-3 py-1 rounded-full bg-[#3a86ff]/10 border border-[#3a86ff]/30 text-sm">Bank</span>
-                    <span className="px-3 py-1 rounded-full bg-[#3a86ff]/10 border border-[#3a86ff]/30 text-sm">Verkäufer</span>
-                    <span className="px-3 py-1 rounded-full bg-[#3a86ff]/10 border border-[#3a86ff]/30 text-sm">Martin</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Erkannte Abhängigkeiten */}
-              
-              <div className="col-6">
-                <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <GitBranch className="w-4 h-4 text-[#8338ec]" />
-                    <span className="font-semibold text-sm">Erkannte Abhängigkeiten</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="px-2 py-1 rounded bg-white/5">BWA</span>
-                    <ArrowRight className="w-4 h-4 text-zinc-600" />
-                    <span className="px-2 py-1 rounded bg-white/5">Bankprüfung</span>
-                    <ArrowRight className="w-4 h-4 text-zinc-600" />
-                    <span className="px-2 py-1 rounded bg-white/5">Zusage</span>
-                    <ArrowRight className="w-4 h-4 text-zinc-600" />
-                    <span className="px-2 py-1 rounded bg-white/5">Entscheidung</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Erkannte Risiken */}
-              
-              <div className="col-6">
-                <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <AlertTriangle className="w-4 h-4 text-[#ef4444]" />
-                    <span className="font-semibold text-sm">Erkannte Risiken</span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
-                      Bankprüfung bleibt blockiert
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
-                      Verkäufer wird unsicher
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
-                      Frist läuft näher
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-center">
-              <button onClick={handleCreateTwin} className="btn-primary group">
-                <Sparkles className="w-5 h-5" />
-                Project Twin erstellen
-                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-              </button>
-            </div>
-          </section>
-        </>
-      )}
+          ))
+        )}
+      </div>
     </div>
   )
 }
