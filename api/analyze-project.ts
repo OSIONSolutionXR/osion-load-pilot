@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 const MAX_INPUT_LENGTH = 4000
-const REQUEST_TIMEOUT_MS = 20000
+const REQUEST_TIMEOUT_MS = 180000
 
 const ANALYSIS_PROMPT = `Du bist OSION Load Pilot, eine Project-Twin-Analyse-Engine für überladene Unternehmer.
 
