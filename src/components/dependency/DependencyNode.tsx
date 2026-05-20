@@ -1,9 +1,9 @@
 import { motion } from 'motion/react'
 import { User, FileText, Building, CheckCircle2, AlertCircle } from 'lucide-react'
-import type { Node } from '../../data/demoProject'
+import type { DerivedDependencyNode } from '../../lib/projectTwinDerived'
 
 interface DependencyNodeProps {
-  node: Node
+  node: DerivedDependencyNode
   index: number
 }
 

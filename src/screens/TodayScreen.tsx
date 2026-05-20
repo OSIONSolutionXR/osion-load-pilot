@@ -15,6 +15,7 @@ interface TodayScreenProps {
 export default function TodayScreen({ onOpenTwin, onNewInput, activeTwin }: TodayScreenProps) {
   const analysis = activeTwin?.analysis ?? null
   const hasTwin = Boolean(activeTwin)
+  const blockerCount = analysis?.dependencies.filter((dependency) => dependency.isBlocker).length ?? 0
 
   return (
     <div className="space-y-10">
@@ -39,23 +40,30 @@ export default function TodayScreen({ onOpenTwin, onNewInput, activeTwin }: Toda
             </div>
 
             <h1 className="text-display text-balance mb-6">
-              Der nächste{' '}
-              <span className="gradient-text">wirksamste Schritt</span>
+              {hasTwin ? (
+                <>
+                  Der nächste <span className="gradient-text">wirksamste Schritt</span>
+                </>
+              ) : (
+                <>
+                  Noch keine <span className="gradient-text">Projektlage analysiert</span>
+                </>
+              )}
             </h1>
 
             <p className="text-subhead text-zinc-300 mb-4">
-              {analysis ? analysis.nextMove.title : 'Steuerberater Müller anschreiben: BWA bis Mittwoch benötigt'}
+              {analysis?.nextMove.title ?? 'Erfasse einen Input, damit Load Pilot einen echten Project Twin aus deiner aktuellen Lage ableitet.'}
             </p>
 
             <p className="text-body max-w-xl mb-8">
-              {analysis ? analysis.nextMove.reason : 'Die Bank wartet auf die BWA. Ohne diese Unterlage kann die Prüfung nicht beginnen.'}
+              {analysis?.nextMove.reason ?? 'Erfasse einen Input, damit Load Pilot den nächsten wirksamen Schritt, Blocker, Risiken und Abhängigkeiten ableiten kann.'}
             </p>
 
             {/* Pills */}
             <div className="flex flex-wrap gap-3 mb-10">
-              <Pill icon={Target} label="Wirkung" value={analysis ? analysis.nextMove.impact : 'Hoch'} variant="high" />
-              <Pill icon={Clock} label="Aufwand" value={analysis ? analysis.nextMove.effort : 'Niedrig'} variant="low" />
-              <Pill icon={AlertTriangle} label="Frist" value={analysis?.nextMove.deadline ?? 'Heute'} variant="urgent" />
+              <Pill icon={Target} label="Wirkung" value={analysis?.nextMove.impact ?? 'Noch offen'} variant={analysis ? 'high' : 'low'} />
+              <Pill icon={Clock} label="Aufwand" value={analysis?.nextMove.effort ?? 'Noch offen'} variant="low" />
+              <Pill icon={AlertTriangle} label="Frist" value={analysis?.nextMove.deadline ?? 'Keine Frist erkannt'} variant={analysis?.nextMove.deadline ? 'urgent' : 'low'} />
             </div>
 
             {/* CTAs */}
@@ -112,10 +120,10 @@ export default function TodayScreen({ onOpenTwin, onNewInput, activeTwin }: Toda
               >
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-[#fb7185] flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sm text-zinc-200 mb-1">
-                      Wenn heute nichts passiert
-                    </p>
+                    <div>
+                      <p className="font-medium text-sm text-zinc-200 mb-1">
+                      Kritischer Kontext
+                      </p>
                     <p className="text-xs text-zinc-400">
                       {analysis?.risks[0]?.explanation ?? 'Sobald eine Projektlage erfasst ist, zeigt Load Pilot hier den wichtigsten Risikokontext.'}
                     </p>
@@ -204,7 +212,7 @@ export default function TodayScreen({ onOpenTwin, onNewInput, activeTwin }: Toda
               <StatRow label="Aktive Projekte" value={hasTwin ? '1' : '0'} />
               <StatRow label="Offene Aktionen" value={String(analysis?.actions.length ?? 0)} />
               <StatRow label="Risiken" value={String(analysis?.risks.length ?? 0)} warning />
-              <StatRow label="Blocker" value={String(analysis?.dependencies.filter((dependency) => dependency.isBlocker).length ?? 0)} danger />
+              <StatRow label="Blocker" value={String(blockerCount)} danger />
             </div>
           </Panel>
         </motion.div>
