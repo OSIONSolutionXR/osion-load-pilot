@@ -23,7 +23,7 @@ It must return only structured Project-Twin JSON.
 ```json
 {
   "jobType": "loadpilot_project_twin_analysis",
-  "promptVersion": "loadpilot_v1",
+  "promptVersion": "loadpilot_v2",
   "input": "...",
   "outputFormat": "project_twin_json",
   "prompt": "OSION analysis prompt",

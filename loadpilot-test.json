@@ -1,0 +1,14 @@
+{
+  "jobType": "loadpilot_project_twin_analysis",
+  "promptVersion": "loadpilot_v2",
+  "input": "Ich will ein Auto kaufen",
+  "outputFormat": "project_twin_json",
+  "agents": [
+    "project_detector",
+    "actor_mapper",
+    "dependency_graph_builder",
+    "risk_simulator",
+    "scenario_generator",
+    "next_move_synthesizer"
+  ]
+}

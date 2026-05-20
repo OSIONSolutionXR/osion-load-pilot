@@ -245,16 +245,28 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
           title="Aktionen"
           entries={analysis.actions.map((action) => ({
             title: action.title,
-            body: action.messageDraft ?? 'Keine Vorlage vorhanden',
+            body: action.messageDraft ?? 'Direkt umsetzbare Aktion ohne Textvorlage.',
             meta: `${action.owner} · Priorität: ${action.priority}`
           }))}
+        />
+        <StructuredList
+          title="Qualität"
+          items={[
+            ['Input Quality', analysis.quality.inputQuality],
+            ['Actionable', analysis.quality.isActionable ? 'Ja' : 'Nein'],
+            ['Confidence', analysis.quality.confidence],
+            ['Reason', analysis.quality.reason],
+            ['Missing Context', analysis.quality.missingContext.join(', ') || 'Keiner']
+          ]}
         />
         <StructuredList
           title="Meta"
           items={[
             ['Gespeichert am', twin?.createdAt ?? 'Unbekannt'],
             ['Top Risk', topRisk?.title ?? 'Keine'],
-            ['Quelle', twin?.sourceInput ?? 'Unbekannt']
+            ['Quelle', twin?.sourceInput ?? 'Unbekannt'],
+            ['Domain', analysis.meta.domain],
+            ['Prompt Version', analysis.meta.promptVersion]
           ]}
         />
       </Panel>

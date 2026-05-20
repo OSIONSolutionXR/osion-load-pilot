@@ -21,7 +21,7 @@ Wichtig:
 - Nur valides JSON im vorgegebenen Schema`
 
 const ALLOWED_JOB_TYPE = 'loadpilot_project_twin_analysis'
-const ALLOWED_PROMPT_VERSION = 'loadpilot_v1'
+const ALLOWED_PROMPT_VERSION = 'loadpilot_v2'
 
 type ProjectStatus = 'active' | 'blocked' | 'waiting' | 'parked'
 type EffortLevel = 'low' | 'medium' | 'high'
@@ -30,6 +30,8 @@ type InfluenceLevel = 'low' | 'medium' | 'high'
 type DependencyStatus = 'required' | 'blocked' | 'waiting' | 'done'
 type RiskSeverity = 'low' | 'medium' | 'high'
 type ActionPriority = 'low' | 'medium' | 'high'
+type InputQuality = 'insufficient' | 'usable' | 'strong'
+type ConfidenceLevel = 'low' | 'medium' | 'high'
 
 interface ProjectTwinAnalysis {
   project: {
@@ -75,6 +77,19 @@ interface ProjectTwinAnalysis {
     priority: ActionPriority
     messageDraft?: string | null
   }>
+  quality: {
+    inputQuality: InputQuality
+    isActionable: boolean
+    confidence: ConfidenceLevel
+    missingContext: string[]
+    reason: string
+  }
+  meta: {
+    domain: string
+    analysisMode: 'openclaw-kimi'
+    promptVersion: string
+    generatedAt: string
+  }
 }
 
 type BridgeRequest = {
@@ -110,8 +125,8 @@ function isEnum<T extends string>(value: unknown, allowed: readonly T[]): value 
 function validateAnalysis(data: unknown): data is ProjectTwinAnalysis {
   if (!isObject(data)) return false
 
-  const { project, nextMove, actors, dependencies, risks, scenarios, actions } = data
-  if (!isObject(project) || !isObject(nextMove)) return false
+  const { project, nextMove, actors, dependencies, risks, scenarios, actions, quality, meta } = data
+  if (!isObject(project) || !isObject(nextMove) || !isObject(quality) || !isObject(meta)) return false
   if (!Array.isArray(actors) || !Array.isArray(dependencies) || !Array.isArray(risks) || !Array.isArray(scenarios) || !Array.isArray(actions)) return false
 
   const validProject =
@@ -167,7 +182,21 @@ function validateAnalysis(data: unknown): data is ProjectTwinAnalysis {
     (!('messageDraft' in action) || isNullableString(action.messageDraft))
   )
 
-  return validProject && validNextMove && validActors && validDependencies && validRisks && validScenarios && validActions
+  const validQuality =
+    isEnum(quality.inputQuality, ['insufficient', 'usable', 'strong'] as const) &&
+    typeof quality.isActionable === 'boolean' &&
+    isEnum(quality.confidence, ['low', 'medium', 'high'] as const) &&
+    Array.isArray(quality.missingContext) &&
+    quality.missingContext.every((item) => typeof item === 'string') &&
+    isString(quality.reason)
+
+  const validMeta =
+    isString(meta.domain) &&
+    meta.analysisMode === 'openclaw-kimi' &&
+    isString(meta.promptVersion) &&
+    isString(meta.generatedAt)
+
+  return validProject && validNextMove && validActors && validDependencies && validRisks && validScenarios && validActions && validQuality && validMeta
 }
 
 async function callBridge(input: string): Promise<ProjectTwinAnalysis> {

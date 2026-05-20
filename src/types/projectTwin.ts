@@ -5,6 +5,8 @@ export type InfluenceLevel = 'low' | 'medium' | 'high'
 export type DependencyStatus = 'required' | 'blocked' | 'waiting' | 'done'
 export type RiskSeverity = 'low' | 'medium' | 'high'
 export type ActionPriority = 'low' | 'medium' | 'high'
+export type InputQuality = 'insufficient' | 'usable' | 'strong'
+export type ConfidenceLevel = 'low' | 'medium' | 'high'
 
 export interface ProjectInfo {
   title: string
@@ -56,6 +58,21 @@ export interface ProjectAction {
   messageDraft?: string | null
 }
 
+export interface ProjectAnalysisQuality {
+  inputQuality: InputQuality
+  isActionable: boolean
+  confidence: ConfidenceLevel
+  missingContext: string[]
+  reason: string
+}
+
+export interface ProjectAnalysisMeta {
+  domain: string
+  analysisMode: 'openclaw-kimi'
+  promptVersion: string
+  generatedAt: string
+}
+
 export interface ProjectTwinAnalysis {
   project: ProjectInfo
   nextMove: NextMove
@@ -64,4 +81,6 @@ export interface ProjectTwinAnalysis {
   risks: ProjectRisk[]
   scenarios: ProjectScenario[]
   actions: ProjectAction[]
+  quality: ProjectAnalysisQuality
+  meta: ProjectAnalysisMeta
 }

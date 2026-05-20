@@ -17,6 +17,7 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysis, setAnalysis] = useState<ProjectTwinAnalysis | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const isActionable = analysis?.quality.isActionable ?? false
 
   const handleAnalyze = async () => {
     if (!text.trim()) {
@@ -129,13 +130,34 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <h3 className="text-title mb-1">Project-Twin Preview</h3>
-                  <p className="text-sm text-zinc-500">Die Analyse kann jetzt als lokaler Twin uebernommen werden.</p>
+                  <p className="text-sm text-zinc-500">
+                    {isActionable
+                      ? 'Die Analyse ist speicherfähig und kann als lokaler Twin übernommen werden.'
+                      : 'Die Analyse ist noch nicht speicherfähig. Ergänze den Input, bevor ein Twin angelegt wird.'}
+                  </p>
                 </div>
-                <Button onClick={() => onCreateTwin(text, analysis)}>
+                <Button disabled={!isActionable} onClick={() => onCreateTwin(text, analysis)}>
                   <ArrowRight className="w-4 h-4" />
-                  Project Twin öffnen
+                  {isActionable ? 'Project Twin öffnen' : 'Input ergänzen'}
                 </Button>
               </div>
+
+              <PreviewCard title="Qualität & Speicherbarkeit" icon={AlertTriangle}>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={isActionable ? 'blue' : 'rose'}>Speicherbar: {isActionable ? 'ja' : 'nein'}</Badge>
+                    <Badge variant="neutral">Input: {analysis.quality.inputQuality}</Badge>
+                    <Badge variant="neutral">Confidence: {analysis.quality.confidence}</Badge>
+                    <Badge variant="neutral">Domain: {analysis.meta.domain}</Badge>
+                  </div>
+                  <p className="text-sm text-zinc-400">{analysis.quality.reason}</p>
+                  {!isActionable && analysis.quality.missingContext.length > 0 ? (
+                    <div className="text-sm text-zinc-300">
+                      Es fehlen noch: {analysis.quality.missingContext.join(', ')}
+                    </div>
+                  ) : null}
+                </div>
+              </PreviewCard>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                 <PreviewCard title="Erkanntes Projekt" icon={Sparkles}>
@@ -218,7 +240,7 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
                     key: `${action.title}-${index}`,
                     title: action.title,
                     meta: `Owner: ${action.owner} · Priorität: ${action.priority}`,
-                    body: action.messageDraft ?? 'Keine Nachrichtenvorlage erforderlich.'
+                    body: action.messageDraft ?? 'Direkt umsetzbare Aktion ohne Textvorlage.'
                   }))}
                 />
               </div>

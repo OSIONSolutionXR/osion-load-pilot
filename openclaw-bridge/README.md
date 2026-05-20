@@ -27,8 +27,17 @@ Setze in Vercel:
 - `OPENCLAW_BRIDGE_SECRET=<gleiches-secret>`
 
 ## Aktueller Modus
-Aktuell läuft der Gegenpart bewusst sicher als **heuristische Analyse-Bridge**.
-Er erfüllt den Contract und liefert valides JSON zurück.
+Der Gegenpart läuft als **kontrollierte OpenClaw/Kimi-Analyse-Bridge**.
 
-## Nächster Schritt
-Wenn du willst, kann der heuristische Kern im nächsten Schritt durch einen echten isolierten OpenClaw-Agent-Run ersetzt werden – aber weiterhin unter denselben Sicherheitsregeln und ohne allgemeine Remote-Kommandos freizugeben.
+- Input Intake + Validierung
+- KI-gestützter Extraction Pass über `openclaw agent`
+- Actionability Gate für unbrauchbare Inputs
+- KI-gestützter Synthesis Pass für speicherfähige Project Twins
+- Schema Guard + Quality Guard vor der Rückgabe
+
+## Sicherheitsrahmen
+- keine freien Shell-Kommandos aus Web-Requests
+- nur ein fest verdrahteter Analysejob
+- keine Dateioperationen
+- keine E-Mails
+- kein Fake-Projekt bei Modellfehlern

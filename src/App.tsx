@@ -44,6 +44,10 @@ function App() {
   const activeTwin = twins.find((twin) => twin.id === activeTwinId) ?? twins[0] ?? null
 
   const handleCreateTwin = (sourceInput: string, analysis: StoredProjectTwin['analysis']) => {
+    if (!analysis.quality.isActionable) {
+      navigateTo('input')
+      return
+    }
     const twin = createStoredProjectTwin(sourceInput, analysis)
     setTwins((current) => [twin, ...current])
     setActiveTwinId(twin.id)
