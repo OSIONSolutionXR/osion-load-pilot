@@ -1,9 +1,9 @@
-import { motion } from 'motion/react'
-import { ArrowLeft, Shield, Zap, Users, AlertCircle, Clock, XCircle, CheckCircle2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'motion/react'
+import { ArrowLeft, Zap, Users, ChevronDown, Target, Route, ShieldAlert, ListTodo, CheckCircle2, Clock } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Panel } from '../components/ui/Panel'
-import { DependencySimulationPanel } from '../components/dependency/DependencySimulationPanel'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
 
 interface ProjectTwinScreenProps {
@@ -13,21 +13,8 @@ interface ProjectTwinScreenProps {
 }
 
 export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectTwinScreenProps) {
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
   const analysis = twin?.analysis ?? null
-  const scenarios = analysis?.scenarios.map((scenario) => ({
-    title: scenario.title,
-    points: [scenario.outcome, scenario.recommendation],
-    type: (
-      scenario.riskLevel === 'high'
-        ? 'negative'
-        : scenario.riskLevel === 'low'
-          ? 'positive'
-          : 'neutral'
-    ) as 'negative' | 'positive' | 'neutral'
-  })) ?? []
-
-  const blocker = analysis?.dependencies.find((dependency) => dependency.isBlocker)
-  const topRisk = analysis?.risks[0]
 
   if (!analysis) {
     return (
@@ -67,387 +54,341 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
     )
   }
 
+  const { project, nextMove, actors, dependencies, risks, scenarios, actions, quality } = analysis
+
+  // Nur Top 3 Risiken
+  const topRisks = risks.slice(0, 3)
+
+  // Nur Abhängigkeiten mit Blockern oder required Status
+  const criticalDeps = dependencies.filter(d => d.isBlocker || d.status === 'required').slice(0, 5)
+
+  // Szenarien als Entscheidungsoptionen (max 3)
+  const decisionOptions = scenarios.slice(0, 3).map(s => ({
+    title: s.title,
+    outcome: s.outcome,
+    riskLevel: s.riskLevel,
+    recommendation: s.recommendation
+  }))
+
   return (
     <div className="space-y-8">
-      
-      {/* Page Header */}
+      {/* 1. HERO BEREICH */}
       <motion.header
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="panel-premium p-6 md:p-8"
+        className="panel-premium p-8 md:p-10"
       >
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <Button variant="ghost" onClick={onBack}>
-              <ArrowLeft className="w-5 h-5" />
-              Zurück
-            </Button>
-            
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Zap className="w-4 h-4 text-[#ff006e]" />
-                <Badge variant="violet">Project Twin</Badge>
-              </div>
-              <h1 className="text-headline mb-2">{analysis.project.title}</h1>
-              <p className="text-body">{analysis.project.description}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-[#fb7185]/10 flex items-center justify-center border border-[#fb7185]/20">
-              <Shield className="w-6 h-6 text-[#fb7185]" />
-            </div>
-            <div>
-              <div className="text-label text-zinc-500">Status</div>
-              <div className="font-semibold text-[#fb7185]">{analysis.project.status}</div>
-            </div>
+        <div className="flex items-center gap-3 mb-8">
+          <Button variant="ghost" onClick={onBack}>
+            <ArrowLeft className="w-5 h-5" />
+            Zurück
+          </Button>
+          <div className="h-8 w-px bg-white/10" />
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-[#ff006e]" />
+            <Badge variant="violet">Project Twin</Badge>
           </div>
         </div>
 
-        {/* Status Bar */}
-        <div className="mt-8 pt-6 border-t border-white/5 grid grid-cols-2 md:grid-cols-5 gap-4">
-          <StatusItem label="Hauptblocker" value={blocker?.from ?? 'Keiner'} danger={Boolean(blocker)} />
-          <StatusItem label="Nächster Hebel" value={analysis.nextMove.title} />
-          <StatusItem label="Frist" value={analysis.nextMove.deadline ?? 'Offen'} urgent={Boolean(analysis.nextMove.deadline)} />
-          <StatusItem label="Projekt-Typ" value={analysis.project.type} />
-          <StatusItem label="Risiken" value={String(analysis.risks.length)} warning />
+        <div className="max-w-3xl">
+          <h1 className="text-3xl md:text-4xl font-bold mb-4 text-white">{project.title}</h1>
+          <p className="text-lg text-zinc-400 mb-6 leading-relaxed">{project.description}</p>
+
+          {/* Status Chips - reduziert */}
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="blue">{project.status}</Badge>
+            <Badge variant="neutral">{project.type}</Badge>
+            {quality.isActionable && <Badge variant="violet">speicherbar</Badge>}
+            <Badge variant={quality.confidence === 'high' ? 'blue' : quality.confidence === 'medium' ? 'neutral' : 'rose'}>
+              confidence: {quality.confidence}
+            </Badge>
+          </div>
         </div>
       </motion.header>
 
-      {/* Main Dependency Panel */}
-      <DependencySimulationPanel variant="full" analysis={analysis} />
-
-      {/* Scenario Comparison */}
+      {/* 2. HAUPTKARTE: Nächster wirksamster Schritt */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-6"
+        transition={{ delay: 0.1 }}
+        className="panel-premium p-8 md:p-10 border-l-4 border-l-[#ff006e]"
       >
-        {scenarios.map((scenario, index) => (
-          <ScenarioCard key={`${scenario.title}-${index}`} {...scenario} recommended={index === 0 && scenario.type !== 'negative'} />
-        ))}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#ff006e]/20 to-violet-500/20 flex items-center justify-center border border-[#ff006e]/30">
+            <Target className="w-6 h-6 text-[#ff006e]" />
+          </div>
+          <div>
+            <div className="text-sm text-zinc-500 uppercase tracking-wider">Nächster wirksamster Schritt</div>
+            <h2 className="text-2xl font-bold text-white mt-1">{nextMove.title}</h2>
+          </div>
+        </div>
+
+        <p className="text-zinc-300 text-lg leading-relaxed mb-8 max-w-3xl">
+          {nextMove.reason}
+        </p>
+
+        <div className="flex flex-wrap gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30">
+              <Clock className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <div className="text-xs text-zinc-500 uppercase">Aufwand</div>
+              <div className="font-semibold text-emerald-400 capitalize">{nextMove.effort}</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center border border-violet-500/30">
+              <Zap className="w-5 h-5 text-violet-400" />
+            </div>
+            <div>
+              <div className="text-xs text-zinc-500 uppercase">Impact</div>
+              <div className="font-semibold text-violet-400 capitalize">{nextMove.impact}</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/30">
+              <Clock className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <div className="text-xs text-zinc-500 uppercase">Deadline</div>
+              <div className="font-semibold text-amber-400">{nextMove.deadline ?? 'Offen'}</div>
+            </div>
+          </div>
+        </div>
       </motion.section>
 
-      {/* Actors & Risks */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Panel variant="compact">
+      {/* 3. KRITISCHE ABHÄNGIGKEITEN ALS PROZESSKETTE */}
+      {criticalDeps.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/30">
-              <Users className="w-5 h-5 text-blue-400" />
-            </div>
-            <div>
-              <div className="font-semibold">Akteure</div>
-              <div className="text-xs text-zinc-500">Beteiligte im Projekt</div>
-            </div>
-            <span className="ml-auto text-2xl font-bold text-zinc-600">{analysis.actors.length}</span>
+            <Route className="w-5 h-5 text-zinc-400" />
+            <h3 className="text-lg font-semibold">Kritische Abfolge</h3>
           </div>
 
-          <div className="space-y-2">
-            {analysis.actors.map((actor) => (
-              <ActorRow
-                key={`${actor.name}-${actor.role}`}
-                name={actor.name}
-                role={`${actor.role}${actor.waitingFor ? ` · wartet auf ${actor.waitingFor}` : ''}`}
-                type={actor.role.toLowerCase().includes('intern') ? 'internal' : 'external'}
-              />
+          <div className="flex flex-col md:flex-row gap-4">
+            {criticalDeps.map((dep, index) => (
+              <div key={index} className="flex items-start gap-4">
+                <div className={`flex-1 panel-card p-5 ${dep.isBlocker ? 'border-l-4 border-l-[#fb7185]' : ''}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-medium text-zinc-200">{dep.from}</span>
+                    <span className="text-zinc-600">→</span>
+                    <span className="text-sm font-medium text-zinc-200">{dep.to}</span>
+                  </div>
+                  <p className="text-sm text-zinc-500">{dep.explanation}</p>
+                  {dep.isBlocker && (
+                    <Badge variant="rose" className="mt-3">Blocker</Badge>
+                  )}
+                </div>
+                {index < criticalDeps.length - 1 && (
+                  <div className="hidden md:flex items-center text-zinc-600">
+                    <ChevronDown className="w-5 h-5 rotate-[-90deg]" />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
-        </Panel>
+        </motion.section>
+      )}
 
-        <Panel variant="compact">
+      {/* ZWEISPALTIG: AKTEURE & RISIKEN */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* 4. AKTEURE KOMPAKT */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-[#fb7185]/10 flex items-center justify-center border border-[#fb7185]/30">
-              <AlertCircle className="w-5 h-5 text-[#fb7185]" />
-            </div>
-            <div>
-              <div className="font-semibold">Risiken</div>
-              <div className="text-xs text-zinc-500">Identifizierte Gefahren</div>
-            </div>
-            <span className="ml-auto text-2xl font-bold text-[#fb7185]/30">{analysis.risks.length}</span>
+            <Users className="w-5 h-5 text-zinc-400" />
+            <h3 className="text-lg font-semibold">Beteiligte</h3>
           </div>
 
           <div className="space-y-3">
-            {analysis.risks.map((risk) => (
-              <RiskItem
-                key={risk.title}
-                description={risk.title}
-                timeline={risk.explanation}
-                level={risk.severity}
-              />
+            {actors.map((actor, index) => (
+              <div key={index} className="flex items-center justify-between panel-card p-4">
+                <div>
+                  <div className="font-medium text-zinc-200">{actor.name}</div>
+                  <div className="text-sm text-zinc-500">{actor.role}</div>
+                </div>
+                {actor.waitingFor && (
+                  <Badge variant="amber" className="text-xs">Wartet auf {actor.waitingFor}</Badge>
+                )}
+              </div>
             ))}
           </div>
-        </Panel>
+        </motion.section>
+
+        {/* 5. RISIKEN FOKUSSIERT */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <ShieldAlert className="w-5 h-5 text-[#fb7185]" />
+            <h3 className="text-lg font-semibold">Kritische Risiken</h3>
+          </div>
+
+          <div className="space-y-4">
+            {topRisks.map((risk, index) => (
+              <div key={index} className="panel-card p-5 border-l-4 border-l-[#fb7185]/50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-zinc-200">{risk.title}</span>
+                  <Badge variant={risk.severity === 'high' ? 'rose' : risk.severity === 'medium' ? 'amber' : 'neutral'} className="text-xs">
+                    {risk.severity}
+                  </Badge>
+                </div>
+                <p className="text-sm text-zinc-500">{risk.explanation}</p>
+              </div>
+            ))}
+          </div>
+        </motion.section>
       </div>
 
-      <Panel variant="compact">
-        <div className="flex items-center gap-2 mb-6">
-          <Badge variant="violet">Analysefelder</Badge>
-          <div className="text-sm text-zinc-500">Vollständige ProjectTwinAnalysis</div>
+      {/* 6. EMPFOHLENE AKTIONEN ALS TODO-LISTE */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        <div className="flex items-center gap-3 mb-6">
+          <ListTodo className="w-5 h-5 text-emerald-400" />
+          <h3 className="text-lg font-semibold">Empfohlene Aktionen</h3>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <StructuredList
-            title="Projekt"
-            items={[
-              ['Titel', analysis.project.title],
-              ['Beschreibung', analysis.project.description],
-              ['Status', analysis.project.status],
-              ['Typ', analysis.project.type]
-            ]}
-          />
-          <StructuredList
-            title="Next Move"
-            items={[
-              ['Titel', analysis.nextMove.title],
-              ['Reason', analysis.nextMove.reason],
-              ['Effort', analysis.nextMove.effort],
-              ['Impact', analysis.nextMove.impact],
-              ['Deadline', analysis.nextMove.deadline ?? 'Offen']
-            ]}
-          />
+        <div className="space-y-2">
+          {actions.map((action, index) => (
+            <div key={index} className="flex items-center gap-4 panel-card p-4 hover:bg-white/[0.04] transition-colors">
+              <div className="flex-shrink-0">
+                {action.priority === 'high' ? (
+                  <div className="w-6 h-6 rounded-full bg-[#fb7185]/20 flex items-center justify-center border border-[#fb7185]/30">
+                    <span className="text-xs font-bold text-[#fb7185]">H</span>
+                  </div>
+                ) : action.priority === 'medium' ? (
+                  <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
+                    <span className="text-xs font-bold text-amber-400">M</span>
+                  </div>
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-zinc-500/20 flex items-center justify-center border border-zinc-500/30">
+                    <span className="text-xs font-bold text-zinc-400">L</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <span className="text-zinc-200">{action.title}</span>
+                {action.owner && (
+                  <span className="text-sm text-zinc-500 ml-2">– {action.owner}</span>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
+      </motion.section>
 
-        <TwinSection
-          title="Abhängigkeiten"
-          entries={analysis.dependencies.map((dependency) => ({
-            title: `${dependency.from} → ${dependency.to}`,
-            body: dependency.explanation,
-            meta: `${dependency.status}${dependency.isBlocker ? ' · Blocker' : ''}`
-          }))}
-        />
-        <TwinSection
-          title="Akteure"
-          entries={analysis.actors.map((actor) => ({
-            title: `${actor.name} · ${actor.role}`,
-            body: actor.waitingFor ?? 'Keine offene Warteinformation',
-            meta: `Einfluss: ${actor.influence}`
-          }))}
-        />
-        <TwinSection
-          title="Risiken"
-          entries={analysis.risks.map((risk) => ({
-            title: risk.title,
-            body: risk.explanation,
-            meta: `Severity: ${risk.severity}`
-          }))}
-        />
-        <TwinSection
-          title="Szenarien"
-          entries={analysis.scenarios.map((scenario) => ({
-            title: scenario.title,
-            body: `${scenario.outcome} Empfehlung: ${scenario.recommendation}`,
-            meta: `Risiko: ${scenario.riskLevel}`
-          }))}
-        />
-        <TwinSection
-          title="Aktionen"
-          entries={analysis.actions.map((action) => ({
-            title: action.title,
-            body: action.messageDraft ?? 'Direkt umsetzbare Aktion ohne Textvorlage.',
-            meta: `${action.owner} · Priorität: ${action.priority}`
-          }))}
-        />
-        <StructuredList
-          title="Qualität"
-          items={[
-            ['Input Quality', analysis.quality.inputQuality],
-            ['Actionable', analysis.quality.isActionable ? 'Ja' : 'Nein'],
-            ['Confidence', analysis.quality.confidence],
-            ['Reason', analysis.quality.reason],
-            ['Missing Context', analysis.quality.missingContext.join(', ') || 'Keiner']
-          ]}
-        />
-        <StructuredList
-          title="Meta"
-          items={[
-            ['Gespeichert am', twin?.createdAt ?? 'Unbekannt'],
-            ['Top Risk', topRisk?.title ?? 'Keine'],
-            ['Quelle', twin?.sourceInput ?? 'Unbekannt'],
-            ['Domain', analysis.meta.domain],
-            ['Prompt Version', analysis.meta.promptVersion]
-          ]}
-        />
-      </Panel>
-    </div>
-  )
-}
-
-function StructuredList({ title, items }: { title: string; items: Array<[string, string]> }) {
-  return (
-    <div className="panel-card p-5">
-      <div className="text-sm font-semibold text-zinc-100 mb-4">{title}</div>
-      <div className="space-y-3">
-        {items.map(([label, value]) => (
-          <div key={label} className="flex flex-col gap-1">
-            <div className="text-[11px] uppercase tracking-wider text-zinc-500">{label}</div>
-            <div className="text-sm text-zinc-300">{value}</div>
+      {/* 7. SZENARIEN ALS ENTSCHEIDUNGSOPTIONEN */}
+      {decisionOptions.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <CheckCircle2 className="w-5 h-5 text-violet-400" />
+            <h3 className="text-lg font-semibold">Entscheidungsoptionen</h3>
           </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
-function TwinSection({
-  title,
-  entries
-}: {
-  title: string
-  entries: Array<{ title: string; body: string; meta: string }>
-}) {
-  return (
-    <div className="mt-6">
-      <div className="text-sm font-semibold text-zinc-100 mb-3">{title}</div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {entries.map((entry, index) => (
-          <div key={`${entry.title}-${index}`} className="panel-card p-4">
-            <div className="text-sm font-medium text-zinc-200">{entry.title}</div>
-            <div className="text-xs text-zinc-500 mt-1">{entry.meta}</div>
-            <div className="text-sm text-zinc-400 mt-3">{entry.body}</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {decisionOptions.map((option, index) => (
+              <div key={index} className={`panel-card p-6 ${index === 0 ? 'border-2 border-violet-500/30 bg-violet-500/5' : ''}`}>
+                {index === 0 && (
+                  <Badge variant="violet" className="mb-3">Empfohlen</Badge>
+                )}
+                <h4 className="font-semibold text-zinc-200 mb-3">{option.title}</h4>
+                <p className="text-sm text-zinc-400 mb-4">{option.outcome}</p>
+                <div className="flex items-center justify-between text-sm">
+                  <span className={`${option.riskLevel === 'high' ? 'text-[#fb7185]' : option.riskLevel === 'low' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    Risiko: {option.riskLevel}
+                  </span>
+                </div>
+                <p className="text-sm text-zinc-500 mt-3 pt-3 border-t border-white/5">{option.recommendation}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </motion.section>
+      )}
+
+      {/* 8. TECHNISCHE ANALYSE (AUSKLAPPBAR) */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="panel-card"
+      >
+        <button
+          onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+          className="w-full flex items-center justify-between p-6 text-left hover:bg-white/[0.02] transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Badge variant="neutral">Debug</Badge>
+            <span className="text-zinc-400">Technische Analyse anzeigen</span>
+          </div>
+          <ChevronDown className={`w-5 h-5 text-zinc-500 transition-transform ${showTechnicalDetails ? 'rotate-180' : ''}`} />
+        </button>
+
+        <AnimatePresence>
+          {showTechnicalDetails && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="p-6 pt-0 border-t border-white/5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+                  <TechnicalSection title="Qualität" items={[
+                    ['Input Quality', quality.inputQuality],
+                    ['Actionable', quality.isActionable ? 'Ja' : 'Nein'],
+                    ['Confidence', quality.confidence],
+                    ['Missing Context', quality.missingContext.join(', ') || 'Keiner']
+                  ]} />
+                  <TechnicalSection title="Meta" items={[
+                    ['Domain', analysis.meta?.domain || 'N/A'],
+                    ['Prompt Version', analysis.meta?.promptVersion || 'N/A'],
+                    ['Gespeichert', twin?.createdAt ? new Date(twin.createdAt).toLocaleString() : 'N/A'],
+                    ['Quelle', twin?.sourceInput ? `"${twin.sourceInput.substring(0, 50)}..."` : 'N/A']
+                  ]} />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.section>
     </div>
   )
 }
 
-// Components
+// Helper Components
 
-function StatusItem({ 
-  label, 
-  value, 
-  danger, 
-  urgent, 
-  warning 
-}: { 
-  label: string
-  value: string
-  danger?: boolean
-  urgent?: boolean
-  warning?: boolean
-}) {
-  const colorClass = danger ? 'text-[#fb7185]' : urgent ? 'text-amber-400' : warning ? 'text-amber-400' : 'text-zinc-200'
-  
+function TechnicalSection({ title, items }: { title: string; items: Array<[string, string]> }) {
   return (
     <div>
-      <div className="text-label text-zinc-500 mb-1">{label}</div>
-      <div className={`font-semibold ${colorClass}`}>{value}</div>
-    </div>
-  )
-}
-
-function ScenarioCard({ 
-  title, 
-  points, 
-  type, 
-  recommended 
-}: { 
-  title: string
-  points: string[]
-  type: 'negative' | 'positive' | 'neutral'
-  recommended?: boolean
-}) {
-  const Icon = type === 'negative' ? XCircle : type === 'positive' ? CheckCircle2 : Clock
-  const borderColors = {
-    negative: 'border-[#fb7185]/20',
-    positive: 'border-emerald-500/20',
-    neutral: 'border-amber-500/20'
-  }
-  const iconColors = {
-    negative: 'text-[#fb7185]',
-    positive: 'text-emerald-400',
-    neutral: 'text-amber-400'
-  }
-
-  return (
-    <div className={`panel-card p-6 border ${borderColors[type]} relative`}>
-      {recommended && (
-        <div className="absolute -top-3 left-4">
-          <Badge variant="violet">Empfohlen</Badge>
-        </div>
-      )}
-      
-      <div className="flex items-center gap-2 mb-4 mt-2">
-        <Icon className={`w-5 h-5 ${iconColors[type]}`} />
-        <span className="font-semibold text-sm">{title}</span>
-      </div>
-      
-      <ul className="space-y-2">
-        {points.map((point, idx) => (
-          <li key={idx} className="flex items-start gap-2 text-sm text-zinc-400">
-            <span className="w-1 h-1 rounded-full bg-zinc-600 mt-2 flex-shrink-0" />
-            {point}
-          </li>
+      <div className="text-sm font-medium text-zinc-300 mb-3">{title}</div>
+      <div className="space-y-2">
+        {items.map(([label, value]) => (
+          <div key={label} className="flex flex-col gap-1">
+            <div className="text-xs text-zinc-500 uppercase">{label}</div>
+            <div className="text-sm text-zinc-400 font-mono">{value}</div>
+          </div>
         ))}
-      </ul>
-    </div>
-  )
-}
-
-function ActorRow({ 
-  name, 
-  role, 
-  type 
-}: { 
-  name: string
-  role: string
-  type: 'internal' | 'external' | 'system' | 'ghost'
-}) {
-  const styles = {
-    internal: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    external: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
-    system: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    ghost: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  }
-  const labels = {
-    internal: 'Intern',
-    external: 'Extern',
-    system: 'System',
-    ghost: 'Ghost',
-  }
-
-  return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.05] transition-colors">
-      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center text-sm font-medium">
-        {name.charAt(0)}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-medium text-sm">{name}</div>
-        <div className="text-xs text-zinc-500">{role}</div>
-      </div>
-      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${styles[type]}`}>
-        {labels[type]}
-      </span>
-    </div>
-  )
-}
-
-function RiskItem({ 
-  description, 
-  timeline, 
-  level 
-}: { 
-  description: string
-  timeline: string
-  level: 'high' | 'medium' | 'low'
-}) {
-  const levelBadge = {
-    high: <span className="px-2 py-0.5 rounded-full bg-[#fb7185] text-white text-[10px] font-semibold">Hoch</span>,
-    medium: <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px]">Mittel</span>,
-    low: <span className="px-2 py-0.5 rounded-full bg-zinc-500/20 text-zinc-400 text-[10px]">Niedrig</span>
-  }
-
-  return (
-    <div className="p-4 rounded-xl bg-[#fb7185]/[0.03] border border-[#fb7185]/10">
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <span className="text-sm font-medium">{description}</span>
-        {levelBadge[level]}
-      </div>
-      <div className="flex items-center gap-2 text-xs text-zinc-500">
-        <Clock className="w-3 h-3" />
-        Wenn: {timeline}
       </div>
     </div>
   )
