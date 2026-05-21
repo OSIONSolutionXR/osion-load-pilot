@@ -4,9 +4,10 @@ import { useState, useCallback } from 'react'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Panel } from '../components/ui/Panel'
-import ContextQuestionsPanel from '../components/twin/ContextQuestionsPanel'
+import ContextQuestionsCard from '../components/twin/ContextQuestionsCard'
 import RefineContextModal from '../components/twin/RefineContextModal'
 import ProjectHistoryTimeline from '../components/twin/ProjectHistoryTimeline'
+import { generateContextQuestions } from '../lib/contextQuestions'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
 import { updateProjectTwin } from '../services/projectTwinUpdateApi'
 
@@ -132,9 +133,6 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
     recommendation: s.recommendation
   }))
 
-  // Bestimme, ob Kontext-Karte angezeigt werden soll
-  const shouldShowContextCard = quality.confidence !== 'high' || quality.missingContext.length > 0
-
   return (
     <div className="space-y-8">
       {/* Update Error Banner */}
@@ -250,12 +248,16 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
       </motion.section>
 
       {/* 3. KONTEXT-KARTE (wenn confidence nicht high oder missingContext vorhanden) */}
-      {shouldShowContextCard && (
-        <ContextQuestionsPanel
+      {analysis && (quality.missingContext.length > 0 || quality.confidence !== 'high') && quality.isActionable && twin && (
+        <ContextQuestionsCard
+          questions={generateContextQuestions(
+            quality.missingContext,
+            twin.originalInput || '',
+            project.type
+          )}
           missingContext={quality.missingContext}
           confidence={quality.confidence}
-          projectType={project.type}
-          onRefineClick={() => setShowRefineModal(true)}
+          onAddContext={() => setShowRefineModal(true)}
         />
       )}
 
