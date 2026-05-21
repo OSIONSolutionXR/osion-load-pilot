@@ -83,21 +83,32 @@ function isProjectTwinAnalysis(value: unknown): value is ProjectTwinAnalysis {
   )
 }
 
+function isStoredProjectTwin(value: unknown): value is StoredProjectTwin {
+  if (!isPlainObject(value)) return false
+  const { analysis } = value
+  return isPlainObject(analysis) && isProjectTwinAnalysis(analysis)
+}
+
 /**
  * Extrahiert die Analysis aus verschiedenen Response-Formaten
  */
 function extractAnalysis(response: BridgeUpdateResponse): ProjectTwinAnalysis | null {
+  // Format A: response.updatedTwin ist ein vollständiger StoredProjectTwin
+  if (response.updatedTwin && isStoredProjectTwin(response.updatedTwin)) {
+    return response.updatedTwin.analysis
+  }
+
   // Format B: direkte analysis
   if (response.analysis && isProjectTwinAnalysis(response.analysis)) {
     return response.analysis
   }
 
-  // Format A: updatedTwin.analysis
+  // Format C: updatedTwin.analysis (altes Format)
   if (response.updatedTwin?.analysis && isProjectTwinAnalysis(response.updatedTwin.analysis)) {
     return response.updatedTwin.analysis
   }
 
-  // Format C/D: result enthält die Felder direkt
+  // Format D: result enthält die Felder direkt
   if (response.result) {
     const result = response.result
     // Wenn result.project/nextMove/quality hat, ist es eine komplette Analysis
