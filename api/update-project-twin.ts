@@ -1,87 +1,71 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
 
 const MAX_INPUT_LENGTH = 4000
 const REQUEST_TIMEOUT_MS = 180000
+const PROMPT_VERSION = 'loadpilot_v2'
 
-const UPDATE_PROMPT = `Du bist OSION Load Pilot im UPDATE-Modus.
+const DISALLOWED_FALLBACK_PHRASES = [
+  'Projektlage mit mehreren offenen Punkten',
+  'Top-1-Hebel festlegen',
+  'Verzettelung',
+  'Den unmittelbarsten Geld- oder Blockerhebel zuerst bewegen',
+  'Ohne Priorisierung bleibt die Lage diffus',
+  'Keine Nachrichtenvorlage erforderlich'
+]
 
-AUFGABE: Aktualisiere einen bestehenden Project Twin mit neuem Kontext.
-
-WICHTIGE REGELN:
-1. Bewahre den bestehenden Twin als Basis - verwerfe NICHT alles
-2. Integriere den neuen Kontext INTELLIGENT
-3. Aktualisiere das Next Move, wenn der neue Kontext dies rechtfertigt
-4. Erhöhe confidence (low→medium→high), wenn wichtige Lücken geschlossen wurden
-5. Reduziere missingContext für geklärte Punkte
-6. Füge neue Akteure/Risiken/Aktionen nur hinzu, wenn sie im neuen Kontext erwähnt werden
-
-VERHALTEN BEI CONFIDENCE:
-- "low" → "medium" oder "high", wenn wichtige Lücken geschlossen
-- Nur "low" behalten, wenn noch kritische Informationen fehlen
-
-Antworte NUR mit validem JSON im ProjectTwinAnalysis-Schema. Keine Markdown-Fences.`
-
-const ALLOWED_JOB_TYPE = 'loadpilot_project_twin_update'
-const ALLOWED_PROMPT_VERSION = 'loadpilot_v2'
-
-type ProjectStatus = 'active' | 'blocked' | 'waiting' | 'parked'
-type EffortLevel = 'low' | 'medium' | 'high'
-type ImpactLevel = 'low' | 'medium' | 'high'
-type InfluenceLevel = 'low' | 'medium' | 'high'
-type DependencyStatus = 'required' | 'blocked' | 'waiting' | 'done'
-type RiskSeverity = 'low' | 'medium' | 'high'
-type ActionPriority = 'low' | 'medium' | 'high'
-type InputQuality = 'insufficient' | 'usable' | 'strong'
-type ConfidenceLevel = 'low' | 'medium' | 'high'
-
+// Type definitions
 interface ProjectTwinAnalysis {
   project: {
     title: string
     description: string
-    status: ProjectStatus
+    status: 'active' | 'blocked' | 'waiting' | 'parked'
     type: string
   }
   nextMove: {
     title: string
     reason: string
-    effort: EffortLevel
-    impact: ImpactLevel
+    effort: 'low' | 'medium' | 'high'
+    impact: 'low' | 'medium' | 'high'
     deadline: string | null
   }
   actors: Array<{
     name: string
     role: string
-    influence: InfluenceLevel
+    influence: 'low' | 'medium' | 'high'
     waitingFor: string | null
   }>
   dependencies: Array<{
     from: string
     to: string
-    status: DependencyStatus
+    status: 'required' | 'blocked' | 'waiting' | 'done'
     isBlocker: boolean
     explanation: string
   }>
   risks: Array<{
     title: string
-    severity: RiskSeverity
+    severity: 'low' | 'medium' | 'high'
     explanation: string
   }>
   scenarios: Array<{
     title: string
     outcome: string
-    riskLevel: RiskSeverity
+    riskLevel: 'low' | 'medium' | 'high'
     recommendation: string
   }>
   actions: Array<{
     title: string
     owner: string
-    priority: ActionPriority
+    priority: 'low' | 'medium' | 'high'
     messageDraft?: string | null
   }>
   quality: {
-    inputQuality: InputQuality
+    inputQuality: 'insufficient' | 'usable' | 'strong'
     isActionable: boolean
-    confidence: ConfidenceLevel
+    confidence: 'low' | 'medium' | 'high'
     missingContext: string[]
     reason: string
   }
@@ -95,9 +79,6 @@ interface ContextAnswer {
 }
 
 interface TwinUpdateRequest {
-  jobType?: string
-  promptVersion?: string
-  outputFormat?: string
   existingTwin: ProjectTwinAnalysis
   additionalInput: string
   originalInput: string
@@ -111,206 +92,50 @@ interface TwinUpdateRequest {
   }
 }
 
-interface TwinUpdateResponse {
-  analysis: ProjectTwinAnalysis
-  updateSummary?: string
-  changedFields?: Array<{
-    field: string
-    before?: string
-    after?: string
-    reason?: string
-  }>
-  newProgress?: {
-    percent: number
-    level: number
-    stage: string
-  }
-  meta: {
-    updatedAt: string
-    updateType: 'refinement'
-    fieldsModified: string[]
-    promptVersion: string
-    jobType: string
-    mode: string
-  }
-}
-
-type BridgeRequest = {
-  jobType: typeof ALLOWED_JOB_TYPE
-  promptVersion: typeof ALLOWED_PROMPT_VERSION
-  input: string
-  outputFormat: 'project_twin_json'
-  prompt: string
-  agents: string[]
-  context: {
-    existingTwin: ProjectTwinAnalysis
-    additionalInput: string
-    originalInput: string
-    updateMode: 'refine_existing_twin'
-    contextAnswers?: ContextAnswer[]
-    previousUpdates?: unknown[]
-    currentProgress?: {
-      percent: number
-      level: number
-      stage: string
-    }
-  }
-}
-
-type BridgeEnvelope = {
-  result?: unknown
-  outputs?: Array<{ text?: string }>
-  error?: string
+// Helper functions
+function stripJsonFences(value: string): string {
+  return value
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim()
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function isString(value: unknown): value is string {
   return typeof value === 'string'
 }
 
-function isNullableString(value: unknown): value is string | null {
-  return value === null || typeof value === 'string'
-}
-
 function isEnum<T extends string>(value: unknown, allowed: readonly T[]): value is T {
   return typeof value === 'string' && allowed.includes(value as T)
 }
 
-function stripJsonFences(value: string): string {
-  return value.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim()
+function containsDisallowedFallbackPhrase(value: string): boolean {
+  return DISALLOWED_FALLBACK_PHRASES.some((phrase) => value.includes(phrase))
 }
 
 function validateAnalysis(data: unknown): data is ProjectTwinAnalysis {
-  if (!isObject(data)) {
-    console.log('[API] Validation failed: data is not an object')
-    return false
-  }
-
+  if (!isObject(data)) return false
+  
   const { project, nextMove, actors, dependencies, risks, scenarios, actions, quality } = data
   
-  if (!isObject(project)) {
-    console.log('[API] Validation failed: project is not an object')
-    return false
-  }
-  if (!isObject(nextMove)) {
-    console.log('[API] Validation failed: nextMove is not an object')
-    return false
-  }
-  if (!isObject(quality)) {
-    console.log('[API] Validation failed: quality is not an object')
-    return false
-  }
-  if (!Array.isArray(actors)) {
-    console.log('[API] Validation failed: actors is not an array')
-    return false
-  }
-  if (!Array.isArray(dependencies)) {
-    console.log('[API] Validation failed: dependencies is not an array')
-    return false
-  }
-  if (!Array.isArray(risks)) {
-    console.log('[API] Validation failed: risks is not an array')
-    return false
-  }
-  if (!Array.isArray(scenarios)) {
-    console.log('[API] Validation failed: scenarios is not an array')
-    return false
-  }
-  if (!Array.isArray(actions)) {
-    console.log('[API] Validation failed: actions is not an array')
-    return false
-  }
+  if (!isObject(project) || !isObject(nextMove) || !isObject(quality)) return false
+  if (!Array.isArray(actors) || !Array.isArray(dependencies) || !Array.isArray(risks) || 
+      !Array.isArray(scenarios) || !Array.isArray(actions)) return false
 
   const validProject =
     isString(project.title) &&
     isString(project.description) &&
-    isString(project.type) &&
     isEnum(project.status, ['active', 'blocked', 'waiting', 'parked'] as const)
-
-  if (!validProject) {
-    console.log('[API] Validation failed: project fields invalid')
-    return false
-  }
 
   const validNextMove =
     isString(nextMove.title) &&
     isString(nextMove.reason) &&
     isEnum(nextMove.effort, ['low', 'medium', 'high'] as const) &&
-    isEnum(nextMove.impact, ['low', 'medium', 'high'] as const) &&
-    isNullableString(nextMove.deadline)
-
-  if (!validNextMove) {
-    console.log('[API] Validation failed: nextMove fields invalid')
-    return false
-  }
-
-  const validActors = actors.every((actor) =>
-    isObject(actor) &&
-    isString(actor.name) &&
-    isString(actor.role) &&
-    isEnum(actor.influence, ['low', 'medium', 'high'] as const) &&
-    isNullableString(actor.waitingFor)
-  )
-
-  if (!validActors) {
-    console.log('[API] Validation failed: actors invalid')
-    return false
-  }
-
-  const validDependencies = dependencies.every((dependency) =>
-    isObject(dependency) &&
-    isString(dependency.from) &&
-    isString(dependency.to) &&
-    isEnum(dependency.status, ['required', 'blocked', 'waiting', 'done'] as const) &&
-    typeof dependency.isBlocker === 'boolean' &&
-    isString(dependency.explanation)
-  )
-
-  if (!validDependencies) {
-    console.log('[API] Validation failed: dependencies invalid')
-    return false
-  }
-
-  const validRisks = risks.every((risk) =>
-    isObject(risk) &&
-    isString(risk.title) &&
-    isEnum(risk.severity, ['low', 'medium', 'high'] as const) &&
-    isString(risk.explanation)
-  )
-
-  if (!validRisks) {
-    console.log('[API] Validation failed: risks invalid')
-    return false
-  }
-
-  const validScenarios = scenarios.every((scenario) =>
-    isObject(scenario) &&
-    isString(scenario.title) &&
-    isString(scenario.outcome) &&
-    isEnum(scenario.riskLevel, ['low', 'medium', 'high'] as const) &&
-    isString(scenario.recommendation)
-  )
-
-  if (!validScenarios) {
-    console.log('[API] Validation failed: scenarios invalid')
-    return false
-  }
-
-  const validActions = actions.every((action) =>
-    isObject(action) &&
-    isString(action.title) &&
-    isString(action.owner) &&
-    isEnum(action.priority, ['low', 'medium', 'high'] as const) &&
-    (!('messageDraft' in action) || isNullableString(action.messageDraft))
-  )
-
-  if (!validActions) {
-    console.log('[API] Validation failed: actions invalid')
-    return false
-  }
+    isEnum(nextMove.impact, ['low', 'medium', 'high'] as const)
 
   const validQuality =
     isEnum(quality.inputQuality, ['insufficient', 'usable', 'strong'] as const) &&
@@ -320,155 +145,137 @@ function validateAnalysis(data: unknown): data is ProjectTwinAnalysis {
     quality.missingContext.every((item) => typeof item === 'string') &&
     isString(quality.reason)
 
-  if (!validQuality) {
-    console.log('[API] Validation failed: quality fields invalid')
-    return false
-  }
-
-  return true
+  return validProject && validNextMove && validQuality
 }
 
-function validateUpdateRequest(body: unknown): body is TwinUpdateRequest {
-  if (!isObject(body)) {
-    console.log('[API] Request validation failed: body is not an object')
-    return false
+function assertNoGenericOutput(analysis: ProjectTwinAnalysis): void {
+  const allText = JSON.stringify(analysis).toLowerCase()
+  if (containsDisallowedFallbackPhrase(allText)) {
+    throw new Error('Analysis contains generic fallback phrases')
   }
-
-  const { existingTwin, additionalInput, originalInput, updateMode } = body
-
-  if (!isObject(existingTwin)) {
-    console.log('[API] Request validation failed: existingTwin is not an object')
-    return false
-  }
-  if (!isString(additionalInput)) {
-    console.log('[API] Request validation failed: additionalInput is not a string')
-    return false
-  }
-  if (!isString(originalInput)) {
-    console.log('[API] Request validation failed: originalInput is not a string')
-    return false
-  }
-  if (updateMode !== 'refine_existing_twin') {
-    console.log('[API] Request validation failed: updateMode is not "refine_existing_twin"')
-    return false
-  }
-
-  // Validate the existing twin structure
-  if (!validateAnalysis(existingTwin)) {
-    console.log('[API] Request validation failed: existingTwin is not a valid analysis')
-    return false
-  }
-
-  return true
 }
 
-async function callBridgeUpdate(payload: TwinUpdateRequest): Promise<ProjectTwinAnalysis> {
-  const bridgeUrl = process.env.OPENCLAW_BRIDGE_URL
-  const bridgeSecret = process.env.OPENCLAW_BRIDGE_SECRET
-
-  console.log('[API] Bridge config check:', {
-    hasUrl: !!bridgeUrl,
-    hasSecret: !!bridgeSecret,
-    urlPreview: bridgeUrl ? bridgeUrl.slice(0, 30) + '...' : 'missing'
-  })
-
-  if (!bridgeUrl || !bridgeSecret) {
-    throw new Error('OpenClaw Bridge ist nicht konfiguriert. OPENCLAW_BRIDGE_URL oder OPENCLAW_BRIDGE_SECRET fehlt.')
-  }
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-  const bridgePayload: BridgeRequest = {
-    jobType: ALLOWED_JOB_TYPE,
-    promptVersion: ALLOWED_PROMPT_VERSION,
-    input: payload.additionalInput,
-    outputFormat: 'project_twin_json',
-    prompt: UPDATE_PROMPT,
-    agents: [
-      'project_detector',
-      'actor_mapper',
-      'dependency_graph_builder',
-      'risk_simulator',
-      'scenario_generator',
-      'next_move_synthesizer'
-    ],
-    context: {
-      existingTwin: payload.existingTwin,
-      additionalInput: payload.additionalInput,
-      originalInput: payload.originalInput,
-      updateMode: 'refine_existing_twin',
-      contextAnswers: payload.contextAnswers,
-      previousUpdates: payload.previousUpdates,
-      currentProgress: payload.currentProgress
+// Kompakte Twin-Zusammenfassung für Updates bauen
+function buildCompactTwinContext(existingTwin: ProjectTwinAnalysis): Record<string, unknown> {
+  return {
+    project: {
+      title: existingTwin.project.title,
+      description: existingTwin.project.description.substring(0, 500),
+      type: existingTwin.project.type,
+      status: existingTwin.project.status
+    },
+    nextMove: {
+      title: existingTwin.nextMove.title,
+      reason: existingTwin.nextMove.reason.substring(0, 300),
+      effort: existingTwin.nextMove.effort,
+      impact: existingTwin.nextMove.impact
+    },
+    actors: existingTwin.actors.slice(0, 5).map(a => ({ name: a.name, role: a.role })),
+    dependencies: existingTwin.dependencies.slice(0, 5).map(d => ({ 
+      from: d.from, to: d.to, isBlocker: d.isBlocker 
+    })),
+    risks: existingTwin.risks.slice(0, 5).map(r => ({ title: r.title, severity: r.severity })),
+    actions: existingTwin.actions.slice(0, 5).map(a => ({ 
+      title: a.title, priority: a.priority 
+    })),
+    quality: {
+      confidence: existingTwin.quality.confidence,
+      missingContext: existingTwin.quality.missingContext.slice(0, 10)
     }
   }
+}
 
-  console.log('[API] Sending to bridge:', {
-    url: bridgeUrl.slice(0, 40) + '...',
-    jobType: bridgePayload.jobType,
-    hasExistingTwin: !!bridgePayload.context.existingTwin,
-    additionalInputLength: bridgePayload.context.additionalInput.length,
-    hasContextAnswers: !!bridgePayload.context.contextAnswers?.length
-  })
+// Prüfe ob Update-Input zu schwach ist
+function isInsufficientUpdateInput(additionalInput: string): boolean {
+  const trimmed = additionalInput.trim()
+  if (trimmed.length < 10) return true
+  if (/^(test|abc|123|asdf|xyz|nein|ja|ok|nope|maybe)$/iu.test(trimmed)) return true
+  const wordCount = trimmed.split(/\s+/).filter(Boolean).length
+  if (wordCount < 3) return true
+  const concreteWords = /\b(budget|kosten|euro|€|termin|frist|datum|monat|woche|tag|entscheid|ja|nein|vielleicht|später|früher|mehr|weniger|neu|alt|web|app|desktop|mobile|version|mvp|pilot)\b/gi
+  if (!concreteWords.test(trimmed) && wordCount < 5) return true
+  return false
+}
+
+async function callOpenClawForUpdate(
+  compactTwinContext: Record<string, unknown>, 
+  additionalInput: string
+): Promise<ProjectTwinAnalysis> {
+  if (isInsufficientUpdateInput(additionalInput)) {
+    throw new Error('INSUFFICIENT_UPDATE: Die Ergänzung ist noch zu allgemein. Bitte ergänze eine konkrete Information (z.B. Budget, Frist, Entscheidung, Status).')
+  }
+
+  const prompt = `Du bist OSION Load Pilot im UPDATE-Modus.
+
+AUFGABE: Aktualisiere einen bestehenden Project Twin mit neuem Kontext.
+
+WICHTIGE REGELN:
+1. Bewahre den bestehenden Twin als Basis - verwerfe NICHT alles
+2. Integriere den neuen Kontext INTELLIGENT
+3. Aktualisiere das Next Move, wenn der neue Kontext dies rechtfertigt
+4. Erhöhe confidence (low→medium→high), wenn wichtige Lücken geschlossen wurden
+5. Reduziere missingContext für geklärte Punkte
+6. Füge neue Akteure/Risiken/Aktionen nur hinzu, wenn sie im neuen Kontext erwähnt werden
+
+Schema:
+{
+  "project": { "title": "string", "description": "string", "type": "string", "status": "active|blocked|waiting|parked" },
+  "nextMove": { "title": "string", "reason": "string", "effort": "low|medium|high", "impact": "low|medium|high", "deadline": "string|null" },
+  "actors": [{"name": "string", "role": "string", "influence": "low|medium|high", "waitingFor": "string|null"}],
+  "dependencies": [{"from": "string", "to": "string", "status": "required|blocked|waiting|done", "isBlocker": true, "explanation": "string"}],
+  "risks": [{"title": "string", "severity": "low|medium|high", "explanation": "string"}],
+  "scenarios": [{"title": "string", "outcome": "string", "riskLevel": "low|medium|high", "recommendation": "string"}],
+  "actions": [{"title": "string", "owner": "string", "priority": "low|medium|high", "messageDraft": "string|null"}],
+  "quality": { "inputQuality": "insufficient|usable|strong", "isActionable": true, "confidence": "low|medium|high", "missingContext": ["string"], "reason": "string" }
+}
+
+Antworte NUR mit validem JSON. Keine Markdown-Fences.`
+
+  const contextPrompt = [
+    'AUFGABE: Aktualisiere einen bestehenden OSION Project Twin mit neuem Kontext.',
+    '',
+    'BESTEHENDER PROJECT TWIN (Kompakt):',
+    JSON.stringify(compactTwinContext, null, 2),
+    '',
+    'NEUER KONTEXT:',
+    additionalInput.trim(),
+    '',
+    prompt
+  ].join('\n')
 
   try {
-    const response = await fetch(bridgeUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${bridgeSecret}`
-      },
-      body: JSON.stringify(bridgePayload),
-      signal: controller.signal
-    })
+    const { stdout } = await execFileAsync(
+      'openclaw',
+      ['infer', 'model', 'run', '--gateway', '--model', 'ollama/kimi-k2.5:cloud', '--prompt', contextPrompt, '--thinking', 'off', '--json'],
+      { timeout: REQUEST_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 }
+    )
 
-    console.log('[API] Bridge response status:', response.status)
-
-    const body = (await response.json().catch((err) => {
-      console.log('[API] Failed to parse bridge response:', err)
-      return {}
-    })) as BridgeEnvelope
-
-    if (!response.ok) {
-      const errorMsg = body.error || `HTTP ${response.status}`
-      console.log('[API] Bridge returned error:', errorMsg)
-      throw new Error(`OpenClaw Bridge hat die Update-Anfrage abgelehnt: ${errorMsg}`)
-    }
-
-    // Handle different response structures
-    let result: unknown
+    // Parse envelope response
+    const envelope = JSON.parse(stdout)
     
-    if (body.outputs && Array.isArray(body.outputs) && body.outputs[0]?.text) {
-      // OpenClaw infer model response with outputs array
-      const content = body.outputs[0].text
-      console.log('[API] Parsing outputs[0].text, length:', content.length)
-      try {
-        result = JSON.parse(stripJsonFences(content.trim()))
-      } catch (err) {
-        console.log('[API] Failed to parse outputs[0].text:', err)
-        throw new Error('OpenClaw Bridge hat kein valides JSON zurückgegeben.')
-      }
-    } else if (body.result) {
-      // Direct result object
-      result = body.result
+    let content: string
+    if (envelope?.outputs && Array.isArray(envelope.outputs) && envelope.outputs[0]?.text) {
+      content = envelope.outputs[0].text
+    } else if (envelope?.result) {
+      content = JSON.stringify(envelope.result)
     } else {
-      // Check if body itself is the analysis
-      result = body
+      content = stdout
     }
 
-    console.log('[API] Result type:', typeof result, 'isObject:', isObject(result))
-    console.log('[API] Result keys:', isObject(result) ? Object.keys(result) : 'N/A')
-
-    if (!validateAnalysis(result)) {
-      console.log('[API] Validation failed for bridge result')
-      throw new Error('OpenClaw Bridge hat kein valides Project-Twin-JSON zurückgegeben.')
+    const parsed = JSON.parse(stripJsonFences(content.trim()))
+    
+    if (!validateAnalysis(parsed)) {
+      throw new Error('OpenClaw returned invalid analysis structure')
     }
 
-    console.log('[API] Successfully validated analysis from bridge')
-    return result
-  } finally {
-    clearTimeout(timeout)
+    assertNoGenericOutput(parsed)
+
+    return parsed
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('TIMEOUT')) {
+      throw new Error('TIMEOUT: OpenClaw infer timed out - Die Aktualisierung hat zu lange gedauert. Bitte versuche es mit weniger Text oder konkreteren Angaben erneut.')
+    }
+    throw error
   }
 }
 
@@ -511,49 +318,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Nur POST ist erlaubt.' })
   }
 
-  const body = req.body
+  const body = req.body as unknown
 
-  console.log('[API] Received request:', {
-    method: req.method,
-    hasBody: !!body,
-    bodyKeys: body ? Object.keys(body) : [],
-    contentType: req.headers['content-type']
-  })
-
-  if (!validateUpdateRequest(body)) {
-    console.log('[API] Request validation failed, returning 400')
+  if (!isObject(body) || !isObject(body.existingTwin) || !isString(body.additionalInput) || 
+      !isString(body.originalInput) || body.updateMode !== 'refine_existing_twin') {
     return res.status(400).json({
       error: 'Ungültiges Update-Request. Erwartet: existingTwin, additionalInput, originalInput, updateMode.',
-      receivedKeys: body ? Object.keys(body) : []
+      receivedKeys: isObject(body) ? Object.keys(body) : []
     })
   }
 
-  const { existingTwin, additionalInput, originalInput, contextAnswers, previousUpdates, currentProgress } = body
+  const { existingTwin, additionalInput, originalInput } = body as unknown as TwinUpdateRequest
 
   if (additionalInput.length > MAX_INPUT_LENGTH) {
     return res.status(400).json({ error: `Additional Input ist zu lang. Maximal ${MAX_INPUT_LENGTH} Zeichen erlaubt.` })
   }
 
-  console.log('[API] Processing update:', {
-    projectTitle: existingTwin.project.title,
-    additionalInputLength: additionalInput.length,
-    hasContextAnswers: !!contextAnswers?.length,
-    hasPreviousUpdates: !!previousUpdates?.length,
-    hasCurrentProgress: !!currentProgress
-  })
+  // Prüfe auf zu schwachen Input
+  if (isInsufficientUpdateInput(additionalInput)) {
+    return res.status(400).json({
+      error: 'Diese Ergänzung ist noch zu allgemein. Ergänze bitte eine konkrete neue Information (z.B. Budget, Frist, Entscheidung, Status).',
+      errorType: 'insufficient_update_context'
+    })
+  }
 
   try {
-    const updatedAnalysis = await callBridgeUpdate({
-      existingTwin,
-      additionalInput,
-      originalInput,
-      updateMode: 'refine_existing_twin',
-      contextAnswers,
-      previousUpdates,
-      currentProgress
-    })
+    const compactContext = buildCompactTwinContext(existingTwin)
+    const updatedAnalysis = await callOpenClawForUpdate(compactContext, additionalInput)
 
-    const response: TwinUpdateResponse = {
+    const response = {
       analysis: updatedAnalysis,
       updateSummary: 'Project Twin mit neuem Kontext aktualisiert.',
       changedFields: detectChangedFields(existingTwin, updatedAnalysis).map(field => ({
@@ -561,21 +354,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         before: 'vorher',
         after: 'nachher'
       })),
+      newProgress: {
+        percent: updatedAnalysis.quality.confidence === 'high' ? 85 : 
+                 updatedAnalysis.quality.confidence === 'medium' ? 60 : 35,
+        level: updatedAnalysis.quality.confidence === 'high' ? 3 : 
+               updatedAnalysis.quality.confidence === 'medium' ? 2 : 1,
+        stage: updatedAnalysis.quality.missingContext.length === 0 ? 'clarified' : 'needs_context'
+      },
       meta: {
         updatedAt: new Date().toISOString(),
         updateType: 'refinement',
         fieldsModified: detectChangedFields(existingTwin, updatedAnalysis),
-        promptVersion: ALLOWED_PROMPT_VERSION,
-        jobType: ALLOWED_JOB_TYPE,
+        promptVersion: PROMPT_VERSION,
+        jobType: 'loadpilot_project_twin_update',
         mode: 'openclaw-kimi'
       }
     }
 
-    console.log('[API] Update successful, returning 200')
     return res.status(200).json(response)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unbekannter Update-Fehler.'
-    console.log('[API] Update failed:', message)
+    
+    // Timeout erkennen
+    if (message.includes('TIMEOUT') || message.includes('timed out')) {
+      return res.status(504).json({
+        error: 'Die Aktualisierung hat zu lange gedauert. Deine Eingaben wurden nicht gelöscht. Bitte versuche es mit weniger Text oder konkreteren Angaben erneut.',
+        errorType: 'timeout'
+      })
+    }
+    
+    // Insufficient input erkennen
+    if (message.includes('INSUFFICIENT_UPDATE')) {
+      return res.status(400).json({
+        error: message.replace('INSUFFICIENT_UPDATE: ', ''),
+        errorType: 'insufficient_update_context'
+      })
+    }
+    
     return res.status(502).json({ error: message })
   }
 }
