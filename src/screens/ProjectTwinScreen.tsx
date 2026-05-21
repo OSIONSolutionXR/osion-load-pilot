@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/Badge'
 import { Panel } from '../components/ui/Panel'
 import ContextQuestionsCard from '../components/twin/ContextQuestionsCard'
 import RefineContextModal from '../components/twin/RefineContextModal'
-import ProjectHistoryTimeline from '../components/twin/ProjectHistoryTimeline'
+import ProjectHistoryPanel from '../components/twin/ProjectHistoryPanel'
 import { generateContextQuestions } from '../lib/contextQuestions'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
 import { updateProjectTwin, buildAdditionalInputFromAnswers, buildContextAnswers } from '../services/projectTwinUpdateApi'
@@ -552,12 +552,9 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
         </motion.section>
       )}
 
-      {/* 9. PROJEKTVERLAUF (HISTORY) */}
+      {/* 9. PROJEKTVERLAUF (HISTORY) - NEU */}
       {twin && (
-        <ProjectHistoryTimeline 
-          updates={(twin.updates || []) as unknown as import('../types/projectTwin').ProjectTwinUpdate[]} 
-          createdAt={twin.createdAt} 
-        />
+        <ProjectHistoryPanel twin={twin} />
       )}
 
       {/* 10. TECHNISCHE ANALYSE (STANDARDMÄSSIG GESCHLOSSEN) */}

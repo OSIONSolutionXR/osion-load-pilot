@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { Folder, Plus, ArrowRight } from 'lucide-react'
+import { Folder, Plus, ArrowRight, Clock, BarChart3, RotateCcw } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Panel } from '../components/ui/Panel'
@@ -61,23 +61,38 @@ export default function ProjectsScreen({ twins, onOpenTwin, onNewProject }: Proj
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-[#ff006e] flex items-center justify-center">
                       <Folder className="w-5 h-5 text-white" />
                     </div>
-                    <div>
-                      <div className="font-semibold">{project.analysis.project.title}</div>
-                      <div className="text-xs text-zinc-500">{project.analysis.nextMove.title}</div>
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate">{project.analysis.project.title}</div>
+                      <div className="text-xs text-zinc-500 truncate">{project.analysis.nextMove.title}</div>
                     </div>
                   </div>
                   
-                  <ArrowRight className="w-5 h-5 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+                  <ArrowRight className="w-5 h-5 text-zinc-600 group-hover:text-zinc-400 transition-colors flex-shrink-0" />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
                   <Badge variant={project.analysis.project.status === 'blocked' ? 'rose' : 'blue'}>
                     {project.analysis.project.status}
                   </Badge>
-                  <Badge variant="neutral">{formatRelativeLabel(project.updatedAt)}</Badge>
-                  <Badge variant="neutral">{project.analysis.risks.length} Risiken</Badge>
+                  <Badge variant="neutral" icon={Clock}>
+                    {formatRelativeLabel(project.updatedAt)}
+                  </Badge>
+                  <Badge variant="neutral" icon={RotateCcw}>
+                    {project.updates?.length || 0} Updates
+                  </Badge>
                 </div>
-              </motion.div>
+                
+                <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-3.5 h-3.5 text-zinc-500" />
+                    <span className="text-xs text-zinc-400">
+                      {project.progress?.percent || 0}% Fortschritt
+                    </span>
+                  </div>
+                  <div className="text-xs text-zinc-500">
+                    {project.analysis.risks.length} Risiken
+                  </div>
+                </div>              </motion.div>
             ))}
 
             <motion.div
