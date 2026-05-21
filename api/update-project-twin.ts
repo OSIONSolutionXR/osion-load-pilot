@@ -191,30 +191,61 @@ function hasProjectTwinFields(obj: Record<string, unknown>): boolean {
 // Kompakter Twin für Bridge
 function buildCompactTwin(twin: StoredProjectTwin): Record<string, unknown> {
   const analysis = twin.analysis
+
+  if (!analysis || !isObject(analysis)) {
+    throw new Error('existingTwin.analysis fehlt oder ist ungültig')
+  }
+
+  const project = (isObject(analysis.project) ? analysis.project : {}) as Record<string, unknown>
+  const nextMove = (isObject(analysis.nextMove) ? analysis.nextMove : {}) as Record<string, unknown>
+  const quality = (isObject(analysis.quality) ? analysis.quality : {}) as Record<string, unknown>
+  const actions = Array.isArray(analysis.actions) ? analysis.actions : []
+  const risks = Array.isArray(analysis.risks) ? analysis.risks : []
+  const dependencies = Array.isArray(analysis.dependencies) ? analysis.dependencies : []
+  const scenarios = Array.isArray(analysis.scenarios) ? analysis.scenarios : []
+  const updates = Array.isArray(twin.updates) ? twin.updates : []
+
   return {
-    id: twin.id,
-    title: analysis.project.title,
-    status: analysis.project.status,
-    type: analysis.project.type,
-    description: analysis.project.description.substring(0, 200),
+    id: typeof twin.id === 'string' ? twin.id : '',
+    title: typeof project.title === 'string' ? project.title : (typeof twin.title === 'string' ? twin.title : 'Unbekanntes Projekt'),
+    status: typeof project.status === 'string' ? project.status : 'active',
+    type: typeof project.type === 'string' ? project.type : 'unknown',
+    description: typeof project.description === 'string' ? project.description.substring(0, 200) : '',
     nextMove: {
-      title: analysis.nextMove.title,
-      reason: analysis.nextMove.reason.substring(0, 100),
-      effort: analysis.nextMove.effort,
-      impact: analysis.nextMove.impact
+      title: typeof nextMove.title === 'string' ? nextMove.title : 'Nächsten Schritt klären',
+      reason: typeof nextMove.reason === 'string' ? nextMove.reason.substring(0, 100) : '',
+      effort: typeof nextMove.effort === 'string' ? nextMove.effort : 'medium',
+      impact: typeof nextMove.impact === 'string' ? nextMove.impact : 'medium'
     },
-    actions: analysis.actions.slice(0, 5).map(a => ({ title: a.title, owner: a.owner, priority: a.priority })),
-    risks: analysis.risks.slice(0, 5).map(r => ({ title: r.title, severity: r.severity })),
-    dependencies: analysis.dependencies.slice(0, 5).map(d => ({ from: d.from, to: d.to, isBlocker: d.isBlocker })),
-    scenarios: analysis.scenarios.slice(0, 3).map(s => ({ title: s.title, riskLevel: s.riskLevel })),
+    actions: actions.slice(0, 5).map((a) => ({
+      title: isObject(a) && typeof a.title === 'string' ? a.title : 'Unbenannte Aktion',
+      owner: isObject(a) && typeof a.owner === 'string' ? a.owner : 'Unbekannt',
+      priority: isObject(a) && typeof a.priority === 'string' ? a.priority : 'medium'
+    })),
+    risks: risks.slice(0, 5).map((r) => ({
+      title: isObject(r) && typeof r.title === 'string' ? r.title : 'Unbenanntes Risiko',
+      severity: isObject(r) && typeof r.severity === 'string' ? r.severity : 'medium'
+    })),
+    dependencies: dependencies.slice(0, 5).map((d) => ({
+      from: isObject(d) && typeof d.from === 'string' ? d.from : 'Unbekannt',
+      to: isObject(d) && typeof d.to === 'string' ? d.to : 'Unbekannt',
+      isBlocker: isObject(d) ? Boolean(d.isBlocker) : false
+    })),
+    scenarios: scenarios.slice(0, 3).map((s) => ({
+      title: isObject(s) && typeof s.title === 'string' ? s.title : 'Unbenanntes Szenario',
+      riskLevel: isObject(s) && typeof s.riskLevel === 'string' ? s.riskLevel : 'medium'
+    })),
     quality: {
-      confidence: analysis.quality.confidence,
-      missingContext: analysis.quality.missingContext.slice(0, 5),
-      isActionable: analysis.quality.isActionable
+      confidence: typeof quality.confidence === 'string' ? quality.confidence : 'low',
+      missingContext: Array.isArray(quality.missingContext) ? quality.missingContext.slice(0, 5) : [],
+      isActionable: Boolean(quality.isActionable)
     },
     progress: twin.progress || { percent: 35, level: 1, stage: 'needs_context' },
-    recentUpdates: (twin.updates || []).slice(-3).map(u => ({ timestamp: u.timestamp, summary: u.summary?.substring(0, 50) })),
-    latestInput: twin.latestInput?.substring(0, 100) || ''
+    recentUpdates: updates.slice(-3).map((u) => ({
+      timestamp: isObject(u) && typeof u.timestamp === 'string' ? u.timestamp : '',
+      summary: isObject(u) && typeof u.summary === 'string' ? u.summary.substring(0, 50) : ''
+    })),
+    latestInput: typeof twin.latestInput === 'string' ? twin.latestInput.substring(0, 100) : ''
   }
 }
 
