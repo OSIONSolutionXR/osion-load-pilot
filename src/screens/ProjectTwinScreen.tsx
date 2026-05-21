@@ -119,6 +119,8 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
   if (!analysis || !twin) return null
 
   const { project, nextMove, actors, dependencies, risks, scenarios, actions, quality } = analysis
+  // Reference for API compatibility - used by parent component
+  void onNewInput
 
   // Nur Top 3 Risiken
   const topRisks = risks.slice(0, 3)
