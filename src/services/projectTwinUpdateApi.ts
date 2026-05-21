@@ -14,6 +14,7 @@ export interface TwinUpdatePayload {
   originalInput: string
   updateMode: 'refine_existing_twin'
   contextAnswers?: ContextAnswer[]
+  compactTwinContext?: Record<string, unknown>
   previousUpdates?: unknown[]
   currentProgress?: {
     percent: number
@@ -74,18 +75,6 @@ function getTopLevelKeys(value: unknown): string[] {
   return Object.keys(value)
 }
 
-function isInsufficientUpdateInput(additionalInput: string): boolean {
-  const trimmed = additionalInput.trim()
-  if (trimmed.length < 10) return true
-  if (/^(test|abc|123|asdf|xyz|nein|ja|ok|nope|maybe)$/iu.test(trimmed)) return true
-  const wordCount = trimmed.split(/\s+/).filter(Boolean).length
-  if (wordCount < 3) return true
-  // Prüfe auf konkrete Information
-  const concreteWords = /\b(budget|kosten|euro|€|termin|frist|datum|monat|woche|tag|entscheid|ja|nein|vielleicht|später|früher|mehr|weniger|neu|alt|web|app|desktop|mobile|version|mvp|pilot)\b/gi
-  if (!concreteWords.test(trimmed) && wordCount < 5) return true
-  return false
-}
-
 function getAnalysisCandidate(responseData: unknown): ProjectTwinAnalysis | null {
   if (isPlainObject(responseData) && isPlainObject(responseData.analysis)) 
     return responseData.analysis as unknown as ProjectTwinAnalysis
@@ -137,19 +126,38 @@ export function buildContextAnswers(
 }
 
 export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<TwinUpdateResponse> {
-  const { existingTwin, additionalInput, originalInput, contextAnswers, previousUpdates, currentProgress } = payload
+  const { existingTwin, additionalInput, originalInput, contextAnswers, compactTwinContext, previousUpdates, currentProgress } = payload
 
   if (!additionalInput.trim()) {
     throw new TwinUpdateError('Bitte gib zusätzliche Informationen ein.', 400, 'insufficient_input')
   }
 
-  // Lokale Prüfung auf zu schwachen Input
-  if (isInsufficientUpdateInput(additionalInput)) {
-    throw new TwinUpdateError(
-      'Diese Ergänzung ist noch zu allgemein. Ergänze bitte eine konkrete neue Information (z.B. Budget, Frist, Entscheidung, Status).',
-      400,
-      'insufficient_input'
-    )
+  // Baue compactTwinContext wenn nicht vorhanden
+  const twinContext = compactTwinContext || {
+    project: {
+      title: existingTwin.project.title,
+      description: existingTwin.project.description.substring(0, 500),
+      type: existingTwin.project.type,
+      status: existingTwin.project.status
+    },
+    nextMove: {
+      title: existingTwin.nextMove.title,
+      reason: existingTwin.nextMove.reason.substring(0, 300),
+      effort: existingTwin.nextMove.effort,
+      impact: existingTwin.nextMove.impact
+    },
+    actors: existingTwin.actors.slice(0, 5).map(a => ({ name: a.name, role: a.role })),
+    dependencies: existingTwin.dependencies.slice(0, 5).map(d => ({ 
+      from: d.from, to: d.to, isBlocker: d.isBlocker 
+    })),
+    risks: existingTwin.risks.slice(0, 5).map(r => ({ title: r.title, severity: r.severity })),
+    actions: existingTwin.actions.slice(0, 5).map(a => ({ 
+      title: a.title, priority: a.priority 
+    })),
+    quality: {
+      confidence: existingTwin.quality.confidence,
+      missingContext: existingTwin.quality.missingContext.slice(0, 10)
+    }
   }
 
   const requestBody = {
@@ -157,7 +165,7 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
     promptVersion: 'loadpilot_v2',
     outputFormat: 'project_twin_json',
     updateMode: 'refine_existing_twin',
-    existingTwin,
+    compactTwinContext: twinContext,
     additionalInput: additionalInput.trim(),
     originalInput,
     contextAnswers,
@@ -168,6 +176,7 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
   console.log('[TwinUpdate] submit', {
     jobType: requestBody.jobType,
     hasContextAnswers: Boolean(contextAnswers?.length),
+    hasCompactContext: !!compactTwinContext,
     additionalInputLength: requestBody.additionalInput.length,
     additionalInputPreview: requestBody.additionalInput.substring(0, 100) + '...'
   })

@@ -311,7 +311,7 @@ async function callOpenClawGatewayForUpdate(compactTwinContext, additionalInput)
   }
 }
 
-export async function updateProjectTwin({ existingTwin, additionalInput, originalInput }) {
+export async function updateProjectTwin({ compactTwinContext, additionalInput, originalInput, contextAnswers }) {
   const trimmedAdditional = additionalInput?.trim()
 
   if (!trimmedAdditional) {
@@ -324,21 +324,24 @@ export async function updateProjectTwin({ existingTwin, additionalInput, origina
 
   try {
     console.log('[Bridge Engine] Starting updateProjectTwin:', {
-      hasExistingTwin: !!existingTwin,
-      existingTwinTitle: existingTwin?.project?.title,
+      hasCompactContext: !!compactTwinContext,
+      compactProjectTitle: compactTwinContext?.project?.title,
       additionalInputLength: trimmedAdditional.length,
-      additionalInputPreview: trimmedAdditional.substring(0, 100)
+      additionalInputPreview: trimmedAdditional.substring(0, 100),
+      hasContextAnswers: !!contextAnswers?.length
     })
 
-    // Kompakte Zusammenfassung bauen
-    const compactContext = buildCompactTwinContext(existingTwin)
-    console.log('[Bridge Engine] Built compact context:', {
-      projectTitle: compactContext.project?.title,
-      actorsCount: compactContext.actors?.length,
-      risksCount: compactContext.risks?.length
+    // Nutze direkt den compactTwinContext (wurde schon vom API gebaut)
+    const contextToUse = compactTwinContext || {}
+    
+    console.log('[Bridge Engine] Using compact context:', {
+      projectTitle: contextToUse.project?.title,
+      actorsCount: contextToUse.actors?.length,
+      risksCount: contextToUse.risks?.length
     })
 
-    const updatedAnalysis = await callOpenClawGatewayForUpdate(compactContext, trimmedAdditional)
+    const updatedAnalysis = await callOpenClawGatewayForUpdate(contextToUse, trimmedAdditional)
+    
     console.log('[Bridge Engine] Received updated analysis:', {
       projectTitle: updatedAnalysis?.project?.title,
       hasNextMove: !!updatedAnalysis?.nextMove,
@@ -348,7 +351,7 @@ export async function updateProjectTwin({ existingTwin, additionalInput, origina
     return {
       ...updatedAnalysis,
       meta: {
-        domain: updatedAnalysis.project?.type || existingTwin?.project?.type || 'unclear',
+        domain: updatedAnalysis.project?.type || contextToUse?.project?.type || 'unclear',
         analysisMode: 'openclaw-kimi',
         promptVersion: PROMPT_VERSION,
         generatedAt: new Date().toISOString()

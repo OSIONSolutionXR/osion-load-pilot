@@ -113,9 +113,38 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
       
       const contextAnswers = buildContextAnswers(answers, questions)
       
-      console.log('[TwinScreen] Calling updateProjectTwin', {
+      // Baute compactTwinContext für den API-Call
+      const compactTwinContext = {
+        project: {
+          title: analysis.project.title,
+          description: analysis.project.description.substring(0, 500),
+          type: analysis.project.type,
+          status: analysis.project.status
+        },
+        nextMove: {
+          title: analysis.nextMove.title,
+          reason: analysis.nextMove.reason.substring(0, 300),
+          effort: analysis.nextMove.effort,
+          impact: analysis.nextMove.impact
+        },
+        actors: analysis.actors.slice(0, 5).map(a => ({ name: a.name, role: a.role })),
+        dependencies: analysis.dependencies.slice(0, 5).map(d => ({ 
+          from: d.from, to: d.to, isBlocker: d.isBlocker 
+        })),
+        risks: analysis.risks.slice(0, 5).map(r => ({ title: r.title, severity: r.severity })),
+        actions: analysis.actions.slice(0, 5).map(a => ({ 
+          title: a.title, priority: a.priority 
+        })),
+        quality: {
+          confidence: analysis.quality.confidence,
+          missingContext: analysis.quality.missingContext.slice(0, 10)
+        }
+      }
+      
+      console.log('[TwinScreen] Calling updateProjectTwin with compact context', {
         source: 'context_form',
-        hasExistingTwin: !!analysis,
+        hasCompactContext: true,
+        compactProjectTitle: compactTwinContext.project.title,
         additionalInputLength: additionalInput.length,
         contextAnswersCount: contextAnswers.length
       })
@@ -126,6 +155,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
         originalInput: twin.originalInput || (twin as unknown as { sourceInput?: string }).sourceInput || '',
         updateMode: 'refine_existing_twin',
         contextAnswers,
+        compactTwinContext,
         previousUpdates: twin.updates,
         currentProgress: twin.progress
       })
@@ -172,11 +202,40 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
     })
     
     try {
+      // Baute compactTwinContext für manuelles Update
+      const compactTwinContext = {
+        project: {
+          title: analysis.project.title,
+          description: analysis.project.description.substring(0, 500),
+          type: analysis.project.type,
+          status: analysis.project.status
+        },
+        nextMove: {
+          title: analysis.nextMove.title,
+          reason: analysis.nextMove.reason.substring(0, 300),
+          effort: analysis.nextMove.effort,
+          impact: analysis.nextMove.impact
+        },
+        actors: analysis.actors.slice(0, 5).map(a => ({ name: a.name, role: a.role })),
+        dependencies: analysis.dependencies.slice(0, 5).map(d => ({ 
+          from: d.from, to: d.to, isBlocker: d.isBlocker 
+        })),
+        risks: analysis.risks.slice(0, 5).map(r => ({ title: r.title, severity: r.severity })),
+        actions: analysis.actions.slice(0, 5).map(a => ({ 
+          title: a.title, priority: a.priority 
+        })),
+        quality: {
+          confidence: analysis.quality.confidence,
+          missingContext: analysis.quality.missingContext.slice(0, 10)
+        }
+      }
+      
       const response = await updateProjectTwin({
         existingTwin: analysis,
         additionalInput,
         originalInput: twin.originalInput || (twin as unknown as { sourceInput?: string }).sourceInput || '',
         updateMode: 'refine_existing_twin',
+        compactTwinContext,
         previousUpdates: twin.updates,
         currentProgress: twin.progress
       })

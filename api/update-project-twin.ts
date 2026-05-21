@@ -1,8 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-
-const execFileAsync = promisify(execFile)
 
 const MAX_INPUT_LENGTH = 4000
 const REQUEST_TIMEOUT_MS = 180000
@@ -92,17 +88,26 @@ interface TwinUpdateRequest {
   }
 }
 
-// Helper functions
-function stripJsonFences(value: string): string {
-  return value
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/\s*```$/, '')
-    .trim()
+type BridgeRequest = {
+  jobType: 'loadpilot_project_twin_update'
+  promptVersion: typeof PROMPT_VERSION
+  existingTwin: Record<string, unknown>
+  additionalInput: string
+  originalInput: string
+  contextAnswers?: ContextAnswer[]
+  updateMode: 'refine_existing_twin'
+  outputFormat: 'project_twin_json'
+  compactTwinContext: Record<string, unknown>
 }
 
+type BridgeEnvelope = {
+  result?: unknown
+  error?: string
+}
+
+// Helper functions
 function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+  return typeof value === 'object' && value !== null
 }
 
 function isString(value: unknown): value is string {
@@ -204,18 +209,8 @@ function isInsufficientUpdateInput(additionalInput: string, contextAnswers?: Con
   return false
 }
 
-async function callOpenClawForUpdate(
-  compactTwinContext: Record<string, unknown>, 
-  additionalInput: string,
-  contextAnswers?: ContextAnswer[]
-): Promise<ProjectTwinAnalysis> {
-  // Kurze Antworten aus Kontextfragen sind immer okay
-  const hasContextAnswers = contextAnswers && contextAnswers.length > 0
-  if (!hasContextAnswers && isInsufficientUpdateInput(additionalInput)) {
-    throw new Error('INSUFFICIENT_UPDATE: Die Ergänzung ist noch zu allgemein. Bitte ergänze eine konkrete Information (z.B. Budget, Frist, Entscheidung, Status).')
-  }
-
-  const prompt = `Du bist OSION Load Pilot im UPDATE-Modus.
+// Update-Prompt für Kimi
+const UPDATE_PROMPT = `Du bist OSION Load Pilot im UPDATE-Modus.
 
 AUFGABE: Aktualisiere einen bestehenden Project Twin mit neuem Kontext.
 
@@ -241,51 +236,72 @@ Schema:
 
 Antworte NUR mit validem JSON. Keine Markdown-Fences.`
 
-  const contextPrompt = [
-    'AUFGABE: Aktualisiere einen bestehenden OSION Project Twin mit neuem Kontext.',
-    '',
-    'BESTEHENDER PROJECT TWIN (Kompakt):',
-    JSON.stringify(compactTwinContext, null, 2),
-    '',
-    'NEUER KONTEXT:',
-    additionalInput.trim(),
-    '',
-    prompt
-  ].join('\n')
+// Vereinheitlichter Bridge-Call (gleich wie Input-Analyse)
+async function callBridgeForUpdate(
+  compactTwinContext: Record<string, unknown>,
+  additionalInput: string,
+  originalInput: string,
+  contextAnswers?: ContextAnswer[]
+): Promise<ProjectTwinAnalysis> {
+  const bridgeUrl = process.env.OPENCLAW_BRIDGE_URL
+  const bridgeSecret = process.env.OPENCLAW_BRIDGE_SECRET
+
+  if (!bridgeUrl || !bridgeSecret) {
+    throw new Error('OpenClaw Bridge ist nicht konfiguriert.')
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  const payload: BridgeRequest = {
+    jobType: 'loadpilot_project_twin_update',
+    promptVersion: PROMPT_VERSION,
+    existingTwin: {}, // Wird von Bridge nicht direkt genutzt, compactTwinContext enthält alles
+    additionalInput: additionalInput.trim(),
+    originalInput,
+    contextAnswers,
+    updateMode: 'refine_existing_twin',
+    outputFormat: 'project_twin_json',
+    compactTwinContext
+  }
+
+  console.log('[Update Bridge] Calling bridge:', {
+    url: bridgeUrl.replace(/\/+$/, '') + '/update-project-twin',
+    hasContextAnswers: Boolean(contextAnswers?.length),
+    additionalInputLength: additionalInput.length
+  })
 
   try {
-    const { stdout } = await execFileAsync(
-      'openclaw',
-      ['infer', 'model', 'run', '--gateway', '--model', 'ollama/kimi-k2.5:cloud', '--prompt', contextPrompt, '--thinking', 'off', '--json'],
-      { timeout: REQUEST_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 }
-    )
+    const response = await fetch(bridgeUrl.replace(/\/+$/, '') + '/update-project-twin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${bridgeSecret}`
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    })
 
-    // Parse envelope response
-    const envelope = JSON.parse(stdout)
-    
-    let content: string
-    if (envelope?.outputs && Array.isArray(envelope.outputs) && envelope.outputs[0]?.text) {
-      content = envelope.outputs[0].text
-    } else if (envelope?.result) {
-      content = JSON.stringify(envelope.result)
-    } else {
-      content = stdout
+    const body = (await response.json().catch(() => ({}))) as BridgeEnvelope
+
+    if (!response.ok) {
+      const errorMsg = body.error || `Bridge error: ${response.status}`
+      console.error('[Update Bridge] Bridge error:', errorMsg)
+      throw new Error(errorMsg)
     }
 
-    const parsed = JSON.parse(stripJsonFences(content.trim()))
-    
-    if (!validateAnalysis(parsed)) {
-      throw new Error('OpenClaw returned invalid analysis structure')
+    const result = isObject(body) && 'result' in body ? body.result : body
+
+    if (!validateAnalysis(result)) {
+      console.error('[Update Bridge] Invalid analysis structure')
+      throw new Error('OpenClaw Bridge hat kein valides Project-Twin-JSON zurückgegeben.')
     }
 
-    assertNoGenericOutput(parsed)
+    assertNoGenericOutput(result as ProjectTwinAnalysis)
 
-    return parsed
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('TIMEOUT')) {
-      throw new Error('TIMEOUT: OpenClaw infer timed out - Die Aktualisierung hat zu lange gedauert. Bitte versuche es mit weniger Text oder konkreteren Angaben erneut.')
-    }
-    throw error
+    return result as ProjectTwinAnalysis
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
@@ -354,7 +370,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const compactContext = buildCompactTwinContext(existingTwin)
-    const updatedAnalysis = await callOpenClawForUpdate(compactContext, additionalInput, contextAnswers)
+    
+    console.log('[Update API] Starting update:', {
+      hasExistingTwin: !!existingTwin,
+      hasContextAnswers: !!contextAnswers?.length,
+      additionalInputLength: additionalInput.length
+    })
+    
+    const updatedAnalysis = await callBridgeForUpdate(compactContext, additionalInput, originalInput, contextAnswers)
+    
+    console.log('[Update API] Bridge returned analysis:', {
+      title: updatedAnalysis.project.title,
+      confidence: updatedAnalysis.quality.confidence
+    })
 
     const response = {
       analysis: updatedAnalysis,
@@ -385,8 +413,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unbekannter Update-Fehler.'
     
+    console.error('[Update API] Error:', message)
+    
     // Timeout erkennen
-    if (message.includes('TIMEOUT') || message.includes('timed out')) {
+    if (message.includes('TIMEOUT') || message.includes('timed out') || message.includes('abort')) {
       return res.status(504).json({
         error: 'Die Aktualisierung hat zu lange gedauert. Deine Eingaben wurden nicht gelöscht. Bitte versuche es mit weniger Text oder konkreteren Angaben erneut.',
         errorType: 'timeout'
