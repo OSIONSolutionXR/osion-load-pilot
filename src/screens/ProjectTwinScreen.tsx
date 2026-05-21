@@ -4,7 +4,7 @@ import {
   ListTodo, CheckCircle2, Clock, RefreshCw, AlertTriangle, 
   TrendingUp, ArrowRight
 } from 'lucide-react'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import ContextQuestionsCard from '../components/twin/ContextQuestionsCard'
@@ -29,6 +29,16 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
   const [updateError, setUpdateError] = useState<string | null>(null)
   
   const analysis = twin?.analysis ?? null
+
+  // Memoisiere Kontextfragen - verhindert Neugenerierung bei jedem Render
+  const contextQuestions = useMemo(() => {
+    if (!analysis || !twin) return []
+    return generateContextQuestions(
+      analysis.quality.missingContext,
+      twin.originalInput || '',
+      analysis.project.type
+    )
+  }, [analysis?.quality.missingContext, twin?.originalInput, analysis?.project.type])
 
   const buildUpdatedTwin = useCallback((response: TwinUpdateResponse, additionalInput: string) => {
     if (!twin || !analysis) return null
@@ -66,14 +76,23 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
     setIsUpdating(true)
     setUpdateError(null)
     
-    console.log('[TwinScreen] Context form submit start', {
-      twinId: twin.id,
-      answersCount: Object.keys(answers).length,
-      answersPreview: Object.entries(answers).slice(0, 3).map(([k, v]) => ({ key: k.substring(0, 20), val: v.substring(0, 30) }))
+    // Verwende die memoisierten Fragen statt neu generieren
+    const questions = contextQuestions
+    
+    // Debug-Logging
+    console.log('[ContextQuestions] submit', {
+      questionCount: questions.length,
+      answeredCount: Object.keys(answers).length,
+      validAnswerCount: Object.values(answers).filter(v => v.trim() !== '').length,
+      answersPreview: Object.entries(answers).slice(0, 4).map(([k, v]) => ({ 
+        key: k, 
+        val: v.substring(0, 50) 
+      })),
+      hasActiveTwin: Boolean(analysis),
+      activeTwinId: twin.id
     })
     
     try {
-      const questions = generateContextQuestions(analysis.quality.missingContext, twin.originalInput || '', analysis.project.type)
       const additionalInput = buildAdditionalInputFromAnswers(answers, questions)
       
       console.log('[TwinScreen] Built additionalInput', {
@@ -136,7 +155,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
     } finally {
       setIsUpdating(false)
     }
-  }, [analysis, buildUpdatedTwin, onTwinUpdate, twin])
+  }, [analysis, buildUpdatedTwin, onTwinUpdate, twin, contextQuestions])
 
   const handleManualUpdate = useCallback(async (additionalInput: string) => {
     if (!twin || !analysis) return
@@ -501,7 +520,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
         transition={{ delay: 0.5 }}
       >
         <ContextQuestionsCard
-          questions={generateContextQuestions(quality.missingContext, twin.originalInput || '', project.type)}
+          questions={contextQuestions}
           missingContext={quality.missingContext}
           confidence={quality.confidence}
           onSubmitAnswers={handleUpdateWithAnswers}

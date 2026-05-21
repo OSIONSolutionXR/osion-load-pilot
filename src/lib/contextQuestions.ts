@@ -268,6 +268,7 @@ export function detectDomain(
 
 /**
  * Generiert Fragen aus missingContext mit Domain-spezifischen Formulierungen
+ * Verwendet stabile IDs basierend auf dem Kontext, nicht auf Timestamp
  */
 export function generateContextQuestions(
   missingContext: string[],
@@ -288,9 +289,12 @@ export function generateContextQuestions(
     
     const template = domainTemplates[ctx] || DOMAIN_QUESTIONS.general[ctx]
     
+    // Stabile ID basierend auf Kontext (nicht Timestamp!)
+    const stableId = `ctxq-${ctx.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+    
     if (template) {
       questions.push({
-        id: `ctxq-${Date.now()}-${questions.length}`,
+        id: stableId,
         label: template.label,
         reason: template.reason,
         sourceMissingContext: ctx,
@@ -308,9 +312,12 @@ export function generateContextQuestions(
     if (usedContexts.size >= maxQuestions) break
     if (usedContexts.has(ctx)) continue
     
+    // Stabile ID basierend auf Kontext
+    const stableId = `ctxq-${ctx.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+    
     // Generische Frage
     questions.push({
-      id: `ctxq-${Date.now()}-${questions.length}`,
+      id: stableId,
       label: `Details zu: ${ctx}`,
       reason: 'Dieser Kontext fehlt für eine vollständige Analyse.',
       sourceMissingContext: ctx,
