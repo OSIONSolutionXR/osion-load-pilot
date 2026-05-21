@@ -14,7 +14,6 @@ export interface TwinUpdatePayload {
   originalInput: string
   updateMode: 'refine_existing_twin'
   contextAnswers?: ContextAnswer[]
-  compactTwinContext?: Record<string, unknown>
   previousUpdates?: unknown[]
   currentProgress?: {
     percent: number
@@ -126,38 +125,26 @@ export function buildContextAnswers(
 }
 
 export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<TwinUpdateResponse> {
-  const { existingTwin, additionalInput, originalInput, contextAnswers, compactTwinContext, previousUpdates, currentProgress } = payload
+  const { existingTwin, additionalInput, originalInput, contextAnswers, previousUpdates, currentProgress } = payload
+
+  // Defensive Validierung
+  if (!existingTwin) {
+    console.error('[TwinUpdate] Missing existingTwin in payload')
+    throw new TwinUpdateError('Kein aktiver Project Twin gefunden.', 400, 'insufficient_input')
+  }
 
   if (!additionalInput.trim()) {
     throw new TwinUpdateError('Bitte gib zusätzliche Informationen ein.', 400, 'insufficient_input')
   }
 
-  // Baue compactTwinContext wenn nicht vorhanden
-  const twinContext = compactTwinContext || {
-    project: {
-      title: existingTwin.project.title,
-      description: existingTwin.project.description.substring(0, 500),
-      type: existingTwin.project.type,
-      status: existingTwin.project.status
-    },
-    nextMove: {
-      title: existingTwin.nextMove.title,
-      reason: existingTwin.nextMove.reason.substring(0, 300),
-      effort: existingTwin.nextMove.effort,
-      impact: existingTwin.nextMove.impact
-    },
-    actors: existingTwin.actors.slice(0, 5).map(a => ({ name: a.name, role: a.role })),
-    dependencies: existingTwin.dependencies.slice(0, 5).map(d => ({ 
-      from: d.from, to: d.to, isBlocker: d.isBlocker 
-    })),
-    risks: existingTwin.risks.slice(0, 5).map(r => ({ title: r.title, severity: r.severity })),
-    actions: existingTwin.actions.slice(0, 5).map(a => ({ 
-      title: a.title, priority: a.priority 
-    })),
-    quality: {
-      confidence: existingTwin.quality.confidence,
-      missingContext: existingTwin.quality.missingContext.slice(0, 10)
-    }
+  // Fallback für originalInput
+  const effectiveOriginalInput = originalInput?.trim() || 
+    (existingTwin as unknown as { meta?: { sourceInput?: string } })?.meta?.sourceInput || 
+    existingTwin.project?.description?.substring(0, 200) || 
+    ''
+  
+  if (!effectiveOriginalInput) {
+    console.warn('[TwinUpdate] No originalInput found, using empty string')
   }
 
   const requestBody = {
@@ -165,20 +152,29 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
     promptVersion: 'loadpilot_v2',
     outputFormat: 'project_twin_json',
     updateMode: 'refine_existing_twin',
-    compactTwinContext: twinContext,
+    existingTwin,
+    originalInput: effectiveOriginalInput,
     additionalInput: additionalInput.trim(),
-    originalInput,
-    contextAnswers,
-    previousUpdates,
-    currentProgress
+    contextAnswers: contextAnswers || [],
+    previousUpdates: previousUpdates || [],
+    currentProgress: currentProgress || {
+      percent: 50,
+      level: 2,
+      stage: 'in_progress'
+    }
   }
 
   console.log('[TwinUpdate] submit', {
-    jobType: requestBody.jobType,
-    hasContextAnswers: Boolean(contextAnswers?.length),
-    hasCompactContext: !!compactTwinContext,
+    source: contextAnswers?.length ? 'context_form' : 'modal',
+    hasExistingTwin: !!existingTwin,
+    existingTwinTitle: existingTwin.project?.title,
+    hasOriginalInput: !!effectiveOriginalInput,
+    originalInputPreview: effectiveOriginalInput?.substring(0, 50),
     additionalInputLength: requestBody.additionalInput.length,
-    additionalInputPreview: requestBody.additionalInput.substring(0, 100) + '...'
+    additionalInputPreview: requestBody.additionalInput.substring(0, 100),
+    contextAnswersCount: contextAnswers?.length || 0,
+    updateMode: requestBody.updateMode,
+    payloadTopLevelKeys: Object.keys(requestBody)
   })
 
   let response: Response
