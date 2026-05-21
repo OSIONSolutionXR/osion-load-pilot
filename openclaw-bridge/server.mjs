@@ -2,7 +2,7 @@ import http from 'node:http'
 import { analyzeProjectInput, updateProjectTwin } from './loadPilotAnalysisEngine.mjs'
 
 const HOST = process.env.OPENCLAW_BRIDGE_HOST || '127.0.0.1'
-const PORT = Number(process.env.OPENCLAW_BRIDGE_PORT || 8787)
+const PORT = Number(process.env.OPENCLAW_BRIDGE_PORT || 8788)
 const SECRET = process.env.OPENCLAW_BRIDGE_SECRET
 const MAX_INPUT_LENGTH = 4000
 const ALLOWED_JOB_TYPES = ['loadpilot_project_twin_analysis', 'loadpilot_project_twin_update']
