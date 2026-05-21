@@ -35,7 +35,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
       const response = await updateProjectTwin({
         existingTwin: analysis,
         additionalInput,
-        originalInput: twin.sourceInput,
+        originalInput: twin.originalInput || (twin as unknown as { sourceInput?: string }).sourceInput || '',
         updateMode: 'refine_existing_twin'
       })
 
@@ -43,18 +43,28 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
       const updatedTwin: StoredProjectTwin = {
         ...twin,
         updatedAt: new Date().toISOString(),
+        latestInput: additionalInput.trim(),
         analysis: response.analysis,
+        progress: {
+          ...twin.progress,
+          percent: twin.progress.percent + 5,
+          updatedAt: new Date().toISOString()
+        },
         updates: [
           ...(twin.updates || []),
           {
-            timestamp: new Date().toISOString(),
+            id: `upd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            createdAt: new Date().toISOString(),
             input: additionalInput,
             summary: `Project Twin aktualisiert: ${response.meta.fieldsModified.join(', ')}`,
+            source: 'manual_update',
             changedFields: response.meta.fieldsModified.map(field => ({
               field,
-              oldValue: 'vorher',
-              newValue: 'nachher'
-            }))
+              before: 'vorher',
+              after: 'nachher'
+            })),
+            previousProgressPercent: twin.progress.percent,
+            newProgressPercent: twin.progress.percent + 5
           }
         ]
       }
@@ -417,7 +427,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
       {/* 9. PROJEKTVERLAUF (HISTORY) */}
       {twin && (
         <ProjectHistoryTimeline 
-          updates={twin.updates || []} 
+          updates={(twin.updates || []) as unknown as import('../types/projectTwin').ProjectTwinUpdate[]} 
           createdAt={twin.createdAt} 
         />
       )}
@@ -463,7 +473,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
                     ['Gespeichert', twin?.createdAt ? new Date(twin.createdAt).toLocaleString() : 'N/A'],
                     ['Aktualisiert', twin?.updatedAt ? new Date(twin.updatedAt).toLocaleString() : 'N/A'],
                     ['Versionen', String((twin?.updates?.length || 0) + 1)],
-                    ['Quelle', twin?.sourceInput ? `"${twin.sourceInput.substring(0, 50)}..."` : 'N/A']
+                    ['Quelle', twin?.originalInput ? `"${twin.originalInput.substring(0, 50)}..."` : 'N/A']
                   ]} />
                 </div>
               </div>
