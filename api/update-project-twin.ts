@@ -190,7 +190,11 @@ function hasProjectTwinFields(obj: Record<string, unknown>): boolean {
 
 // Kompakter Twin für Bridge
 function buildCompactTwin(twin: StoredProjectTwin): Record<string, unknown> {
-  const analysis = twin.analysis
+  const fallbackAnalysis = isObject(twin as unknown as Record<string, unknown>) && hasProjectTwinFields(twin as unknown as Record<string, unknown>)
+    ? (twin as unknown as ProjectTwinAnalysis)
+    : null
+
+  const analysis = isObject(twin.analysis) ? twin.analysis : fallbackAnalysis
 
   if (!analysis || !isObject(analysis)) {
     throw new Error('existingTwin.analysis fehlt oder ist ungültig')

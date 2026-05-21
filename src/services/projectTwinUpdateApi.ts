@@ -222,12 +222,19 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
   })
 
   if (!response.ok) {
-    const message =
-      isPlainObject(responseData) && typeof responseData.error === 'string'
-        ? responseData.error
-        : 'Das Update konnte nicht durchgeführt werden.'
+    const errorCode = isPlainObject(responseData) && typeof responseData.error === 'string'
+      ? responseData.error
+      : null
+    const serverMessage = isPlainObject(responseData) && typeof responseData.message === 'string'
+      ? responseData.message
+      : null
+    const serverStage = isPlainObject(responseData) && typeof responseData.stage === 'string'
+      ? responseData.stage
+      : null
+
+    const message = serverMessage || errorCode || 'Das Update konnte nicht durchgeführt werden.'
+    const enrichedMessage = serverStage ? `${message} (Stage: ${serverStage})` : message
     
-    // Timeout erkennen
     if (message.toLowerCase().includes('timeout') || message.includes('zu lange')) {
       throw new TwinUpdateError(
         'Die Aktualisierung hat zu lange gedauert. Deine Eingaben wurden nicht gelöscht. Bitte versuche es mit weniger Text oder konkreteren Angaben erneut.',
@@ -236,7 +243,6 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
       )
     }
     
-    // Insufficient Input erkennen
     if (message.toLowerCase().includes('insufficient') || message.includes('zu allgemein')) {
       throw new TwinUpdateError(
         'Diese Ergänzung ist noch zu allgemein. Ergänze bitte eine konkrete neue Information.',
@@ -245,7 +251,7 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
       )
     }
     
-    throw new TwinUpdateError(message, response.status, 'unknown')
+    throw new TwinUpdateError(enrichedMessage, response.status, 'unknown')
   }
 
   if (!validateUpdateResponse(responseData)) {
