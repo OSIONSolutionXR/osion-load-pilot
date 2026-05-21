@@ -134,6 +134,112 @@ function extractAnalysisFromBridgeResponse(bridgeJson: unknown): {
     return { analysis: b.result as unknown as ProjectTwinAnalysis, debug: { ...debug, path: 'result' } }
   }
 
+  // Pfad 4b: bridgeJson.result mit flachem Format (title, description, type, status direkt auf result)
+  if (isObject(b.result) && typeof b.result.title === 'string' && isObject(b.result.nextMove)) {
+    const flat = b.result
+    const mappedAnalysis: ProjectTwinAnalysis = {
+      project: {
+        title: String(flat.title || ''),
+        description: String(flat.description || ''),
+        type: String(flat.type || 'unknown'),
+        status: ['active', 'blocked', 'waiting', 'parked'].includes(String(flat.status))
+          ? flat.status as 'active' | 'blocked' | 'waiting' | 'parked'
+          : 'active'
+      },
+      nextMove: isObject(flat.nextMove) ? {
+        title: String(flat.nextMove.title || ''),
+        reason: String(flat.nextMove.reason || ''),
+        effort: ['low', 'medium', 'high'].includes(String(flat.nextMove.effort))
+          ? flat.nextMove.effort as 'low' | 'medium' | 'high'
+          : 'medium',
+        impact: ['low', 'medium', 'high'].includes(String(flat.nextMove.impact))
+          ? flat.nextMove.impact as 'low' | 'medium' | 'high'
+          : 'medium',
+        deadline: typeof flat.nextMove.deadline === 'string' ? flat.nextMove.deadline : null
+      } : {
+        title: 'Nächsten Schritt klären',
+        reason: '',
+        effort: 'medium',
+        impact: 'medium',
+        deadline: null
+      },
+      actors: Array.isArray(flat.actors) ? flat.actors.map((a: unknown) => ({
+        name: isObject(a) && typeof a.name === 'string' ? a.name : 'Unbekannt',
+        role: isObject(a) && typeof a.role === 'string' ? a.role : 'Unbekannte Rolle',
+        influence: isObject(a) && ['low', 'medium', 'high'].includes(String(a.influence))
+          ? a.influence as 'low' | 'medium' | 'high'
+          : 'medium',
+        waitingFor: isObject(a) && (typeof a.waitingFor === 'string' || a.waitingFor === null)
+          ? a.waitingFor
+          : null
+      })) : [],
+      dependencies: Array.isArray(flat.dependencies) ? flat.dependencies.map((d: unknown) => ({
+        from: isObject(d) && typeof d.from === 'string' ? d.from : 'Unbekannt',
+        to: isObject(d) && typeof d.to === 'string' ? d.to : 'Unbekannt',
+        status: isObject(d) && ['required', 'blocked', 'waiting', 'done'].includes(String(d.status))
+          ? d.status as 'required' | 'blocked' | 'waiting' | 'done'
+          : 'required',
+        isBlocker: isObject(d) ? Boolean(d.isBlocker) : false,
+        explanation: isObject(d) && typeof d.explanation === 'string' ? d.explanation : ''
+      })) : [],
+      risks: Array.isArray(flat.risks) ? flat.risks.map((r: unknown) => ({
+        title: isObject(r) && typeof r.title === 'string' ? r.title : 'Unbenanntes Risiko',
+        severity: isObject(r) && ['low', 'medium', 'high'].includes(String(r.severity))
+          ? r.severity as 'low' | 'medium' | 'high'
+          : 'medium',
+        explanation: isObject(r) && typeof r.explanation === 'string' ? r.explanation : ''
+      })) : [],
+      scenarios: Array.isArray(flat.scenarios) ? flat.scenarios.map((s: unknown) => ({
+        title: isObject(s) && typeof s.title === 'string' ? s.title : 'Unbenanntes Szenario',
+        outcome: isObject(s) && typeof s.outcome === 'string' ? s.outcome : '',
+        riskLevel: isObject(s) && ['low', 'medium', 'high'].includes(String(s.riskLevel))
+          ? s.riskLevel as 'low' | 'medium' | 'high'
+          : 'medium',
+        recommendation: isObject(s) && typeof s.recommendation === 'string' ? s.recommendation : ''
+      })) : [],
+      actions: Array.isArray(flat.actions) ? flat.actions.map((a: unknown) => ({
+        title: isObject(a) && typeof a.title === 'string' ? a.title : 'Unbenannte Aktion',
+        owner: isObject(a) && typeof a.owner === 'string' ? a.owner : 'Unbekannt',
+        priority: isObject(a) && ['low', 'medium', 'high'].includes(String(a.priority))
+          ? a.priority as 'low' | 'medium' | 'high'
+          : 'medium',
+        messageDraft: isObject(a) && (typeof a.messageDraft === 'string' || a.messageDraft === null)
+          ? a.messageDraft
+          : null
+      })) : [],
+      quality: isObject(flat.quality) ? {
+        inputQuality: ['insufficient', 'usable', 'strong'].includes(String(flat.quality.inputQuality))
+          ? flat.quality.inputQuality as 'insufficient' | 'usable' | 'strong'
+          : 'usable',
+        isActionable: typeof flat.quality.isActionable === 'boolean' ? flat.quality.isActionable : true,
+        confidence: ['low', 'medium', 'high'].includes(String(flat.quality.confidence))
+          ? flat.quality.confidence as 'low' | 'medium' | 'high'
+          : 'medium',
+        missingContext: Array.isArray(flat.quality.missingContext)
+          ? flat.quality.missingContext.filter((m: unknown): m is string => typeof m === 'string')
+          : [],
+        reason: typeof flat.quality.reason === 'string' ? flat.quality.reason : ''
+      } : {
+        inputQuality: 'usable',
+        isActionable: true,
+        confidence: 'medium',
+        missingContext: [],
+        reason: ''
+      },
+      meta: {
+        domain: isObject(flat.meta) && typeof flat.meta.domain === 'string' ? flat.meta.domain : 'unknown',
+        analysisMode: 'openclaw-kimi',
+        promptVersion: isObject(flat.meta) && typeof flat.meta.promptVersion === 'string'
+          ? flat.meta.promptVersion
+          : 'loadpilot_v2',
+        generatedAt: isObject(flat.meta) && typeof flat.meta.generatedAt === 'string'
+          ? flat.meta.generatedAt
+          : new Date().toISOString()
+      }
+    }
+    return { analysis: mappedAnalysis, debug: { ...debug, path: 'flat_result_mapped', flatKeys: Object.keys(flat) } }
+  }
+
   // Pfad 5: bridgeJson.result?.result
   if (isObject(b.result) && isObject(b.result.result) && hasProjectTwinFields(b.result.result)) {
     return { analysis: b.result.result as unknown as ProjectTwinAnalysis, debug: { ...debug, path: 'result.result' } }
