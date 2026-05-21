@@ -149,6 +149,23 @@ function extractAnalysisFromBridgeResponse(bridgeJson: unknown): {
     return { analysis: b.result.result.analysis as ProjectTwinAnalysis, debug: { ...debug, path: 'result.result.analysis' } }
   }
 
+  // Pfad 8: Loose matching - versuche ein teilweises Analysis-Objekt zu akzeptieren
+  // und fehlende Felder mit Defaults zu füllen
+  const potentialAnalysis = isObject(b.result) 
+    ? b.result 
+    : isObject(b.analysis) 
+      ? b.analysis 
+      : isObject(b.updatedTwin) && isObject(b.updatedTwin.analysis)
+        ? b.updatedTwin.analysis
+        : null
+
+  if (isObject(potentialAnalysis) && isObject(potentialAnalysis.project)) {
+    const patched = patchPartialAnalysis(potentialAnalysis)
+    if (patched) {
+      return { analysis: patched, debug: { ...debug, path: 'patched_partial', originalKeys: Object.keys(potentialAnalysis) } }
+    }
+  }
+
   // Nichts gefunden - Diagnose
   return { 
     analysis: null, 
@@ -164,6 +181,106 @@ function extractAnalysisFromBridgeResponse(bridgeJson: unknown): {
       resultHasNextMove: isObject(b.result) && isObject(b.result.nextMove),
       resultHasQuality: isObject(b.result) && isObject(b.result.quality)
     } 
+  }
+}
+
+// Patched eine partielle Analyse mit Defaults zu einer vollständigen
+function patchPartialAnalysis(partial: Record<string, unknown>): ProjectTwinAnalysis | null {
+  const p = partial
+  
+  if (!isObject(p.project)) return null
+  
+  const project = p.project as Record<string, unknown>
+  const nextMove = isObject(p.nextMove) ? p.nextMove as Record<string, unknown> : {}
+  const quality = isObject(p.quality) ? p.quality as Record<string, unknown> : {}
+  
+  return {
+    project: {
+      title: typeof project.title === 'string' ? project.title : 'Unbenanntes Projekt',
+      description: typeof project.description === 'string' ? project.description : '',
+      status: ['active', 'blocked', 'waiting', 'parked'].includes(String(project.status)) 
+        ? project.status as 'active' | 'blocked' | 'waiting' | 'parked'
+        : 'active',
+      type: typeof project.type === 'string' ? project.type : 'unknown'
+    },
+    nextMove: {
+      title: typeof nextMove.title === 'string' ? nextMove.title : 'Nächsten Schritt klären',
+      reason: typeof nextMove.reason === 'string' ? nextMove.reason : '',
+      effort: ['low', 'medium', 'high'].includes(String(nextMove.effort))
+        ? nextMove.effort as 'low' | 'medium' | 'high'
+        : 'medium',
+      impact: ['low', 'medium', 'high'].includes(String(nextMove.impact))
+        ? nextMove.impact as 'low' | 'medium' | 'high'
+        : 'medium',
+      deadline: typeof nextMove.deadline === 'string' ? nextMove.deadline : null
+    },
+    actors: Array.isArray(p.actors) ? p.actors.map((a: unknown) => ({
+      name: isObject(a) && typeof a.name === 'string' ? a.name : 'Unbekannt',
+      role: isObject(a) && typeof a.role === 'string' ? a.role : 'Unbekannte Rolle',
+      influence: isObject(a) && ['low', 'medium', 'high'].includes(String(a.influence))
+        ? a.influence as 'low' | 'medium' | 'high'
+        : 'medium',
+      waitingFor: isObject(a) && (typeof a.waitingFor === 'string' || a.waitingFor === null)
+        ? a.waitingFor
+        : null
+    })) : [],
+    dependencies: Array.isArray(p.dependencies) ? p.dependencies.map((d: unknown) => ({
+      from: isObject(d) && typeof d.from === 'string' ? d.from : 'Unbekannt',
+      to: isObject(d) && typeof d.to === 'string' ? d.to : 'Unbekannt',
+      status: isObject(d) && ['required', 'blocked', 'waiting', 'done'].includes(String(d.status))
+        ? d.status as 'required' | 'blocked' | 'waiting' | 'done'
+        : 'required',
+      isBlocker: isObject(d) ? Boolean(d.isBlocker) : false,
+      explanation: isObject(d) && typeof d.explanation === 'string' ? d.explanation : ''
+    })) : [],
+    risks: Array.isArray(p.risks) ? p.risks.map((r: unknown) => ({
+      title: isObject(r) && typeof r.title === 'string' ? r.title : 'Unbenanntes Risiko',
+      severity: isObject(r) && ['low', 'medium', 'high'].includes(String(r.severity))
+        ? r.severity as 'low' | 'medium' | 'high'
+        : 'medium',
+      explanation: isObject(r) && typeof r.explanation === 'string' ? r.explanation : ''
+    })) : [],
+    scenarios: Array.isArray(p.scenarios) ? p.scenarios.map((s: unknown) => ({
+      title: isObject(s) && typeof s.title === 'string' ? s.title : 'Unbenanntes Szenario',
+      outcome: isObject(s) && typeof s.outcome === 'string' ? s.outcome : '',
+      riskLevel: isObject(s) && ['low', 'medium', 'high'].includes(String(s.riskLevel))
+        ? s.riskLevel as 'low' | 'medium' | 'high'
+        : 'medium',
+      recommendation: isObject(s) && typeof s.recommendation === 'string' ? s.recommendation : ''
+    })) : [],
+    actions: Array.isArray(p.actions) ? p.actions.map((a: unknown) => ({
+      title: isObject(a) && typeof a.title === 'string' ? a.title : 'Unbenannte Aktion',
+      owner: isObject(a) && typeof a.owner === 'string' ? a.owner : 'Unbekannt',
+      priority: isObject(a) && ['low', 'medium', 'high'].includes(String(a.priority))
+        ? a.priority as 'low' | 'medium' | 'high'
+        : 'medium',
+      messageDraft: isObject(a) && (typeof a.messageDraft === 'string' || a.messageDraft === null)
+        ? a.messageDraft
+        : null
+    })) : [],
+    quality: {
+      inputQuality: ['insufficient', 'usable', 'strong'].includes(String(quality.inputQuality))
+        ? quality.inputQuality as 'insufficient' | 'usable' | 'strong'
+        : 'usable',
+      isActionable: typeof quality.isActionable === 'boolean' ? quality.isActionable : true,
+      confidence: ['low', 'medium', 'high'].includes(String(quality.confidence))
+        ? quality.confidence as 'low' | 'medium' | 'high'
+        : 'medium',
+      missingContext: Array.isArray(quality.missingContext) 
+        ? quality.missingContext.filter((m: unknown): m is string => typeof m === 'string')
+        : [],
+      reason: typeof quality.reason === 'string' ? quality.reason : ''
+    },
+    meta: {
+      domain: isObject(p.meta) && typeof p.meta.domain === 'string' ? p.meta.domain : 'unknown',
+      analysisMode: 'openclaw-kimi',
+      promptVersion: isObject(p.meta) && typeof p.meta.promptVersion === 'string' 
+        ? p.meta.promptVersion 
+        : 'loadpilot_v2',
+      generatedAt: isObject(p.meta) && typeof p.meta.generatedAt === 'string'
+        ? p.meta.generatedAt
+        : new Date().toISOString()
+    }
   }
 }
 
