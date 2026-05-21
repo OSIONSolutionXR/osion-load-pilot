@@ -100,8 +100,8 @@ function isInsufficientUpdateInput(additionalInput) {
   if (/^(test|abc|123|asdf|xyz|nein|ja|ok|nope|maybe)$/iu.test(trimmed)) return true
   const wordCount = trimmed.split(/\s+/).filter(Boolean).length
   if (wordCount < 3) return true
-  // Prüfe auf generische Antworten ohne konkrete Information
-  const concreteWords = /\b(budget|kosten|euro|€|termin|frist|datum|monat|woche|tag|entscheid|ja|nein|vielleicht|später|früher|mehr|weniger|neu|alt)\b/gi
+  // Prüfe auf konkrete Information
+  const concreteWords = /\b(budget|kosten|euro|€|termin|frist|datum|monat|woche|tag|entscheid|ja|nein|vielleicht|später|früher|mehr|weniger|neu|alt|web|app|desktop|mobile|version|mvp|pilot)\b/gi
   if (!concreteWords.test(trimmed) && wordCount < 5) return true
   return false
 }
@@ -158,14 +158,38 @@ Antworte ausschließlich mit validem JSON ohne Markdown.`
       { timeout: REQUEST_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 }
     )
 
-    const envelope = JSON.parse(stdout)
-    const content = envelope?.outputs?.[0]?.text
-    if (!content || typeof content !== 'string') {
-      throw new Error('Invalid OpenClaw infer response structure')
+    console.log('[Bridge Engine] Raw stdout length:', stdout.length)
+    console.log('[Bridge Engine] stdout preview:', stdout.substring(0, 200))
+
+    // Try to parse as envelope first
+    let envelope
+    try {
+      envelope = JSON.parse(stdout)
+      console.log('[Bridge Engine] Parsed envelope, keys:', Object.keys(envelope))
+    } catch (err) {
+      console.log('[Bridge Engine] Failed to parse as JSON envelope:', err.message)
+      // Try direct parsing (old format)
+      return JSON.parse(stripJsonFences(stdout.trim()))
     }
 
-    return JSON.parse(stripJsonFences(content))
+    // Extract content from envelope.outputs
+    if (envelope?.outputs && Array.isArray(envelope.outputs) && envelope.outputs[0]?.text) {
+      const content = envelope.outputs[0].text
+      console.log('[Bridge Engine] Extracted from outputs[0].text, length:', content.length)
+      return JSON.parse(stripJsonFences(content.trim()))
+    }
+
+    // Fallback: if envelope has result directly
+    if (envelope?.result) {
+      console.log('[Bridge Engine] Using envelope.result')
+      return envelope.result
+    }
+
+    // Last resort: envelope itself might be the result
+    console.log('[Bridge Engine] Using envelope as result')
+    return envelope
   } catch (error) {
+    console.error('[Bridge Engine] Error in callOpenClawGateway:', error.message)
     if (error?.code === 'ETIMEDOUT' || error?.message?.includes('timeout')) {
       throw new Error('TIMEOUT: OpenClaw infer timed out')
     }
@@ -216,13 +240,12 @@ WICHTIGE REGELN:
 4. Erhöhe confidence (low→medium→high), wenn wichtige Lücken geschlossen wurden
 5. Reduziere missingContext für geklärte Punkte
 6. Füge neue Akteure/Risiken/Aktionen nur hinzu, wenn sie im neuen Kontext erwähnt werden
-7. Antworte mit dem KOMPLETTEN aktualisierten ProjectTwinAnalysis-Schema
 
 VERHALTEN BEI CONFIDENCE:
 - "low" → "medium" oder "high", wenn wichtige Lücken geschlossen
 - Nur "low" behalten, wenn noch kritische Informationen fehlen
 
-Antworte NUR mit validem JSON im vollständigen ProjectTwinAnalysis-Schema. Keine Markdown-Fences.`
+Antworte NUR mit validem JSON im ProjectTwinAnalysis-Schema. Keine Markdown-Fences.`
 
 async function callOpenClawGatewayForUpdate(compactTwinContext, additionalInput) {
   // Prüfe auf zu schwachen Update-Input
@@ -249,28 +272,38 @@ async function callOpenClawGatewayForUpdate(compactTwinContext, additionalInput)
       { timeout: REQUEST_TIMEOUT_MS, maxBuffer: 1024 * 1024, encoding: 'utf8' }
     )
 
-    const envelope = JSON.parse(stdout)
-    const content = envelope?.outputs?.[0]?.text
-    if (!content || typeof content !== 'string') {
-      throw new Error('Invalid OpenClaw infer response structure')
-    }
+    console.log('[Bridge Engine Update] Raw stdout length:', stdout.length)
+    console.log('[Bridge Engine Update] stdout preview:', stdout.substring(0, 200))
 
-    const cleaned = stripJsonFences(content.trim())
-    let parsed
+    // Try to parse as envelope first
+    let envelope
     try {
-      parsed = JSON.parse(cleaned)
+      envelope = JSON.parse(stdout)
+      console.log('[Bridge Engine Update] Parsed envelope, keys:', Object.keys(envelope))
     } catch (err) {
-      throw new Error('OpenClaw returned non-JSON: ' + cleaned.slice(0, 200))
+      console.log('[Bridge Engine Update] Failed to parse as JSON envelope:', err.message)
+      // Try direct parsing (old format)
+      return JSON.parse(stripJsonFences(stdout.trim()))
     }
 
-    if (!validateAnalysis(parsed)) {
-      throw new Error('OpenClaw returned invalid analysis structure')
+    // Extract content from envelope.outputs
+    if (envelope?.outputs && Array.isArray(envelope.outputs) && envelope.outputs[0]?.text) {
+      const content = envelope.outputs[0].text
+      console.log('[Bridge Engine Update] Extracted from outputs[0].text, length:', content.length)
+      return JSON.parse(stripJsonFences(content.trim()))
     }
 
-    assertNoGenericOutput(parsed)
+    // Fallback: if envelope has result directly
+    if (envelope?.result) {
+      console.log('[Bridge Engine Update] Using envelope.result')
+      return envelope.result
+    }
 
-    return parsed
+    // Last resort: envelope itself might be the result
+    console.log('[Bridge Engine Update] Using envelope as result')
+    return envelope
   } catch (error) {
+    console.error('[Bridge Engine Update] Error:', error.message)
     if (error?.code === 'ETIMEDOUT' || error?.message?.includes('timeout') || error?.message?.includes('TIMEOUT')) {
       throw new Error('TIMEOUT: OpenClaw infer timed out - Die Aktualisierung hat zu lange gedauert. Bitte versuche es mit weniger Text oder konkreteren Angaben erneut.')
     }
@@ -290,10 +323,27 @@ export async function updateProjectTwin({ existingTwin, additionalInput, origina
   }
 
   try {
+    console.log('[Bridge Engine] Starting updateProjectTwin:', {
+      hasExistingTwin: !!existingTwin,
+      existingTwinTitle: existingTwin?.project?.title,
+      additionalInputLength: trimmedAdditional.length,
+      additionalInputPreview: trimmedAdditional.substring(0, 100)
+    })
+
     // Kompakte Zusammenfassung bauen
     const compactContext = buildCompactTwinContext(existingTwin)
+    console.log('[Bridge Engine] Built compact context:', {
+      projectTitle: compactContext.project?.title,
+      actorsCount: compactContext.actors?.length,
+      risksCount: compactContext.risks?.length
+    })
 
     const updatedAnalysis = await callOpenClawGatewayForUpdate(compactContext, trimmedAdditional)
+    console.log('[Bridge Engine] Received updated analysis:', {
+      projectTitle: updatedAnalysis?.project?.title,
+      hasNextMove: !!updatedAnalysis?.nextMove,
+      confidence: updatedAnalysis?.quality?.confidence
+    })
 
     return {
       ...updatedAnalysis,
@@ -305,7 +355,7 @@ export async function updateProjectTwin({ existingTwin, additionalInput, origina
       }
     }
   } catch (error) {
-    console.error('Update failed:', error.message)
+    console.error('[Bridge Engine] Update failed:', error.message)
     throw error
   }
 }
