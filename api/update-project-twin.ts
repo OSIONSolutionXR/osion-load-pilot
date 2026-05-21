@@ -98,6 +98,19 @@ interface ContextAnswer {
   sourceMissingContext: string
 }
 
+// Helper für sichere Typ-Konvertierung
+const toStringValue = (value: unknown, fallback = ''): string => {
+  if (typeof value === 'string') return value
+  if (value === null || value === undefined) return fallback
+  return String(value)
+}
+
+const toOptionalString = (value: unknown): string | null => {
+  if (typeof value === 'string') return value
+  if (value === null) return null
+  return null
+}
+
 // Robuste Analyse-Extraktion aus verschiedenen Bridge-Formaten
 function extractAnalysisFromBridgeResponse(bridgeJson: unknown): { 
   analysis: ProjectTwinAnalysis | null
@@ -164,48 +177,44 @@ function extractAnalysisFromBridgeResponse(bridgeJson: unknown): {
         deadline: null
       },
       actors: Array.isArray(flat.actors) ? flat.actors.map((a: unknown) => ({
-        name: isObject(a) && typeof a.name === 'string' ? a.name : 'Unbekannt',
-        role: isObject(a) && typeof a.role === 'string' ? a.role : 'Unbekannte Rolle',
+        name: toStringValue(isObject(a) ? a.name : undefined, 'Unbekannt'),
+        role: toStringValue(isObject(a) ? a.role : undefined, 'Unbekannte Rolle'),
         influence: isObject(a) && ['low', 'medium', 'high'].includes(String(a.influence))
           ? a.influence as 'low' | 'medium' | 'high'
           : 'medium',
-        waitingFor: isObject(a) && (typeof a.waitingFor === 'string' || a.waitingFor === null)
-          ? a.waitingFor
-          : null
+        waitingFor: toOptionalString(isObject(a) ? a.waitingFor : undefined)
       })) : [],
       dependencies: Array.isArray(flat.dependencies) ? flat.dependencies.map((d: unknown) => ({
-        from: isObject(d) && typeof d.from === 'string' ? d.from : 'Unbekannt',
-        to: isObject(d) && typeof d.to === 'string' ? d.to : 'Unbekannt',
+        from: toStringValue(isObject(d) ? d.from : undefined, 'Unbekannt'),
+        to: toStringValue(isObject(d) ? d.to : undefined, 'Unbekannt'),
         status: isObject(d) && ['required', 'blocked', 'waiting', 'done'].includes(String(d.status))
           ? d.status as 'required' | 'blocked' | 'waiting' | 'done'
           : 'required',
         isBlocker: isObject(d) ? Boolean(d.isBlocker) : false,
-        explanation: isObject(d) && typeof d.explanation === 'string' ? d.explanation : ''
+        explanation: toStringValue(isObject(d) ? d.explanation : undefined, '')
       })) : [],
       risks: Array.isArray(flat.risks) ? flat.risks.map((r: unknown) => ({
-        title: isObject(r) && typeof r.title === 'string' ? r.title : 'Unbenanntes Risiko',
+        title: toStringValue(isObject(r) ? r.title : undefined, 'Unbenanntes Risiko'),
         severity: isObject(r) && ['low', 'medium', 'high'].includes(String(r.severity))
           ? r.severity as 'low' | 'medium' | 'high'
           : 'medium',
-        explanation: isObject(r) && typeof r.explanation === 'string' ? r.explanation : ''
+        explanation: toStringValue(isObject(r) ? r.explanation : undefined, '')
       })) : [],
       scenarios: Array.isArray(flat.scenarios) ? flat.scenarios.map((s: unknown) => ({
-        title: isObject(s) && typeof s.title === 'string' ? s.title : 'Unbenanntes Szenario',
-        outcome: isObject(s) && typeof s.outcome === 'string' ? s.outcome : '',
+        title: toStringValue(isObject(s) ? s.title : undefined, 'Unbenanntes Szenario'),
+        outcome: toStringValue(isObject(s) ? s.outcome : undefined, ''),
         riskLevel: isObject(s) && ['low', 'medium', 'high'].includes(String(s.riskLevel))
           ? s.riskLevel as 'low' | 'medium' | 'high'
           : 'medium',
-        recommendation: isObject(s) && typeof s.recommendation === 'string' ? s.recommendation : ''
+        recommendation: toStringValue(isObject(s) ? s.recommendation : undefined, '')
       })) : [],
       actions: Array.isArray(flat.actions) ? flat.actions.map((a: unknown) => ({
-        title: isObject(a) && typeof a.title === 'string' ? a.title : 'Unbenannte Aktion',
-        owner: isObject(a) && typeof a.owner === 'string' ? a.owner : 'Unbekannt',
+        title: toStringValue(isObject(a) ? a.title : undefined, 'Unbenannte Aktion'),
+        owner: toStringValue(isObject(a) ? a.owner : undefined, 'Unbekannt'),
         priority: isObject(a) && ['low', 'medium', 'high'].includes(String(a.priority))
           ? a.priority as 'low' | 'medium' | 'high'
           : 'medium',
-        messageDraft: isObject(a) && (typeof a.messageDraft === 'string' || a.messageDraft === null)
-          ? a.messageDraft
-          : null
+        messageDraft: toOptionalString(isObject(a) ? a.messageDraft : undefined)
       })) : [],
       quality: isObject(flat.quality) ? {
         inputQuality: ['insufficient', 'usable', 'strong'].includes(String(flat.quality.inputQuality))
@@ -321,48 +330,44 @@ function patchPartialAnalysis(partial: Record<string, unknown>): ProjectTwinAnal
       deadline: typeof nextMove.deadline === 'string' ? nextMove.deadline : null
     },
     actors: Array.isArray(p.actors) ? p.actors.map((a: unknown) => ({
-      name: isObject(a) && typeof a.name === 'string' ? a.name : 'Unbekannt',
-      role: isObject(a) && typeof a.role === 'string' ? a.role : 'Unbekannte Rolle',
+      name: toStringValue(isObject(a) ? a.name : undefined, 'Unbekannt'),
+      role: toStringValue(isObject(a) ? a.role : undefined, 'Unbekannte Rolle'),
       influence: isObject(a) && ['low', 'medium', 'high'].includes(String(a.influence))
         ? a.influence as 'low' | 'medium' | 'high'
         : 'medium',
-      waitingFor: isObject(a) && (typeof a.waitingFor === 'string' || a.waitingFor === null)
-        ? a.waitingFor
-        : null
+      waitingFor: toOptionalString(isObject(a) ? a.waitingFor : undefined)
     })) : [],
     dependencies: Array.isArray(p.dependencies) ? p.dependencies.map((d: unknown) => ({
-      from: isObject(d) && typeof d.from === 'string' ? d.from : 'Unbekannt',
-      to: isObject(d) && typeof d.to === 'string' ? d.to : 'Unbekannt',
+      from: toStringValue(isObject(d) ? d.from : undefined, 'Unbekannt'),
+      to: toStringValue(isObject(d) ? d.to : undefined, 'Unbekannt'),
       status: isObject(d) && ['required', 'blocked', 'waiting', 'done'].includes(String(d.status))
         ? d.status as 'required' | 'blocked' | 'waiting' | 'done'
         : 'required',
       isBlocker: isObject(d) ? Boolean(d.isBlocker) : false,
-      explanation: isObject(d) && typeof d.explanation === 'string' ? d.explanation : ''
+      explanation: toStringValue(isObject(d) ? d.explanation : undefined, '')
     })) : [],
     risks: Array.isArray(p.risks) ? p.risks.map((r: unknown) => ({
-      title: isObject(r) && typeof r.title === 'string' ? r.title : 'Unbenanntes Risiko',
+      title: toStringValue(isObject(r) ? r.title : undefined, 'Unbenanntes Risiko'),
       severity: isObject(r) && ['low', 'medium', 'high'].includes(String(r.severity))
         ? r.severity as 'low' | 'medium' | 'high'
         : 'medium',
-      explanation: isObject(r) && typeof r.explanation === 'string' ? r.explanation : ''
+      explanation: toStringValue(isObject(r) ? r.explanation : undefined, '')
     })) : [],
     scenarios: Array.isArray(p.scenarios) ? p.scenarios.map((s: unknown) => ({
-      title: isObject(s) && typeof s.title === 'string' ? s.title : 'Unbenanntes Szenario',
-      outcome: isObject(s) && typeof s.outcome === 'string' ? s.outcome : '',
+      title: toStringValue(isObject(s) ? s.title : undefined, 'Unbenanntes Szenario'),
+      outcome: toStringValue(isObject(s) ? s.outcome : undefined, ''),
       riskLevel: isObject(s) && ['low', 'medium', 'high'].includes(String(s.riskLevel))
         ? s.riskLevel as 'low' | 'medium' | 'high'
         : 'medium',
-      recommendation: isObject(s) && typeof s.recommendation === 'string' ? s.recommendation : ''
+      recommendation: toStringValue(isObject(s) ? s.recommendation : undefined, '')
     })) : [],
     actions: Array.isArray(p.actions) ? p.actions.map((a: unknown) => ({
-      title: isObject(a) && typeof a.title === 'string' ? a.title : 'Unbenannte Aktion',
-      owner: isObject(a) && typeof a.owner === 'string' ? a.owner : 'Unbekannt',
+      title: toStringValue(isObject(a) ? a.title : undefined, 'Unbenannte Aktion'),
+      owner: toStringValue(isObject(a) ? a.owner : undefined, 'Unbekannt'),
       priority: isObject(a) && ['low', 'medium', 'high'].includes(String(a.priority))
         ? a.priority as 'low' | 'medium' | 'high'
         : 'medium',
-      messageDraft: isObject(a) && (typeof a.messageDraft === 'string' || a.messageDraft === null)
-        ? a.messageDraft
-        : null
+      messageDraft: toOptionalString(isObject(a) ? a.messageDraft : undefined)
     })) : [],
     quality: {
       inputQuality: ['insufficient', 'usable', 'strong'].includes(String(quality.inputQuality))
