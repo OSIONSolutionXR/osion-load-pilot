@@ -1,7 +1,9 @@
-import { motion } from 'motion/react'
-import { Sparkles, ChevronRight, HelpCircle } from 'lucide-react'
+import { useState, useCallback, useMemo } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
+import { Sparkles, ChevronRight, HelpCircle, CheckCircle2, AlertCircle } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
+import ContextQuestionInput from './ContextQuestionInput'
 import type { ProjectContextQuestion } from '../../types/projectTwinV2'
 import { formatMissingContextList } from '../../lib/contextQuestions'
 
@@ -9,7 +11,7 @@ interface ContextQuestionsCardProps {
   questions: ProjectContextQuestion[]
   missingContext: string[]
   confidence: 'low' | 'medium' | 'high'
-  onAddContext: () => void
+  onSubmitAnswers?: (answers: Record<string, string>) => void
   isPreview?: boolean
 }
 
@@ -17,12 +19,48 @@ export default function ContextQuestionsCard({
   questions,
   missingContext,
   confidence,
-  onAddContext,
+  onSubmitAnswers,
   isPreview = false
 }: ContextQuestionsCardProps) {
-  const displayQuestions = questions.slice(0, 5)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  
+  const displayQuestions = useMemo(() => questions.slice(0, 5), [questions])
   const hasMoreQuestions = questions.length > 5
   const missingContextText = formatMissingContextList(missingContext)
+  
+  // Zähle beantwortete Fragen
+  const answeredCount = Object.values(answers).filter(v => v.trim() !== '').length
+  const hasAnyAnswer = answeredCount > 0
+  
+  const handleAnswerChange = useCallback((questionId: string, value: string) => {
+    setAnswers(prev => ({
+      ...prev,
+      [questionId]: value
+    }))
+  }, [])
+  
+  const handleSubmit = useCallback(() => {
+    if (!hasAnyAnswer) return
+    
+    // In Schritt 3: Nur lokal sammeln, noch nicht an Bridge senden
+    if (showSuccessMessage) {
+      // Reset für erneute Eingabe
+      setShowSuccessMessage(false)
+      setAnswers({})
+    } else {
+      setShowSuccessMessage(true)
+      onSubmitAnswers?.(answers)
+    }
+  }, [answers, hasAnyAnswer, onSubmitAnswers, showSuccessMessage])
+
+  const getQuestionPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+      case 'medium': return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+      default: return 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30'
+    }
+  }
   
   return (
     <motion.section
@@ -65,92 +103,165 @@ export default function ContextQuestionsCard({
         </div>
       </div>
       
-      {/* Fragen-Liste */}
-      <div className="p-6 space-y-4">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-sm font-medium text-zinc-300">
-            Offene Fragen
-          </span>
-          <span className="text-xs text-zinc-500">
-            {displayQuestions.length}{hasMoreQuestions ? '+' : ''} von {questions.length}
-          </span>
-        </div>
-        
-        <div className="space-y-3">
-          {displayQuestions.map((question, index) => (
-            <motion.div
-              key={question.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 + index * 0.05 }}
-              className="group relative p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/10 hover:bg-white/[0.05] transition-colors"
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500/20 flex items-center justify-center text-xs font-medium text-violet-300">
-                  {index + 1}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-zinc-200 mb-1">
-                    {question.label}
-                  </p>
-                  
-                  <div className="flex items-center gap-2">
-                    <HelpCircle className="w-3.5 h-3.5 text-zinc-500" />
-                    <p className="text-xs text-zinc-500 line-clamp-2">
-                      {question.reason}
-                    </p>
-                  </div>
-                  
-                  {question.options && question.options.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {question.options.slice(0, 3).map(option => (
-                        <span
-                          key={option}
-                          className="px-2 py-0.5 text-xs rounded-full bg-white/5 text-zinc-400 border border-white/5"
-                        >
-                          {option}
-                        </span>
-                      ))}
-                      {question.options.length > 3 && (
-                        <span className="text-xs text-zinc-500">
-                          +{question.options.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
+      <AnimatePresence mode="wait">
+        {showSuccessMessage ? (
+          <motion.div
+            key="success"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="p-6"
+          >
+            <div className="text-center py-8">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 border border-emerald-500/30 flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400" />
               </div>
-            </motion.div>
-          ))}
-        </div>
-        
-        {hasMoreQuestions && (
-          <p className="text-xs text-zinc-500 text-center mt-3">
-            Weitere {questions.length - 5} Fragen verfügbar
-          </p>
+              
+              <h4 className="text-lg font-semibold text-zinc-100 mb-2">
+                Ergänzungen erfasst
+              </h4>
+              
+              <p className="text-sm text-zinc-400 max-w-md mx-auto mb-6">
+                {answeredCount} {answeredCount === 1 ? 'Antwort' : 'Antworten'} gespeichert. 
+                Im nächsten Schritt kann Load Pilot Deinen Project Twin damit aktualisieren.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  variant="primary"
+                  onClick={handleSubmit}
+                  className="bg-gradient-to-r from-violet-600 to-violet-700"
+                >
+                  Weitere Antworten hinzufügen
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="form"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="p-6 space-y-6"
+          >
+            {/* Fragen-Header */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-zinc-300">
+                Offene Fragen
+              </span>
+              <div className="flex items-center gap-2">
+                {hasAnyAnswer && (
+                  <span className="text-xs text-emerald-400">
+                    {answeredCount} / {displayQuestions.length} beantwortet
+                  </span>
+                )}
+                <span className="text-xs text-zinc-500">
+                  {displayQuestions.length}{hasMoreQuestions ? '+' : ''} von {questions.length}
+                </span>
+              </div>
+            </div>
+            
+            {/* Fragen-Liste mit Eingaben */}
+            <div className="space-y-5">
+              {displayQuestions.map((question, index) => (
+                <motion.div
+                  key={question.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`p-4 rounded-xl border transition-colors ${
+                    answers[question.id] 
+                      ? 'bg-emerald-500/5 border-emerald-500/20' 
+                      : 'bg-white/[0.03] border-white/5'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
+                        answers[question.id]
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'bg-violet-500/20 text-violet-300'
+                      }`}>
+                        {answers[question.id] ? (
+                          <CheckCircle2 className="w-4 h-4" />
+                        ) : (
+                          index + 1
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 min-w-0 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm text-zinc-200 mb-1">
+                            {question.label}
+                          </p>
+                          
+                          <div className="flex items-center gap-2">
+                            <HelpCircle className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
+                            <p className="text-xs text-zinc-500">
+                              {question.reason}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {question.priority !== 'low' && (
+                          <span className={`px-2 py-0.5 text-[10px] uppercase tracking-wider rounded-full border flex-shrink-0 ${getQuestionPriorityColor(question.priority)}`}>
+                            {question.priority}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <ContextQuestionInput
+                        question={question}
+                        value={answers[question.id] || ''}
+                        onChange={(value) => handleAnswerChange(question.id, value)}
+                        disabled={isPreview}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            
+            {hasMoreQuestions && (
+              <p className="text-xs text-zinc-500 text-center">
+                Weitere {questions.length - 5} Fragen verfügbar
+              </p>
+            )}
+            
+            {/* CTA Footer */}
+            <div className="pt-4 border-t border-white/5">
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full group"
+                onClick={handleSubmit}
+                disabled={!hasAnyAnswer || isPreview}
+              >
+                <span>{isPreview ? 'Bald verfügbar' : 'Project Twin schärfen'}</span>
+                <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
+              </Button>
+              
+              {!hasAnyAnswer && !isPreview && (
+                <div className="flex items-center justify-center gap-2 mt-3">
+                  <AlertCircle className="w-3.5 h-3.5 text-zinc-500" />
+                  <p className="text-xs text-zinc-500">
+                    Beantworte mindestens eine Frage, um fortzufahren
+                  </p>
+                </div>
+              )}
+              
+              {missingContextText && (
+                <p className="text-xs text-zinc-500 text-center mt-3">
+                  Fehlt: {missingContextText}
+                </p>
+              )}
+            </div>
+          </motion.div>
         )}
-      </div>
-      
-      {/* CTA Footer */}
-      <div className="px-6 pb-6">
-        <Button
-          variant="primary"
-          size="lg"
-          className="w-full group bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 border-violet-500/50"
-          onClick={onAddContext}
-          disabled={isPreview}
-        >
-          <span>{isPreview ? 'Bald verfügbar' : 'Kontext ergänzen'}</span>
-          <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
-        </Button>
-        
-        {!isPreview && missingContextText && (
-          <p className="text-xs text-zinc-500 text-center mt-3">
-            Fehlt: {missingContextText}
-          </p>
-        )}
-      </div>
+      </AnimatePresence>
     </motion.section>
   )
 }

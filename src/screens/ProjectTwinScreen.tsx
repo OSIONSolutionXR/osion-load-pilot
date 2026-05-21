@@ -257,7 +257,11 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
           )}
           missingContext={quality.missingContext}
           confidence={quality.confidence}
-          onAddContext={() => setShowRefineModal(true)}
+          onSubmitAnswers={(answers) => {
+            // Schritt 3: Nur lokal sammeln, noch nicht an Bridge senden
+            console.log('[ContextQuestionsCard] Antworten gesammelt:', answers)
+            // In Schritt 4: Hier wird die Bridge-Anfrage eingebaut
+          }}
         />
       )}
 

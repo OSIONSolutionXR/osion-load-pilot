@@ -37,16 +37,17 @@ const DOMAIN_QUESTIONS: Record<string, Record<string, QuestionTemplate>> = {
       priority: 'high'
     },
     'Nutzungsprofil': {
-      label: 'Wofür wird das Objekt hauptsächlich genutzt?',
+      label: 'Wofür wird das Auto hauptsächlich genutzt?',
       reason: 'Das Nutzungsprofil beeinflusst Prioritäten und Anforderungen maßgeblich.',
-      inputType: 'text',
+      inputType: 'choice',
+      options: ['Familie', 'Arbeit', 'Langstrecke', 'Stadtverkehr', 'Freizeit', 'Gemischt'],
       priority: 'medium'
     },
     'Fahrzeugtyp': {
-      label: 'Welche Art/Fahrzeugtyp kommt aktuell infrage?',
+      label: 'Welche Fahrzeugart kommt aktuell infrage?',
       reason: 'Die Typ-Entscheidung schränkt die Suche und Optionen ein.',
       inputType: 'choice',
-      options: ['Neuwagen', 'Gebrauchtwagen', 'Elektro/Hybrid', 'Unsicher/Offen'],
+      options: ['Kleinwagen', 'Kombi', 'SUV', 'Van', 'Transporter', 'Noch offen'],
       priority: 'medium'
     },
     'Zahlungsweise': {
@@ -125,7 +126,8 @@ const DOMAIN_QUESTIONS: Record<string, Record<string, QuestionTemplate>> = {
     'Zielgruppe': {
       label: 'Welche Zielgruppe soll zuerst validiert werden?',
       reason: 'Die erste Zielgruppe prägt Produktentwicklung und Go-to-Market-Strategie.',
-      inputType: 'text',
+      inputType: 'choice',
+      options: ['Unternehmer', 'Agenturen', 'Berater', 'Interne Nutzung', 'Noch offen'],
       priority: 'high'
     },
     'Erfolgskriterien': {
