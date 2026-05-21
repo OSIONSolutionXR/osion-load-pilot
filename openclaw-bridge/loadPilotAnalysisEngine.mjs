@@ -477,7 +477,7 @@ VERHALTEN BEI missingContext:
 - Behalte ungeklärte Punkte bei
 - Füge nur hinzu, wenn NEUE Lücken entstehen
 
-Antworte NUR mit validem JSON, keine Markdown-Fences."
+Antworte NUR mit validem JSON, keine Markdown-Fences.`
 
 async function callOpenClawGatewayForUpdate(existingTwin, additionalInput, originalInput) {
   const contextPrompt = `BESTEHENDER PROJECT TWIN:
