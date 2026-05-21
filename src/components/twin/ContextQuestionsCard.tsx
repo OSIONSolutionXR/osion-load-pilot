@@ -44,25 +44,31 @@ export default function ContextQuestionsCard({
   }, [])
   
   const handleSubmit = useCallback(async () => {
-    if (!hasAnyAnswer || isUpdating) return
+    if (isUpdating) return
     
+    // Wenn wir im Success-Modus sind, zurück zum Formular
     if (showSuccessMessage) {
       setShowSuccessMessage(false)
       setHasSubmitted(false)
+      // Antworten bleiben geleert (frischer Start)
       setAnswers({})
-      onRetry?.()
       return
     }
+    
+    // Im Submit-Modus: brauchen Antworten
+    if (!hasAnyAnswer) return
 
     setHasSubmitted(true)
     try {
       await onSubmitAnswers?.(answers)
+      // Erst nach erfolgreichem API-Call State aktualisieren
       setShowSuccessMessage(true)
       setAnswers({})
     } catch {
+      // Bei Fehler: hasSubmitted zurücksetzen, Antworten bleiben erhalten
       setHasSubmitted(false)
     }
-  }, [answers, hasAnyAnswer, isUpdating, onRetry, onSubmitAnswers, showSuccessMessage])
+  }, [answers, hasAnyAnswer, isUpdating, onSubmitAnswers, showSuccessMessage])
 
   const getQuestionPriorityColor = (priority: string) => {
     switch (priority) {
