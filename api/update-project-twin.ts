@@ -1,12 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 const MAX_INPUT_LENGTH = 4000
-const BRIDGE_TIMEOUT_MS = 30000 // 30 Sekunden für Update (nicht 180s)
-
-// Timing-Hilfe
-function nowMs() {
-  return Date.now()
-}
+const BRIDGE_TIMEOUT_MS = 30000
 
 // Type definitions
 interface ProjectTwinAnalysis {
@@ -103,24 +98,104 @@ interface ContextAnswer {
   sourceMissingContext: string
 }
 
-interface TwinUpdateRequest {
-  existingTwin: StoredProjectTwin
-  additionalInput: string
-  originalInput: string
-  updateMode: 'refine_existing_twin'
-  contextAnswers?: ContextAnswer[]
+// Robuste Analyse-Extraktion aus verschiedenen Bridge-Formaten
+function extractAnalysisFromBridgeResponse(bridgeJson: unknown): { 
+  analysis: ProjectTwinAnalysis | null
+  debug: Record<string, unknown>
+} {
+  const debug: Record<string, unknown> = {
+    inputType: typeof bridgeJson,
+    topLevelKeys: isObject(bridgeJson) ? Object.keys(bridgeJson) : null
+  }
+
+  if (!isObject(bridgeJson)) {
+    return { analysis: null, debug: { ...debug, error: 'bridgeJson is not an object' } }
+  }
+
+  const b = bridgeJson
+
+  // Pfad 1: bridgeJson.updatedTwin?.analysis
+  if (isObject(b.updatedTwin) && isValidAnalysis(b.updatedTwin.analysis)) {
+    return { analysis: b.updatedTwin.analysis as ProjectTwinAnalysis, debug: { ...debug, path: 'updatedTwin.analysis' } }
+  }
+
+  // Pfad 2: bridgeJson.analysis
+  if (isValidAnalysis(b.analysis)) {
+    return { analysis: b.analysis as ProjectTwinAnalysis, debug: { ...debug, path: 'analysis' } }
+  }
+
+  // Pfad 3: bridgeJson.result?.analysis
+  if (isObject(b.result) && isValidAnalysis(b.result.analysis)) {
+    return { analysis: b.result.analysis as ProjectTwinAnalysis, debug: { ...debug, path: 'result.analysis' } }
+  }
+
+  // Pfad 4: bridgeJson.result direkt (wenn project/nextMove/quality vorhanden)
+  if (isObject(b.result) && hasProjectTwinFields(b.result)) {
+    return { analysis: b.result as unknown as ProjectTwinAnalysis, debug: { ...debug, path: 'result' } }
+  }
+
+  // Pfad 5: bridgeJson.result?.result
+  if (isObject(b.result) && isObject(b.result.result) && hasProjectTwinFields(b.result.result)) {
+    return { analysis: b.result.result as unknown as ProjectTwinAnalysis, debug: { ...debug, path: 'result.result' } }
+  }
+
+  // Pfad 6: bridgeJson.result?.updatedTwin?.analysis
+  if (isObject(b.result) && isObject(b.result.updatedTwin) && isValidAnalysis(b.result.updatedTwin.analysis)) {
+    return { analysis: b.result.updatedTwin.analysis as ProjectTwinAnalysis, debug: { ...debug, path: 'result.updatedTwin.analysis' } }
+  }
+
+  // Pfad 7: bridgeJson.result?.result?.analysis
+  if (isObject(b.result) && isObject(b.result.result) && isValidAnalysis(b.result.result.analysis)) {
+    return { analysis: b.result.result.analysis as ProjectTwinAnalysis, debug: { ...debug, path: 'result.result.analysis' } }
+  }
+
+  // Nichts gefunden - Diagnose
+  return { 
+    analysis: null, 
+    debug: { 
+      ...debug,
+      error: 'No valid analysis path found',
+      hasUpdatedTwin: isObject(b.updatedTwin),
+      hasUpdatedTwinAnalysis: isObject(b.updatedTwin) && isObject(b.updatedTwin.analysis),
+      hasAnalysis: isObject(b.analysis),
+      hasResult: isObject(b.result),
+      resultKeys: isObject(b.result) ? Object.keys(b.result) : null,
+      resultHasProject: isObject(b.result) && isObject(b.result.project),
+      resultHasNextMove: isObject(b.result) && isObject(b.result.nextMove),
+      resultHasQuality: isObject(b.result) && isObject(b.result.quality)
+    } 
+  }
 }
 
-// Kompakte Twin-Version für Bridge (Performance!)
+// Type guards
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isValidAnalysis(obj: unknown): obj is ProjectTwinAnalysis {
+  if (!isObject(obj)) return false
+  const a = obj
+  const hasProject = isObject(a.project) && typeof a.project.title === 'string'
+  const hasNextMove = isObject(a.nextMove) && typeof a.nextMove.title === 'string'
+  const hasQuality = isObject(a.quality) && typeof a.quality.isActionable === 'boolean'
+  return hasProject && hasNextMove && hasQuality
+}
+
+function hasProjectTwinFields(obj: Record<string, unknown>): boolean {
+  const hasProject = isObject(obj.project) && typeof obj.project.title === 'string'
+  const hasNextMove = isObject(obj.nextMove) && typeof obj.nextMove.title === 'string'
+  const hasQuality = isObject(obj.quality) && typeof obj.quality.isActionable === 'boolean'
+  return hasProject && hasNextMove && hasQuality
+}
+
+// Kompakter Twin für Bridge
 function buildCompactTwin(twin: StoredProjectTwin): Record<string, unknown> {
   const analysis = twin.analysis
-  
   return {
     id: twin.id,
     title: analysis.project.title,
     status: analysis.project.status,
     type: analysis.project.type,
-    // Nur kurze Beschreibung
     description: analysis.project.description.substring(0, 200),
     nextMove: {
       title: analysis.nextMove.title,
@@ -128,148 +203,157 @@ function buildCompactTwin(twin: StoredProjectTwin): Record<string, unknown> {
       effort: analysis.nextMove.effort,
       impact: analysis.nextMove.impact
     },
-    // Nur Top-5 Aktionen
-    actions: analysis.actions.slice(0, 5).map(a => ({
-      title: a.title,
-      owner: a.owner,
-      priority: a.priority
-    })),
-    // Nur Top-5 Risiken
-    risks: analysis.risks.slice(0, 5).map(r => ({
-      title: r.title,
-      severity: r.severity
-    })),
-    // Nur Top-5 Dependencies
-    dependencies: analysis.dependencies.slice(0, 5).map(d => ({
-      from: d.from,
-      to: d.to,
-      isBlocker: d.isBlocker
-    })),
-    // Nur Top-3 Szenarien
-    scenarios: analysis.scenarios.slice(0, 3).map(s => ({
-      title: s.title,
-      riskLevel: s.riskLevel
-    })),
+    actions: analysis.actions.slice(0, 5).map(a => ({ title: a.title, owner: a.owner, priority: a.priority })),
+    risks: analysis.risks.slice(0, 5).map(r => ({ title: r.title, severity: r.severity })),
+    dependencies: analysis.dependencies.slice(0, 5).map(d => ({ from: d.from, to: d.to, isBlocker: d.isBlocker })),
+    scenarios: analysis.scenarios.slice(0, 3).map(s => ({ title: s.title, riskLevel: s.riskLevel })),
     quality: {
       confidence: analysis.quality.confidence,
-      missingContext: analysis.quality.missingContext.slice(0, 5), // Nur Top-5
+      missingContext: analysis.quality.missingContext.slice(0, 5),
       isActionable: analysis.quality.isActionable
     },
     progress: twin.progress || { percent: 35, level: 1, stage: 'needs_context' },
-    // Nur letzte 3 Updates
-    recentUpdates: (twin.updates || []).slice(-3).map(u => ({
-      timestamp: u.timestamp,
-      summary: u.summary?.substring(0, 50)
-    })),
+    recentUpdates: (twin.updates || []).slice(-3).map(u => ({ timestamp: u.timestamp, summary: u.summary?.substring(0, 50) })),
     latestInput: twin.latestInput?.substring(0, 100) || ''
   }
 }
 
-// Type guard für Analysis
-function isValidAnalysis(obj: unknown): obj is ProjectTwinAnalysis {
-  if (!obj || typeof obj !== 'object') return false
-  const a = obj as Record<string, unknown>
-  const hasProject = typeof a.project === 'object' && a.project !== null
-  const hasNextMove = typeof a.nextMove === 'object' && a.nextMove !== null
-  const hasQuality = typeof a.quality === 'object' && a.quality !== null
-  const hasQualityIsActionable = typeof (a.quality as Record<string, unknown>)?.isActionable === 'boolean'
-  return hasProject && hasNextMove && hasQuality && hasQualityIsActionable
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const handlerStart = nowMs()
+  let stage = 'initialize'
+  let body: Record<string, unknown> | undefined = undefined
   
   try {
     res.setHeader('Content-Type', 'application/json')
 
+    stage = 'check_method'
     if (req.method !== 'POST') {
-      return res.status(405).json({ error: 'Nur POST ist erlaubt.' })
+      return res.status(405).json({ 
+        error: 'method_not_allowed',
+        message: 'Nur POST ist erlaubt.',
+        stage
+      })
     }
 
-    const bodyParsedAt = nowMs()
-    const body = req.body as Record<string, unknown> | undefined
+    stage = 'parse_body'
+    body = req.body as Record<string, unknown> | undefined
 
     if (!body || typeof body !== 'object') {
       return res.status(400).json({ 
         error: 'invalid_body',
-        message: 'Ungültiger Request-Body.' 
+        message: 'Request body fehlt oder ist kein Objekt.',
+        stage,
+        debug: { bodyType: typeof body }
       })
     }
 
-    const { existingTwin, additionalInput, originalInput, contextAnswers } = body as unknown as TwinUpdateRequest
+    stage = 'validate_payload'
+    const { existingTwin, additionalInput, originalInput, updateMode, contextAnswers } = body as {
+      existingTwin?: unknown
+      additionalInput?: unknown
+      originalInput?: unknown
+      updateMode?: unknown
+      contextAnswers?: unknown
+    }
 
-    // Validierung
     if (!existingTwin || typeof existingTwin !== 'object') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'missing_existing_twin',
-        message: 'existingTwin fehlt.' 
+        message: 'existingTwin fehlt oder ist ungültig.',
+        stage,
+        debug: {
+          payloadKeys: Object.keys(body),
+          hasExistingTwin: Boolean(existingTwin),
+          existingTwinType: typeof existingTwin
+        }
       })
     }
+
+    const existing = existingTwin as StoredProjectTwin
 
     if (!additionalInput || typeof additionalInput !== 'string') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'missing_additional_input',
-        message: 'additionalInput fehlt.' 
+        message: 'additionalInput fehlt oder ist kein String.',
+        stage,
+        debug: {
+          hasAdditionalInput: Boolean(additionalInput),
+          additionalInputType: typeof additionalInput
+        }
       })
     }
 
     if (additionalInput.length > MAX_INPUT_LENGTH) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'input_too_long',
-        message: `Input zu lang. Max ${MAX_INPUT_LENGTH} Zeichen.` 
+        message: `Input zu lang. Max ${MAX_INPUT_LENGTH} Zeichen.`,
+        stage,
+        debug: { inputLength: additionalInput.length }
       })
     }
 
+    stage = 'check_config'
     const bridgeUrl = process.env.OPENCLAW_BRIDGE_URL
     const bridgeSecret = process.env.OPENCLAW_BRIDGE_SECRET
 
     if (!bridgeUrl || !bridgeSecret) {
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'bridge_not_configured',
-        message: 'Bridge nicht konfiguriert.' 
+        message: 'Bridge nicht konfiguriert.',
+        stage,
+        debug: {
+          hasBridgeUrl: Boolean(bridgeUrl),
+          hasSecret: Boolean(bridgeSecret)
+        }
       })
     }
 
-    // URL bauen
+    stage = 'build_bridge_url'
     const baseUrl = bridgeUrl.replace(/\/bridge\/.*$/, '').replace(/\/+$/, '')
     const updateUrl = `${baseUrl}/bridge/update-project-twin`
 
-    // KOMPAKTER TWIN für Bridge (Performance!)
-    const compactTwin = buildCompactTwin(existingTwin)
-    
-    const bridgeRequestStart = nowMs()
+    stage = 'build_compact_twin'
+    let compactTwin: Record<string, unknown>
+    try {
+      compactTwin = buildCompactTwin(existing)
+    } catch (twinError) {
+      return res.status(500).json({
+        error: 'build_compact_twin_failed',
+        message: twinError instanceof Error ? twinError.message : 'Unknown error building compact twin',
+        stage,
+        debug: {
+          existingTwinKeys: Object.keys(existing),
+          hasAnalysis: Boolean(existing.analysis),
+          hasProject: Boolean(existing.analysis?.project)
+        }
+      })
+    }
 
-    // Payload für Bridge - NUR kompakte Daten
+    stage = 'call_bridge'
     const payload = {
       jobType: 'loadpilot_project_twin_update',
       promptVersion: 'loadpilot_v2',
       outputFormat: 'project_twin_json',
-      updateMode: 'refine_existing_twin',
-      compactTwinContext: compactTwin, // Kompatibel mit Bridge
-      additionalInput: additionalInput.substring(0, 500), // Max 500 chars
-      originalInput: (originalInput || '').substring(0, 200),
-      contextAnswers: (contextAnswers || []).slice(0, 3) // Max 3 Antworten
+      updateMode: updateMode || 'refine_existing_twin',
+      compactTwinContext: compactTwin,
+      additionalInput: additionalInput.substring(0, 500),
+      originalInput: String(originalInput || '').substring(0, 200),
+      contextAnswers: Array.isArray(contextAnswers) ? contextAnswers.slice(0, 3) : []
     }
 
-    console.log('[UpdateRoute] Starting bridge call', {
-      url: updateUrl.replace(/:\/\/[^:]+:/, '://***:'),
-      compactTwinKeys: Object.keys(compactTwin),
-      additionalInputLength: payload.additionalInput.length,
-      timeoutMs: BRIDGE_TIMEOUT_MS
-    })
-
-    // Fetch zur Bridge mit kontrolliertem Timeout
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => {
-      controller.abort()
-      console.log('[UpdateRoute] Bridge timeout after', BRIDGE_TIMEOUT_MS, 'ms')
-    }, BRIDGE_TIMEOUT_MS)
+    const timeoutId = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT_MS)
 
-    let bridgeResponse: Response
-    let bridgeJson: Record<string, unknown> | null = null
+    let bridgeResponse: Response | null = null
+    let bridgeText = ''
     let fetchError: Error | null = null
 
     try {
+      console.log('[UpdateRoute] Calling bridge', { 
+        url: updateUrl.replace(/:\/\/[^:]+:/, '://***:'),
+        payloadKeys: Object.keys(payload),
+        compactTwinKeys: Object.keys(compactTwin)
+      })
+
       bridgeResponse = await fetch(updateUrl, {
         method: 'POST',
         headers: {
@@ -280,26 +364,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         signal: controller.signal
       })
 
-      const bridgeResponseAt = nowMs()
-      const bodyText = await bridgeResponse.text()
+      bridgeText = await bridgeResponse.text()
       
-      try {
-        bridgeJson = JSON.parse(bodyText) as Record<string, unknown>
-      } catch {
-        bridgeJson = null
-      }
-
-      const bridgeJsonParsedAt = nowMs()
-      
-      // Timing-Log
-      console.log('[UpdateRoute] timing', {
-        bodyParsedMs: bridgeRequestStart - handlerStart,
-        bridgeRequestMs: bridgeResponseAt - bridgeRequestStart,
-        bridgeParseMs: bridgeJsonParsedAt - bridgeResponseAt,
-        bridgeTotalMs: bridgeJsonParsedAt - bridgeRequestStart,
-        bridgeStatus: bridgeResponse.status,
-        hasResult: Boolean(bridgeJson?.result),
-        resultKeys: bridgeJson?.result ? Object.keys(bridgeJson.result as object).slice(0, 5) : []
+      console.log('[UpdateRoute] Bridge response', {
+        status: bridgeResponse.status,
+        ok: bridgeResponse.ok,
+        textLength: bridgeText.length,
+        preview: bridgeText.substring(0, 500)
       })
 
     } catch (err) {
@@ -313,116 +384,154 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (fetchError?.name === 'AbortError' || fetchError?.message?.includes('abort')) {
       return res.status(504).json({
         error: 'bridge_timeout',
-        message: 'Die Bridge-Aktualisierung hat zu lange gedauert (>30s).',
+        message: `Die Bridge-Aktualisierung hat zu lange gedauert (>${BRIDGE_TIMEOUT_MS}ms).`,
         stage: 'bridge_fetch',
         debug: {
           timeoutMs: BRIDGE_TIMEOUT_MS,
-          hasExistingTwin: true,
           additionalInputLength: additionalInput.length
         }
       })
     }
 
-    // Anderer Fetch-Fehler
     if (fetchError) {
       return res.status(502).json({
         error: 'bridge_fetch_failed',
         message: `Bridge-Aufruf fehlgeschlagen: ${fetchError.message}`,
+        stage: 'bridge_fetch',
+        debug: {
+          errorName: fetchError.name,
+          errorMessage: fetchError.message
+        }
+      })
+    }
+
+    if (!bridgeResponse) {
+      return res.status(502).json({
+        error: 'bridge_no_response',
+        message: 'Bridge gab keine Response zurück.',
         stage: 'bridge_fetch'
       })
     }
 
-    // Bridge-Error
-    if (!bridgeResponse!.ok) {
+    stage = 'check_bridge_status'
+    if (!bridgeResponse.ok) {
       return res.status(502).json({
         error: 'bridge_error',
-        message: `Bridge gab Status ${bridgeResponse!.status} zurück.`,
-        stage: 'bridge_response',
-        bridgeStatus: bridgeResponse!.status,
-        bridgeError: bridgeJson?.error || 'Unknown'
+        message: `Bridge gab Status ${bridgeResponse.status} zurück.`,
+        stage,
+        debug: {
+          bridgeStatus: bridgeResponse.status,
+          bridgeTextPreview: bridgeText.substring(0, 200)
+        }
       })
     }
 
-    // Kein JSON
-    if (!bridgeJson) {
-      return res.status(502).json({ 
-        error: 'bridge_invalid_json',
-        message: 'Bridge gab kein gültiges JSON zurück.',
-        stage: 'bridge_parse'
+    stage = 'parse_bridge_response'
+    let bridgeJson: unknown = null
+    try {
+      bridgeJson = JSON.parse(bridgeText)
+    } catch (parseError) {
+      return res.status(502).json({
+        error: 'bridge_json_parse_failed',
+        message: `Bridge-Antwort konnte nicht als JSON geparst werden: ${parseError instanceof Error ? parseError.message : 'Unknown'}`,
+        stage,
+        debug: {
+          bridgeTextLength: bridgeText.length,
+          bridgeTextPreview: bridgeText.substring(0, 500)
+        }
       })
     }
 
-    // Extrahiere Analyse
-    const bridgeResult = bridgeJson.result || bridgeJson
-    const analysis = isValidAnalysis(bridgeResult) ? bridgeResult : null
+    stage = 'extract_analysis'
+    const { analysis, debug: extractDebug } = extractAnalysisFromBridgeResponse(bridgeJson)
 
     if (!analysis) {
       return res.status(502).json({
-        error: 'bridge_invalid_analysis',
-        message: 'Bridge-Response enthielt keine gültige Analyse.',
-        stage: 'analysis_extraction',
-        bridgeKeys: Object.keys(bridgeJson),
-        resultType: typeof bridgeResult
+        error: 'analysis_extraction_failed',
+        message: 'Keine gültige Analyse aus Bridge-Response extrahiert.',
+        stage,
+        debug: extractDebug
       })
     }
 
-    // Baue vollständigen StoredProjectTwin
-    const updatedTwinBuiltAt = nowMs()
+    console.log('[UpdateRoute] Analysis extracted', {
+      path: extractDebug.path,
+      projectTitle: analysis.project?.title,
+      confidence: analysis.quality?.confidence
+    })
+
+    stage = 'build_updated_twin'
     const now = new Date().toISOString()
     
-    const updatedTwin: StoredProjectTwin = {
-      ...existingTwin,
-      id: existingTwin.id || `twin-${Date.now()}`,
-      schemaVersion: 2,
-      title: analysis.project?.title || existingTwin.title || 'Unbenanntes Projekt',
-      description: analysis.project?.description || existingTwin.description || '',
-      createdAt: existingTwin.createdAt || now,
-      updatedAt: now,
-      originalInput: existingTwin.originalInput || originalInput || '',
-      latestInput: additionalInput,
-      analysis: {
-        project: analysis.project || existingTwin.analysis?.project,
-        nextMove: analysis.nextMove || existingTwin.analysis?.nextMove,
-        actors: Array.isArray(analysis.actors) ? analysis.actors : (existingTwin.analysis?.actors || []),
-        dependencies: Array.isArray(analysis.dependencies) ? analysis.dependencies : (existingTwin.analysis?.dependencies || []),
-        risks: Array.isArray(analysis.risks) ? analysis.risks : (existingTwin.analysis?.risks || []),
-        scenarios: Array.isArray(analysis.scenarios) ? analysis.scenarios : (existingTwin.analysis?.scenarios || []),
-        actions: Array.isArray(analysis.actions) ? analysis.actions : (existingTwin.analysis?.actions || []),
-        quality: analysis.quality || existingTwin.analysis?.quality,
-        meta: {
-          domain: (analysis.project as any)?.type || existingTwin.analysis?.meta?.domain || 'unclear',
-          analysisMode: 'openclaw-kimi',
-          promptVersion: 'loadpilot_v2',
-          generatedAt: now
+    let updatedTwin: StoredProjectTwin
+    try {
+      updatedTwin = {
+        ...existing,
+        id: existing.id,
+        schemaVersion: 2,
+        title: analysis.project?.title || existing.title || 'Unbenanntes Projekt',
+        description: analysis.project?.description || existing.description || '',
+        createdAt: existing.createdAt,
+        updatedAt: now,
+        originalInput: existing.originalInput || String(originalInput || ''),
+        latestInput: additionalInput,
+        analysis: {
+          project: analysis.project || existing.analysis?.project,
+          nextMove: analysis.nextMove || existing.analysis?.nextMove,
+          actors: Array.isArray(analysis.actors) ? analysis.actors : (existing.analysis?.actors || []),
+          dependencies: Array.isArray(analysis.dependencies) ? analysis.dependencies : (existing.analysis?.dependencies || []),
+          risks: Array.isArray(analysis.risks) ? analysis.risks : (existing.analysis?.risks || []),
+          scenarios: Array.isArray(analysis.scenarios) ? analysis.scenarios : (existing.analysis?.scenarios || []),
+          actions: Array.isArray(analysis.actions) ? analysis.actions : (existing.analysis?.actions || []),
+          quality: analysis.quality || existing.analysis?.quality,
+          meta: {
+            ...(existing.analysis?.meta || {}),
+            ...(analysis.meta || {}),
+            domain: (analysis.project as any)?.type || existing.analysis?.meta?.domain || 'unclear',
+            analysisMode: 'openclaw-kimi',
+            promptVersion: 'loadpilot_v2',
+            generatedAt: now
+          }
+        },
+        progress: (() => {
+          const bridgeProgress = (bridgeJson as any)?.result?.progress || (bridgeJson as any)?.progress
+          return bridgeProgress || {
+            percent: analysis.quality?.confidence === 'high' ? 85 : 
+                     analysis.quality?.confidence === 'medium' ? 60 : 35,
+            level: analysis.quality?.confidence === 'high' ? 3 : 
+                   analysis.quality?.confidence === 'medium' ? 2 : 1,
+            stage: (analysis.quality?.missingContext?.length || 0) === 0 ? 'clarified' : 'needs_context',
+            updatedAt: now
+          }
+        })(),
+        updates: [
+          ...(existing.updates || []),
+          {
+            timestamp: now,
+            input: additionalInput,
+            summary: 'Project Twin aktualisiert',
+            changedFields: []
+          }
+        ]
+      }
+    } catch (buildError) {
+      return res.status(500).json({
+        error: 'build_updated_twin_failed',
+        message: buildError instanceof Error ? buildError.message : 'Unknown error building updated twin',
+        stage,
+        debug: {
+          hasExistingAnalysis: Boolean(existing.analysis),
+          hasExtractedAnalysis: Boolean(analysis),
+          analysisKeys: Object.keys(analysis || {})
         }
-      },
-      progress: {
-        percent: analysis.quality?.confidence === 'high' ? 85 : 
-                 analysis.quality?.confidence === 'medium' ? 60 : 35,
-        level: analysis.quality?.confidence === 'high' ? 3 : 
-               analysis.quality?.confidence === 'medium' ? 2 : 1,
-        stage: (analysis.quality?.missingContext?.length || 0) === 0 ? 'clarified' : 'needs_context',
-        updatedAt: now
-      },
-      updates: [
-        ...(existingTwin.updates || []),
-        {
-          timestamp: now,
-          input: additionalInput,
-          summary: 'Project Twin aktualisiert',
-          changedFields: []
-        }
-      ]
+      })
     }
 
-    const responseSentAt = nowMs()
-    
-    // Final timing
-    console.log('[UpdateRoute] total timing', {
-      totalMs: responseSentAt - handlerStart,
-      bodyParseMs: bridgeRequestStart - handlerStart,
-      bridgeTotalMs: updatedTwinBuiltAt - bridgeRequestStart,
-      mergeMs: responseSentAt - updatedTwinBuiltAt
+    stage = 'return_response'
+    console.log('[UpdateRoute] Success', {
+      updatedTwinId: updatedTwin.id,
+      hasAnalysis: Boolean(updatedTwin.analysis),
+      projectTitle: updatedTwin.analysis?.project?.title
     })
 
     return res.status(200).json({
@@ -434,22 +543,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         source: 'vercel-update-route',
         bridgeMode: 'openclaw-kimi',
         jobType: 'loadpilot_project_twin_update',
-        processedAt: now,
-        timingMs: responseSentAt - handlerStart
+        processedAt: now
       }
     })
 
   } catch (globalError) {
-    const message = globalError instanceof Error ? globalError.message : 'Unknown error'
-    console.error('[UpdateRoute] Global error:', message)
+    const message = globalError instanceof Error ? globalError.message : String(globalError)
+    console.error('[UpdateRoute] Global error at stage:', stage, message)
     
     return res.status(500).json({
-      error: 'unhandled_exception',
+      error: 'update_project_twin_failed',
       message,
-      stage: 'global_catch',
+      stage,
       debug: {
         hasBridgeUrl: Boolean(process.env.OPENCLAW_BRIDGE_URL),
-        hasSecret: Boolean(process.env.OPENCLAW_BRIDGE_SECRET)
+        hasSecret: Boolean(process.env.OPENCLAW_BRIDGE_SECRET),
+        payloadKeys: body ? Object.keys(body) : [],
+        hasExistingTwin: body ? Boolean(body.existingTwin) : false,
+        hasExistingTwinAnalysis: body?.existingTwin ? Boolean((body.existingTwin as any)?.analysis) : false,
+        hasAdditionalInput: body ? Boolean(body.additionalInput) : false,
+        additionalInputLength: body?.additionalInput ? String(body.additionalInput).length : 0,
+        hasUpdateMode: body ? Boolean(body.updateMode) : false,
+        existingTwinTitle: body?.existingTwin ? 
+          ((body.existingTwin as any)?.title || (body.existingTwin as any)?.analysis?.project?.title || null) : null
       }
     })
   }
