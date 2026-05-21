@@ -13,6 +13,7 @@ import {
   createStoredProjectTwin,
   loadStoredProjectTwins,
   saveStoredProjectTwins,
+  saveUpdatedProjectTwin,
   type StoredProjectTwin
 } from './lib/projectTwinStore'
 
@@ -59,6 +60,10 @@ function App() {
     navigateTo('twin')
   }
 
+  const handleUpdateTwin = (updatedTwin: StoredProjectTwin) => {
+    setTwins((current) => saveUpdatedProjectTwin(current, updatedTwin))
+  }
+
   return (
     <MotionConfig reducedMotion="user">
       <AppShell>
@@ -80,6 +85,7 @@ function App() {
               onBack={() => navigateTo('today')}
               onNewInput={() => navigateTo('input')}
               twin={activeTwin}
+              onTwinUpdate={handleUpdateTwin}
             />
           )}
           {currentView === 'projects' && (

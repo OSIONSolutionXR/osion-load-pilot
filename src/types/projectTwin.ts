@@ -73,6 +73,27 @@ export interface ProjectAnalysisMeta {
   generatedAt: string
 }
 
+// Update/Historie für iteratives Twin-Refinement
+export interface ChangedField {
+  field: string
+  oldValue: string
+  newValue: string
+}
+
+export interface ProjectTwinUpdate {
+  timestamp: string
+  input: string
+  summary: string
+  changedFields: ChangedField[]
+}
+
+export interface UpdateMeta {
+  updateMode: 'refine_existing_twin'
+  originalInput: string
+  additionalInput: string
+  previousVersion: string // timestamp der vorherigen Version
+}
+
 export interface ProjectTwinAnalysis {
   project: ProjectInfo
   nextMove: NextMove

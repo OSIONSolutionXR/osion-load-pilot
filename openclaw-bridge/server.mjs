@@ -1,11 +1,11 @@
 import http from 'node:http'
-import { analyzeProjectInput } from './loadPilotAnalysisEngine.mjs'
+import { analyzeProjectInput, updateProjectTwin } from './loadPilotAnalysisEngine.mjs'
 
 const HOST = process.env.OPENCLAW_BRIDGE_HOST || '127.0.0.1'
 const PORT = Number(process.env.OPENCLAW_BRIDGE_PORT || 8787)
 const SECRET = process.env.OPENCLAW_BRIDGE_SECRET
 const MAX_INPUT_LENGTH = 4000
-const ALLOWED_JOB_TYPE = 'loadpilot_project_twin_analysis'
+const ALLOWED_JOB_TYPES = ['loadpilot_project_twin_analysis', 'loadpilot_project_twin_update']
 const ALLOWED_PROMPT_VERSION = 'loadpilot_v2'
 
 if (!SECRET) {
@@ -57,7 +57,7 @@ const server = http.createServer((req, res) => {
     try {
       const body = JSON.parse(raw || '{}')
 
-      if (body.jobType !== ALLOWED_JOB_TYPE) {
+      if (!ALLOWED_JOB_TYPES.includes(body.jobType)) {
         return badRequest(res, 'Unsupported jobType')
       }
 
@@ -77,7 +77,25 @@ const server = http.createServer((req, res) => {
         return badRequest(res, 'Unsupported outputFormat')
       }
 
-      const result = await analyzeProjectInput(body.input.trim())
+      // Route to appropriate handler based on jobType
+      let result
+      if (body.jobType === 'loadpilot_project_twin_analysis') {
+        result = await analyzeProjectInput(body.input.trim())
+      } else if (body.jobType === 'loadpilot_project_twin_update') {
+        // Validate update context
+        if (!body.context || typeof body.context !== 'object') {
+          return badRequest(res, 'Update requires context object')
+        }
+        if (!body.context.existingTwin) {
+          return badRequest(res, 'Update requires existingTwin')
+        }
+        result = await updateProjectTwin({
+          existingTwin: body.context.existingTwin,
+          additionalInput: body.input.trim(),
+          originalInput: body.context.originalInput || ''
+        })
+      }
+      
       return sendJson(res, 200, { result, meta: { source: 'openclaw-bridge', mode: 'openclaw-kimi' } })
     } catch (error) {
       return sendJson(res, 502, {

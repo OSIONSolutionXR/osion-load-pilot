@@ -1,20 +1,72 @@
 import { motion, AnimatePresence } from 'motion/react'
-import { ArrowLeft, Zap, Users, ChevronDown, Target, Route, ShieldAlert, ListTodo, CheckCircle2, Clock } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowLeft, Zap, Users, ChevronDown, Target, Route, ShieldAlert, ListTodo, CheckCircle2, Clock, RefreshCw } from 'lucide-react'
+import { useState, useCallback } from 'react'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Panel } from '../components/ui/Panel'
+import ContextQuestionsPanel from '../components/twin/ContextQuestionsPanel'
+import RefineContextModal from '../components/twin/RefineContextModal'
+import ProjectHistoryTimeline from '../components/twin/ProjectHistoryTimeline'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
+import { updateProjectTwin } from '../services/projectTwinUpdateApi'
 
 interface ProjectTwinScreenProps {
   onBack: () => void
   onNewInput?: () => void
   twin: StoredProjectTwin | null
+  onTwinUpdate?: (updatedTwin: StoredProjectTwin) => void
 }
 
-export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectTwinScreenProps) {
+export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpdate }: ProjectTwinScreenProps) {
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
+  const [showRefineModal, setShowRefineModal] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [updateError, setUpdateError] = useState<string | null>(null)
+  
   const analysis = twin?.analysis ?? null
+
+  const handleRefineSubmit = useCallback(async (additionalInput: string) => {
+    if (!twin || !analysis) return
+    
+    setIsUpdating(true)
+    setUpdateError(null)
+
+    try {
+      const response = await updateProjectTwin({
+        existingTwin: analysis,
+        additionalInput,
+        originalInput: twin.sourceInput,
+        updateMode: 'refine_existing_twin'
+      })
+
+      // Create updated twin with history
+      const updatedTwin: StoredProjectTwin = {
+        ...twin,
+        updatedAt: new Date().toISOString(),
+        analysis: response.analysis,
+        updates: [
+          ...(twin.updates || []),
+          {
+            timestamp: new Date().toISOString(),
+            input: additionalInput,
+            summary: `Project Twin aktualisiert: ${response.meta.fieldsModified.join(', ')}`,
+            changedFields: response.meta.fieldsModified.map(field => ({
+              field,
+              oldValue: 'vorher',
+              newValue: 'nachher'
+            }))
+          }
+        ]
+      }
+
+      onTwinUpdate?.(updatedTwin)
+      setShowRefineModal(false)
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : 'Update fehlgeschlagen')
+    } finally {
+      setIsUpdating(false)
+    }
+  }, [twin, analysis, onTwinUpdate])
 
   if (!analysis) {
     return (
@@ -70,8 +122,25 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
     recommendation: s.recommendation
   }))
 
+  // Bestimme, ob Kontext-Karte angezeigt werden soll
+  const shouldShowContextCard = quality.confidence !== 'high' || quality.missingContext.length > 0
+
   return (
     <div className="space-y-8">
+      {/* Update Error Banner */}
+      <AnimatePresence>
+        {updateError && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="panel-card border-l-4 border-l-rose-500 p-4 bg-rose-500/10"
+          >
+            <p className="text-rose-400 text-sm">{updateError}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 1. HERO BEREICH */}
       <motion.header
         initial={{ opacity: 0, y: 20 }}
@@ -89,6 +158,15 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
             <Zap className="w-4 h-4 text-[#ff006e]" />
             <Badge variant="violet">Project Twin</Badge>
           </div>
+          {twin && (
+            <>
+              <div className="h-8 w-px bg-white/10" />
+              <Button variant="ghost" onClick={() => setShowRefineModal(true)}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Aktualisieren
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="max-w-3xl">
@@ -161,7 +239,17 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
         </div>
       </motion.section>
 
-      {/* 3. KRITISCHE ABHÄNGIGKEITEN ALS PROZESSKETTE */}
+      {/* 3. KONTEXT-KARTE (wenn confidence nicht high oder missingContext vorhanden) */}
+      {shouldShowContextCard && (
+        <ContextQuestionsPanel
+          missingContext={quality.missingContext}
+          confidence={quality.confidence}
+          projectType={project.type}
+          onRefineClick={() => setShowRefineModal(true)}
+        />
+      )}
+
+      {/* 4. KRITISCHE ABHÄNGIGKEITEN ALS PROZESSKETTE */}
       {criticalDeps.length > 0 && (
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -200,7 +288,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
 
       {/* ZWEISPALTIG: AKTEURE & RISIKEN */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* 4. AKTEURE KOMPAKT */}
+        {/* 5. AKTEURE KOMPAKT */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -226,7 +314,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
           </div>
         </motion.section>
 
-        {/* 5. RISIKEN FOKUSSIERT */}
+        {/* 6. RISIKEN FOKUSSIERT */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -253,7 +341,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
         </motion.section>
       </div>
 
-      {/* 6. EMPFOHLENE AKTIONEN ALS TODO-LISTE */}
+      {/* 7. EMPFOHLENE AKTIONEN ALS TODO-LISTE */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -283,17 +371,18 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
                 )}
               </div>
               <div className="flex-1">
-                <span className="text-zinc-200">{action.title}</span>
-                {action.owner && (
-                  <span className="text-sm text-zinc-500 ml-2">– {action.owner}</span>
-                )}
+                <div className="font-medium text-zinc-200">{action.title}</div>
+                <div className="text-sm text-zinc-500">{action.owner}</div>
               </div>
+              {action.messageDraft && (
+                <Badge variant="violet" className="text-xs">Entwurf</Badge>
+              )}
             </div>
           ))}
         </div>
       </motion.section>
 
-      {/* 7. SZENARIEN ALS ENTSCHEIDUNGSOPTIONEN */}
+      {/* 8. ENTSCHEIDUNGSOPTIONEN */}
       {decisionOptions.length > 0 && (
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -325,12 +414,20 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
         </motion.section>
       )}
 
-      {/* 8. TECHNISCHE ANALYSE (AUSKLAPPBAR) */}
+      {/* 9. PROJEKTVERLAUF (HISTORY) */}
+      {twin && (
+        <ProjectHistoryTimeline 
+          updates={twin.updates || []} 
+          createdAt={twin.createdAt} 
+        />
+      )}
+
+      {/* 10. TECHNISCHE ANALYSE (STANDARDMÄSSIG GESCHLOSSEN) */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="panel-card"
+        className="panel-card opacity-60 hover:opacity-100 transition-opacity"
       >
         <button
           onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
@@ -338,7 +435,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
         >
           <div className="flex items-center gap-3">
             <Badge variant="neutral">Debug</Badge>
-            <span className="text-zinc-400">Technische Analyse anzeigen</span>
+            <span className="text-zinc-500 text-sm">Technische Analyse anzeigen</span>
           </div>
           <ChevronDown className={`w-5 h-5 text-zinc-500 transition-transform ${showTechnicalDetails ? 'rotate-180' : ''}`} />
         </button>
@@ -364,6 +461,8 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
                     ['Domain', analysis.meta?.domain || 'N/A'],
                     ['Prompt Version', analysis.meta?.promptVersion || 'N/A'],
                     ['Gespeichert', twin?.createdAt ? new Date(twin.createdAt).toLocaleString() : 'N/A'],
+                    ['Aktualisiert', twin?.updatedAt ? new Date(twin.updatedAt).toLocaleString() : 'N/A'],
+                    ['Versionen', String((twin?.updates?.length || 0) + 1)],
                     ['Quelle', twin?.sourceInput ? `"${twin.sourceInput.substring(0, 50)}..."` : 'N/A']
                   ]} />
                 </div>
@@ -372,6 +471,15 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin }: ProjectT
           )}
         </AnimatePresence>
       </motion.section>
+
+      {/* REFINE CONTEXT MODAL */}
+      <RefineContextModal
+        isOpen={showRefineModal}
+        onClose={() => setShowRefineModal(false)}
+        onSubmit={handleRefineSubmit}
+        projectTitle={project.title}
+        isProcessing={isUpdating}
+      />
     </div>
   )
 }

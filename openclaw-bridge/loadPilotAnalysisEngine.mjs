@@ -448,3 +448,126 @@ export async function analyzeProjectInput(input) {
     throw new Error(`Analysis unavailable: ${error.message}`)
   }
 }
+
+// ==================== UPDATE / REFINEMENT ====================
+
+const UPDATE_PROMPT = `Du bist OSION Load Pilot im UPDATE-Modus.
+
+Deine Aufgabe: Aktualisiere einen bestehenden Project Twin basierend auf zusätzlichem Kontext vom Nutzer.
+
+WICHTIGE REGELN:
+1. Bewahre den bestehenden Twin als Basis - verwerfe NICHT alles
+2. Integriere den neuen Kontext INTELLIGENT
+3. Aktualisiere das Next Move, wenn der neue Kontext dies rechtfertigt
+4. Erhöhe confidence (low→medium→high), wenn wichtige Lücken geschlossen wurden
+5. Reduziere missingContext für geklärte Punkte - füge sie NICHT doppelt hinzu
+6. Füge neue Akteure hinzu, wenn sie im neuen Kontext erwähnt werden
+7. Passe Risiken an, wenn neue Informationen die Risikolage verändern
+8. Aktualisiere Abhängigkeiten bei neuen Blockern oder Pfaden
+9. Projekt-Titel und Beschreibung sollten PRÄZISER werden, nicht austauschbar
+10. Die Aktualisierung sollte SUBSTANTIELL sein - nicht nur kosmetisch
+
+VERHALTEN BEI CONFIDENCE:
+- Wenn vorher "low" und jetzt mehr Kontext da ist → "medium" oder "high"
+- Wenn vorher "medium" und wichtige Lücken geschlossen → "high"
+- Nur "low" behalten, wenn noch kritische Informationen fehlen
+
+VERHALTEN BEI missingContext:
+- Entferne geklärte Punkte (z.B. "Budget" wenn Budget jetzt bekannt)
+- Behalte ungeklärte Punkte bei
+- Füge nur hinzu, wenn NEUE Lücken entstehen
+
+Antworte NUR mit validem JSON, keine Markdown-Fences."
+
+async function callOpenClawGatewayForUpdate(existingTwin, additionalInput, originalInput) {
+  const contextPrompt = `BESTEHENDER PROJECT TWIN:
+${JSON.stringify(existingTwin, null, 2)}
+
+URSPRÜNGLICHER INPUT: "${originalInput}"
+
+ZUSÄTZLICHER KONTEXT: "${additionalInput}"
+
+INSTRUKTION:
+Aktualisiere den Project Twin. Integriere den zusätzlichen Kontext intelligent.
+Bewahre das Nützliche, verbessere das Verwertbare.
+
+Antworte mit validem JSON im ProjectTwinAnalysis-Schema.`
+
+  try {
+    const { stdout } = await execFileAsync(
+      'openclaw',
+      [
+        'infer',
+        'model',
+        'run',
+        '--gateway',
+        '--model',
+        'ollama/kimi-k2.5:cloud',
+        '--prompt',
+        contextPrompt,
+        '--thinking',
+        'off',
+        '--json'
+      ],
+      {
+        timeout: REQUEST_TIMEOUT_MS,
+        maxBuffer: 1024 * 1024,
+        encoding: 'utf8'
+      }
+    )
+
+    const cleaned = stripJsonFences(stdout.trim())
+    let parsed
+    try {
+      parsed = JSON.parse(cleaned)
+    } catch (err) {
+      throw new Error('OpenClaw returned non-JSON: ' + cleaned.slice(0, 200))
+    }
+
+    if (!validateAnalysis(parsed)) {
+      throw new Error('OpenClaw returned invalid analysis structure')
+    }
+
+    assertNoGenericOutput(parsed)
+
+    return parsed
+  } catch (error) {
+    throw new Error(`OpenClaw Gateway Error: ${error.message}`)
+  }
+}
+
+export async function updateProjectTwin({ existingTwin, additionalInput, originalInput }) {
+  const trimmedAdditional = additionalInput.trim()
+
+  if (!trimmedAdditional) {
+    throw new Error('Additional input missing')
+  }
+
+  if (trimmedAdditional.length > MAX_INPUT_LENGTH) {
+    throw new Error(`Additional input too long. Max ${MAX_INPUT_LENGTH} chars.`)
+  }
+
+  try {
+    const updatedAnalysis = await callOpenClawGatewayForUpdate(
+      existingTwin,
+      trimmedAdditional,
+      originalInput
+    )
+
+    // Ensure meta information is updated
+    const enriched = {
+      ...updatedAnalysis,
+      meta: {
+        domain: updatedAnalysis.project?.type || existingTwin.project?.type || 'unclear',
+        analysisMode: 'openclaw-kimi',
+        promptVersion: PROMPT_VERSION,
+        generatedAt: new Date().toISOString()
+      }
+    }
+
+    return enriched
+  } catch (error) {
+    console.error('Update failed:', error.message)
+    throw new Error(`Update unavailable: ${error.message}`)
+  }
+}
