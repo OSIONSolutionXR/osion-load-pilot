@@ -125,11 +125,10 @@ function containsDisallowedFallbackPhrase(value: string): boolean {
 function validateAnalysis(data: unknown): data is ProjectTwinAnalysis {
   if (!isObject(data)) return false
   
-  const { project, nextMove, actors, dependencies, risks, scenarios, actions, quality } = data
+  // Minimal-Validierung: project, nextMove und quality müssen vorhanden sein
+  const { project, nextMove, quality } = data
   
   if (!isObject(project) || !isObject(nextMove) || !isObject(quality)) return false
-  if (!Array.isArray(actors) || !Array.isArray(dependencies) || !Array.isArray(risks) || 
-      !Array.isArray(scenarios) || !Array.isArray(actions)) return false
 
   const validProject =
     isString(project.title) &&
@@ -150,6 +149,7 @@ function validateAnalysis(data: unknown): data is ProjectTwinAnalysis {
     quality.missingContext.every((item) => typeof item === 'string') &&
     isString(quality.reason)
 
+  // Arrays sind optional für Update - können aus existingTwin übernommen werden
   return validProject && validNextMove && validQuality
 }
 
@@ -296,10 +296,27 @@ async function callBridgeForUpdate(
       throw new Error(errorMsg)
     }
 
-    const result = isObject(body) && 'result' in body ? body.result : body
+    // Logging der tatsächlichen Bridge-Antwort
+    console.log('[Update Bridge] Raw response keys:', Object.keys(body))
+    
+    // Extrahiere result aus verschiedenen Formaten
+    let result: unknown
+    if (isObject(body) && 'result' in body) {
+      result = body.result
+      console.log('[Update Bridge] Extracted result from body.result')
+    } else {
+      result = body
+      console.log('[Update Bridge] Using body as result')
+    }
+    
+    // Logging des extrahierten Results
+    if (isObject(result)) {
+      console.log('[Update Bridge] Result keys:', Object.keys(result))
+    }
 
     if (!validateAnalysis(result)) {
       console.error('[Update Bridge] Invalid analysis structure')
+      console.log('[Update Bridge] Validation failed for:', typeof result)
       throw new Error('OpenClaw Bridge hat kein valides Project-Twin-JSON zurückgegeben.')
     }
 
@@ -323,19 +340,19 @@ function detectChangedFields(
   if (oldAnalysis.quality.confidence !== newAnalysis.quality.confidence) {
     changed.push('quality.confidence')
   }
-  if (oldAnalysis.quality.missingContext.length !== newAnalysis.quality.missingContext.length) {
+  if ((oldAnalysis.quality.missingContext?.length ?? 0) !== (newAnalysis.quality.missingContext?.length ?? 0)) {
     changed.push('quality.missingContext')
   }
   if (oldAnalysis.project.description !== newAnalysis.project.description) {
     changed.push('project.description')
   }
-  if (oldAnalysis.actors.length !== newAnalysis.actors.length) {
+  if ((oldAnalysis.actors?.length ?? 0) !== (newAnalysis.actors?.length ?? 0)) {
     changed.push('actors.count')
   }
-  if (oldAnalysis.risks.length !== newAnalysis.risks.length) {
+  if ((oldAnalysis.risks?.length ?? 0) !== (newAnalysis.risks?.length ?? 0)) {
     changed.push('risks.count')
   }
-  if (oldAnalysis.actions.length !== newAnalysis.actions.length) {
+  if ((oldAnalysis.actions?.length ?? 0) !== (newAnalysis.actions?.length ?? 0)) {
     changed.push('actions.count')
   }
 
@@ -391,7 +408,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
 
     const response = {
-      analysis: updatedAnalysis,
+      analysis: {
+        project: updatedAnalysis.project || existingTwin.project,
+        nextMove: updatedAnalysis.nextMove || existingTwin.nextMove,
+        // Stelle sicher, dass alle Arrays vorhanden sind
+        actors: updatedAnalysis.actors || existingTwin.actors,
+        dependencies: updatedAnalysis.dependencies || existingTwin.dependencies,
+        risks: updatedAnalysis.risks || existingTwin.risks,
+        scenarios: updatedAnalysis.scenarios || existingTwin.scenarios,
+        actions: updatedAnalysis.actions || existingTwin.actions,
+        quality: updatedAnalysis.quality || existingTwin.quality,
+        // Meta zusammenführen
+        meta: {
+          domain: updatedAnalysis.project?.type || existingTwin.project?.type || 'unclear',
+          analysisMode: 'openclaw-kimi' as const,
+          promptVersion: PROMPT_VERSION,
+          generatedAt: new Date().toISOString()
+        }
+      },
       updateSummary: 'Project Twin mit neuem Kontext aktualisiert.',
       changedFields: detectChangedFields(existingTwin, updatedAnalysis).map(field => ({
         field,
