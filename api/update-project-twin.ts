@@ -256,7 +256,7 @@ async function callBridgeForUpdate(
   const payload: BridgeRequest = {
     jobType: 'loadpilot_project_twin_update',
     promptVersion: PROMPT_VERSION,
-    existingTwin: {}, // Wird von Bridge nicht direkt genutzt, compactTwinContext enthält alles
+    existingTwin: {}, // Legacy-Feld, wird nicht genutzt
     additionalInput: additionalInput.trim(),
     originalInput,
     contextAnswers,
@@ -266,13 +266,19 @@ async function callBridgeForUpdate(
   }
 
   console.log('[Update Bridge] Calling bridge:', {
-    url: bridgeUrl.replace(/\/+$/, '') + '/update-project-twin',
+    baseUrl: bridgeUrl?.replace(/\/bridge\/.*$/, '').replace(/\/+$/, ''),
     hasContextAnswers: Boolean(contextAnswers?.length),
     additionalInputLength: additionalInput.length
   })
 
   try {
-    const response = await fetch(bridgeUrl.replace(/\/+$/, '') + '/update-project-twin', {
+    // Extrahiere Base-URL ohne Pfad (z.B. http://host:port)
+    const baseUrl = bridgeUrl.replace(/\/bridge\/.*$/, '').replace(/\/+$/, '')
+    const updateUrl = `${baseUrl}/bridge/update-project-twin`
+    
+    console.log('[Update Bridge] Final URL:', updateUrl)
+    
+    const response = await fetch(updateUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
