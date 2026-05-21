@@ -31,11 +31,24 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
 
   const buildUpdatedTwin = useCallback((response: TwinUpdateResponse, additionalInput: string) => {
     if (!twin || !analysis) return null
-    const returnedAnalysis = response.analysis ?? (response.updatedTwin && typeof response.updatedTwin === 'object' ? (response.updatedTwin as { analysis?: StoredProjectTwin['analysis'] }).analysis : undefined)
-    if (!returnedAnalysis) return null
+    
+    console.log('[buildUpdatedTwin] Response keys:', Object.keys(response))
+    
+    // Versuche verschiedene Response-Formate
+    let returnedAnalysis = response.analysis
+    
+    if (!returnedAnalysis && response.updatedTwin && typeof response.updatedTwin === 'object') {
+      returnedAnalysis = (response.updatedTwin as { analysis?: StoredProjectTwin['analysis'] }).analysis
+    }
+    
+    if (!returnedAnalysis) {
+      console.error('[buildUpdatedTwin] No analysis found in response')
+      return null
+    }
 
     const now = new Date().toISOString()
     const progress = response.newProgress ?? response.progress ?? twin.progress
+    
     const updateEntry = {
       id: `upd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       createdAt: now,
@@ -49,7 +62,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
       newNextMoveTitle: returnedAnalysis.nextMove.title
     }
 
-    return {
+    const updatedTwin = {
       ...twin,
       updatedAt: now,
       latestInput: additionalInput.trim(),
@@ -63,16 +76,50 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
       updates: [...(twin.updates || []), updateEntry],
       contextQuestions: []
     }
+    
+    console.log('[buildUpdatedTwin] Success:', {
+      newProgress: updatedTwin.progress.percent,
+      updatesCount: updatedTwin.updates.length,
+      newNextMove: updatedTwin.analysis.nextMove.title
+    })
+    
+    return updatedTwin
   }, [analysis, twin])
 
   const handleUpdateWithAnswers = useCallback(async (answers: Record<string, string>) => {
     if (!twin || !analysis) return
     setIsUpdating(true)
     setUpdateError(null)
+    
+    console.log('[TwinScreen] Context form submit start', {
+      twinId: twin.id,
+      answersCount: Object.keys(answers).length,
+      answersPreview: Object.entries(answers).slice(0, 3).map(([k, v]) => ({ key: k.substring(0, 20), val: v.substring(0, 30) }))
+    })
+    
     try {
       const questions = generateContextQuestions(analysis.quality.missingContext, twin.originalInput || '', analysis.project.type)
       const additionalInput = buildAdditionalInputFromAnswers(answers, questions)
+      
+      console.log('[TwinScreen] Built additionalInput', {
+        length: additionalInput.length,
+        preview: additionalInput.substring(0, 100),
+        isEmpty: !additionalInput.trim()
+      })
+      
+      if (!additionalInput.trim()) {
+        throw new Error('Keine gültigen Antworten gefunden. Bitte fülle mindestens ein Feld aus.')
+      }
+      
       const contextAnswers = buildContextAnswers(answers, questions)
+      
+      console.log('[TwinScreen] Calling updateProjectTwin', {
+        source: 'context_form',
+        hasExistingTwin: !!analysis,
+        additionalInputLength: additionalInput.length,
+        contextAnswersCount: contextAnswers.length
+      })
+      
       const response = await updateProjectTwin({
         existingTwin: analysis,
         additionalInput,
@@ -82,11 +129,32 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
         previousUpdates: twin.updates,
         currentProgress: twin.progress
       })
+      
+      console.log('[TwinScreen] Response received', {
+        hasAnalysis: !!response.analysis,
+        hasUpdatedTwin: !!response.updatedTwin,
+        updateSummary: response.updateSummary
+      })
+      
       const updatedTwin = buildUpdatedTwin(response, additionalInput)
-      if (!updatedTwin) throw new Error('Ungültiges Update-Ergebnis')
+      
+      if (!updatedTwin) {
+        console.error('[TwinScreen] buildUpdatedTwin returned null')
+        throw new Error('Ungültiges Update-Ergebnis: Konnte Twin nicht aufbauen')
+      }
+      
+      console.log('[TwinScreen] Built updatedTwin', {
+        newProgress: updatedTwin.progress.percent,
+        updatesCount: updatedTwin.updates.length,
+        newNextMove: updatedTwin.analysis.nextMove.title
+      })
+      
       onTwinUpdate?.(updatedTwin)
+      console.log('[TwinScreen] onTwinUpdate called successfully')
     } catch (err) {
-      setUpdateError(err instanceof Error ? err.message : 'Update fehlgeschlagen')
+      const errorMsg = err instanceof Error ? err.message : 'Update fehlgeschlagen'
+      console.error('[TwinScreen] Update failed:', errorMsg)
+      setUpdateError(errorMsg)
     } finally {
       setIsUpdating(false)
     }
@@ -96,6 +164,13 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
     if (!twin || !analysis) return
     setIsUpdating(true)
     setUpdateError(null)
+    
+    console.log('[TwinScreen] Manual update start', {
+      twinId: twin.id,
+      inputLength: additionalInput.length,
+      inputPreview: additionalInput.substring(0, 100)
+    })
+    
     try {
       const response = await updateProjectTwin({
         existingTwin: analysis,
@@ -105,12 +180,29 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
         previousUpdates: twin.updates,
         currentProgress: twin.progress
       })
+      
+      console.log('[TwinScreen] Manual update response', {
+        hasAnalysis: !!response.analysis,
+        hasUpdatedTwin: !!response.updatedTwin,
+        updateSummary: response.updateSummary
+      })
+      
       const updatedTwin = buildUpdatedTwin(response, additionalInput)
-      if (!updatedTwin) throw new Error('Ungültiges Update-Ergebnis')
+      
+      if (!updatedTwin) {
+        console.error('[TwinScreen] buildUpdatedTwin returned null for manual update')
+        throw new Error('Ungültiges Update-Ergebnis')
+      }
+      
+      console.log('[TwinScreen] Manual update successful, closing modal')
       onTwinUpdate?.(updatedTwin)
       setShowRefineModal(false)
     } catch (err) {
-      setUpdateError(err instanceof Error ? err.message : 'Update fehlgeschlagen')
+      const errorMsg = err instanceof Error ? err.message : 'Update fehlgeschlagen'
+      console.error('[TwinScreen] Manual update failed:', errorMsg)
+      setUpdateError(errorMsg)
+      // Fehler an Modal weitergeben - Eingabe bleibt erhalten
+      throw err
     } finally {
       setIsUpdating(false)
     }
@@ -502,6 +594,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
         onSubmit={handleManualUpdate}
         projectTitle={project.title}
         isProcessing={isUpdating}
+        error={updateError}
       />
     </div>
   )

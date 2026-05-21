@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { X, Sparkles, Send, Loader2 } from 'lucide-react'
+import { X, Sparkles, Send, Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '../ui/Button'
 
 interface RefineContextModalProps {
@@ -9,6 +9,7 @@ interface RefineContextModalProps {
   onSubmit: (additionalInput: string) => Promise<void>
   projectTitle: string
   isProcessing: boolean
+  error?: string | null
 }
 
 export default function RefineContextModal({
@@ -16,14 +17,32 @@ export default function RefineContextModal({
   onClose,
   onSubmit,
   projectTitle,
-  isProcessing
+  isProcessing,
+  error
 }: RefineContextModalProps) {
   const [additionalInput, setAdditionalInput] = useState('')
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
     if (!additionalInput.trim() || isProcessing) return
-    await onSubmit(additionalInput.trim())
-    setAdditionalInput('')
+    
+    setSubmitError(null)
+    console.log('[RefineModal] Submit start', {
+      inputLength: additionalInput.length,
+      inputPreview: additionalInput.substring(0, 50)
+    })
+    
+    try {
+      await onSubmit(additionalInput.trim())
+      // Nur bei Erfolg: Eingabe löschen
+      console.log('[RefineModal] Submit success - clearing input')
+      setAdditionalInput('')
+    } catch (err) {
+      // Bei Fehler: Eingabe behalten, Fehler anzeigen
+      const errorMsg = err instanceof Error ? err.message : 'Update fehlgeschlagen'
+      console.error('[RefineModal] Submit error:', errorMsg)
+      setSubmitError(errorMsg)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -75,6 +94,23 @@ export default function RefineContextModal({
                 ohne das Projekt neu zu starten. Alle bisherigen Analysen bleiben erhalten.
               </p>
 
+              {/* Error Display */}
+              {(submitError || error) && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 mb-4"
+                >
+                  <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-rose-400">{submitError || error}</p>
+                    <p className="text-xs text-rose-400/70 mt-1">
+                      Deine Eingabe bleibt erhalten. Bitte überprüfe und versuche es erneut.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
               {/* Input Area */}
               <div className="space-y-4">
                 <div className="relative">
@@ -94,7 +130,7 @@ export default function RefineContextModal({
                 {/* Action Buttons */}
                 <div className="flex items-center justify-end gap-3 pt-2">
                   <Button variant="ghost" onClick={onClose} disabled={isProcessing}>
-                    Abbrechen
+                    {submitError ? 'Schließen' : 'Abbrechen'}
                   </Button>
                   <Button 
                     onClick={handleSubmit} 

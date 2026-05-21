@@ -185,9 +185,16 @@ function buildCompactTwinContext(existingTwin: ProjectTwinAnalysis): Record<stri
   }
 }
 
-// Prüfe ob Update-Input zu schwach ist
-function isInsufficientUpdateInput(additionalInput: string): boolean {
+// Prüfe ob Update-Input zu schwach ist - erlaubt kurze konkrete Antworten aus Kontextfragen
+function isInsufficientUpdateInput(additionalInput: string, contextAnswers?: ContextAnswer[]): boolean {
   const trimmed = additionalInput.trim()
+  
+  // Wenn es Kontext-Antworten gibt, ist der Input valid (wurde aus Fragen gebaut)
+  if (contextAnswers && contextAnswers.length > 0) {
+    return false
+  }
+  
+  // Für manuelle Eingaben: striktere Prüfung
   if (trimmed.length < 10) return true
   if (/^(test|abc|123|asdf|xyz|nein|ja|ok|nope|maybe)$/iu.test(trimmed)) return true
   const wordCount = trimmed.split(/\s+/).filter(Boolean).length
@@ -199,9 +206,12 @@ function isInsufficientUpdateInput(additionalInput: string): boolean {
 
 async function callOpenClawForUpdate(
   compactTwinContext: Record<string, unknown>, 
-  additionalInput: string
+  additionalInput: string,
+  contextAnswers?: ContextAnswer[]
 ): Promise<ProjectTwinAnalysis> {
-  if (isInsufficientUpdateInput(additionalInput)) {
+  // Kurze Antworten aus Kontextfragen sind immer okay
+  const hasContextAnswers = contextAnswers && contextAnswers.length > 0
+  if (!hasContextAnswers && isInsufficientUpdateInput(additionalInput)) {
     throw new Error('INSUFFICIENT_UPDATE: Die Ergänzung ist noch zu allgemein. Bitte ergänze eine konkrete Information (z.B. Budget, Frist, Entscheidung, Status).')
   }
 
@@ -328,14 +338,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   }
 
-  const { existingTwin, additionalInput, originalInput } = body as unknown as TwinUpdateRequest
+  const { existingTwin, additionalInput, originalInput, contextAnswers } = body as unknown as TwinUpdateRequest
 
   if (additionalInput.length > MAX_INPUT_LENGTH) {
     return res.status(400).json({ error: `Additional Input ist zu lang. Maximal ${MAX_INPUT_LENGTH} Zeichen erlaubt.` })
   }
 
-  // Prüfe auf zu schwachen Input
-  if (isInsufficientUpdateInput(additionalInput)) {
+  // Prüfe auf zu schwachen Input (nur für manuelle Eingaben ohne Kontext-Antworten)
+  if (!contextAnswers?.length && isInsufficientUpdateInput(additionalInput)) {
     return res.status(400).json({
       error: 'Diese Ergänzung ist noch zu allgemein. Ergänze bitte eine konkrete neue Information (z.B. Budget, Frist, Entscheidung, Status).',
       errorType: 'insufficient_update_context'
@@ -344,7 +354,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const compactContext = buildCompactTwinContext(existingTwin)
-    const updatedAnalysis = await callOpenClawForUpdate(compactContext, additionalInput)
+    const updatedAnalysis = await callOpenClawForUpdate(compactContext, additionalInput, contextAnswers)
 
     const response = {
       analysis: updatedAnalysis,
