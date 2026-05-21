@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 const MAX_INPUT_LENGTH = 4000
-const BRIDGE_TIMEOUT_MS = 30000
+const BRIDGE_TIMEOUT_MS = 120000
 
 // Type definitions
 interface ProjectTwinAnalysis {
