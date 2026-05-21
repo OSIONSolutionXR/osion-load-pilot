@@ -75,17 +75,31 @@ function getTopLevelKeys(value: unknown): string[] {
 }
 
 function getAnalysisCandidate(responseData: unknown): ProjectTwinAnalysis | null {
-  if (isPlainObject(responseData) && isPlainObject(responseData.analysis)) 
+  if (!isPlainObject(responseData)) return null
+
+  // Format A: direkte analysis
+  if (isPlainObject(responseData.analysis) && responseData.analysis.project && responseData.analysis.nextMove) {
     return responseData.analysis as unknown as ProjectTwinAnalysis
-  if (isPlainObject(responseData) && isPlainObject(responseData.updatedTwin) && isPlainObject(responseData.updatedTwin.analysis)) {
+  }
+
+  // Format B: updatedTwin.analysis
+  if (isPlainObject(responseData.updatedTwin) && isPlainObject(responseData.updatedTwin.analysis)) {
     return (responseData.updatedTwin as { analysis?: ProjectTwinAnalysis }).analysis || null
   }
-  if (isPlainObject(responseData) && isPlainObject(responseData.result)) {
-    const result = responseData.result as Record<string, unknown>
-    if (isPlainObject(result.analysis)) return result.analysis as unknown as ProjectTwinAnalysis
-    if (isPlainObject(result.updatedTwin) && isPlainObject(result.updatedTwin.analysis)) 
-      return (result.updatedTwin as { analysis?: ProjectTwinAnalysis }).analysis || null
+
+  // Format C: result mit project/nextMove/quality
+  if (isPlainObject(responseData.result) && 
+      isPlainObject(responseData.result.project) && 
+      isPlainObject(responseData.result.nextMove) &&
+      isPlainObject(responseData.result.quality)) {
+    return responseData.result as unknown as ProjectTwinAnalysis
   }
+
+  // Format D: result.analysis (verschachtelt)
+  if (isPlainObject(responseData.result) && isPlainObject(responseData.result.analysis)) {
+    return responseData.result.analysis as unknown as ProjectTwinAnalysis
+  }
+
   return null
 }
 
@@ -237,10 +251,12 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
   if (!validateUpdateResponse(responseData)) {
     console.log('[TwinUpdate] invalid response', {
       topLevelKeys: getTopLevelKeys(responseData),
-      reason: 'missing analysis/updatedTwin/result wrapper'
+      hasResult: isPlainObject(responseData) && 'result' in responseData,
+      hasAnalysis: isPlainObject(responseData) && 'analysis' in responseData,
+      reason: 'Response format not recognized - expected {analysis}, {result}, or {updatedTwin}'
     })
     throw new TwinUpdateError(
-      'Ungültige Update-Antwort von der API.',
+      'Die Update-Antwort konnte nicht in den bestehenden Project Twin übernommen werden.',
       502,
       'invalid_response'
     )

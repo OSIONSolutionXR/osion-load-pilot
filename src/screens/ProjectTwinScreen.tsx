@@ -13,6 +13,7 @@ import ProjectHistoryPanel from '../components/twin/ProjectHistoryPanel'
 import { generateContextQuestions } from '../lib/contextQuestions'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
 import { updateProjectTwin, buildAdditionalInputFromAnswers, buildContextAnswers, type TwinUpdateResponse } from '../services/projectTwinUpdateApi'
+import { normalizeProjectTwinUpdateResponse, buildUpdatedTwinFromResult } from '../services/projectTwinUpdateNormalizer'
 
 interface ProjectTwinScreenProps {
   onBack: () => void
@@ -34,48 +35,22 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
     
     console.log('[buildUpdatedTwin] Response keys:', Object.keys(response))
     
-    // Versuche verschiedene Response-Formate
-    let returnedAnalysis = response.analysis
+    // Verwende den neuen Normalizer für robustes Response-Handling
+    const normalized = normalizeProjectTwinUpdateResponse(response, twin, additionalInput)
     
-    if (!returnedAnalysis && response.updatedTwin && typeof response.updatedTwin === 'object') {
-      returnedAnalysis = (response.updatedTwin as { analysis?: StoredProjectTwin['analysis'] }).analysis
-    }
-    
-    if (!returnedAnalysis) {
-      console.error('[buildUpdatedTwin] No analysis found in response')
+    if (!normalized) {
+      console.error('[buildUpdatedTwin] Normalizer returned null - invalid response format')
       return null
     }
-
-    const now = new Date().toISOString()
-    const progress = response.newProgress ?? response.progress ?? twin.progress
     
-    const updateEntry = {
-      id: `upd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      createdAt: now,
-      input: additionalInput,
-      summary: response.updateSummary || 'Project Twin geschärft.',
-      source: 'context_form' as const,
-      changedFields: response.changedFields || (response.meta?.fieldsModified || []).map((field) => ({ field, before: 'vorher', after: 'nachher' })),
-      previousProgressPercent: twin.progress.percent,
-      newProgressPercent: progress.percent,
-      previousNextMoveTitle: analysis.nextMove.title,
-      newNextMoveTitle: returnedAnalysis.nextMove.title
-    }
-
-    const updatedTwin = {
-      ...twin,
-      updatedAt: now,
-      latestInput: additionalInput.trim(),
-      analysis: returnedAnalysis,
-      progress: {
-        ...twin.progress,
-        percent: progress.percent,
-        stage: progress.stage as typeof twin.progress.stage,
-        updatedAt: now
-      },
-      updates: [...(twin.updates || []), updateEntry],
-      contextQuestions: []
-    }
+    console.log('[buildUpdatedTwin] Normalized result:', {
+      projectTitle: normalized.analysis.project.title,
+      confidence: normalized.analysis.quality.confidence,
+      newProgress: normalized.newProgress.percent
+    })
+    
+    // Baue den aktualisierten Twin
+    const updatedTwin = buildUpdatedTwinFromResult(normalized, twin, additionalInput)
     
     console.log('[buildUpdatedTwin] Success:', {
       newProgress: updatedTwin.progress.percent,

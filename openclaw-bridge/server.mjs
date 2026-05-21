@@ -116,10 +116,9 @@ async function handleUpdateProject(body, res) {
   if (body.additionalInput.length > MAX_INPUT_LENGTH) {
     return badRequest(res, `additionalInput too long. Max ${MAX_INPUT_LENGTH} chars.`)
   }
-
-  if (!body.compactTwinContext || typeof body.compactTwinContext !== 'object') {
-    return badRequest(res, 'compactTwinContext required')
-  }
+  const compactTwinContext = body.compactTwinContext && typeof body.compactTwinContext === 'object'
+    ? body.compactTwinContext
+    : buildCompactTwinContext(body.existingTwin)
 
   console.log('[Bridge] update-project-twin:', {
     additionalInputPreview: body.additionalInput.substring(0, 50),
@@ -127,7 +126,7 @@ async function handleUpdateProject(body, res) {
   })
   
   const result = await updateProjectTwin({
-    compactTwinContext: body.compactTwinContext,
+    compactTwinContext,
     additionalInput: body.additionalInput.trim(),
     originalInput: body.originalInput || '',
     contextAnswers: body.contextAnswers
@@ -135,6 +134,34 @@ async function handleUpdateProject(body, res) {
   
   return sendJson(res, 200, { result, meta: { source: 'openclaw-bridge', mode: 'openclaw-kimi', jobType: body.jobType } })
 }
+
+
+function buildCompactTwinContext(existingTwin) {
+  const analysis = existingTwin?.analysis || {}
+  const quality = analysis?.quality || {}
+  const limitArray = (value, max) => Array.isArray(value) ? value.slice(0, max) : []
+
+  return {
+    project: analysis.project || null,
+    nextMove: analysis.nextMove || null,
+    actors: limitArray(analysis.actors, 8),
+    dependencies: limitArray(analysis.dependencies, 8),
+    risks: limitArray(analysis.risks, 8),
+    scenarios: limitArray(analysis.scenarios, 5),
+    actions: limitArray(analysis.actions, 8),
+    quality: {
+      confidence: quality.confidence || null,
+      inputQuality: quality.inputQuality || null,
+      isActionable: typeof quality.isActionable === "boolean" ? quality.isActionable : null,
+      missingContext: Array.isArray(quality.missingContext) ? quality.missingContext : [],
+      reason: quality.reason || null
+    },
+    progress: existingTwin?.progress || null,
+    latestInput: existingTwin?.latestInput || null,
+    updates: Array.isArray(existingTwin?.updates) ? existingTwin.updates.slice(-3) : []
+  }
+}
+
 
 server.listen(PORT, HOST, () => {
   console.log(`OpenClaw bridge listening on http://${HOST}:${PORT}`)
