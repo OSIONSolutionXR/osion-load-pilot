@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { Sparkles, ChevronRight, HelpCircle, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Sparkles, ChevronRight, HelpCircle, CheckCircle2, AlertCircle, Loader2, RefreshCw } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import ContextQuestionInput from './ContextQuestionInput'
@@ -11,8 +11,11 @@ interface ContextQuestionsCardProps {
   questions: ProjectContextQuestion[]
   missingContext: string[]
   confidence: 'low' | 'medium' | 'high'
-  onSubmitAnswers?: (answers: Record<string, string>) => void
+  onSubmitAnswers?: (answers: Record<string, string>) => Promise<void> | void
   isPreview?: boolean
+  isUpdating?: boolean
+  updateError?: string | null
+  onRetry?: () => void
 }
 
 export default function ContextQuestionsCard({
@@ -20,10 +23,14 @@ export default function ContextQuestionsCard({
   missingContext,
   confidence,
   onSubmitAnswers,
-  isPreview = false
+  isPreview = false,
+  isUpdating = false,
+  updateError = null,
+  onRetry
 }: ContextQuestionsCardProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [hasSubmitted, setHasSubmitted] = useState(false)
   
   const displayQuestions = useMemo(() => questions.slice(0, 5), [questions])
   const hasMoreQuestions = questions.length > 5
@@ -40,19 +47,26 @@ export default function ContextQuestionsCard({
     }))
   }, [])
   
-  const handleSubmit = useCallback(() => {
-    if (!hasAnyAnswer) return
+  const handleSubmit = useCallback(async () => {
+    if (!hasAnyAnswer || isUpdating) return
     
-    // In Schritt 3: Nur lokal sammeln, noch nicht an Bridge senden
     if (showSuccessMessage) {
       // Reset für erneute Eingabe
       setShowSuccessMessage(false)
+      setHasSubmitted(false)
       setAnswers({})
+      onRetry?.()
     } else {
-      setShowSuccessMessage(true)
-      onSubmitAnswers?.(answers)
+      setHasSubmitted(true)
+      try {
+        await onSubmitAnswers?.(answers)
+        setShowSuccessMessage(true)
+      } catch {
+        // Fehler wird vom Parent gehandelt (updateError Prop)
+        setHasSubmitted(false)
+      }
     }
-  }, [answers, hasAnyAnswer, onSubmitAnswers, showSuccessMessage])
+  }, [answers, hasAnyAnswer, isUpdating, onSubmitAnswers, onRetry, showSuccessMessage])
 
   const getQuestionPriorityColor = (priority: string) => {
     switch (priority) {
@@ -60,6 +74,72 @@ export default function ContextQuestionsCard({
       case 'medium': return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
       default: return 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30'
     }
+  }
+  
+  // Wenn wir gerade aktualisieren, zeigen wir den Loading-State
+  if (isUpdating) {
+    return (
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="panel-card overflow-hidden p-8"
+      >
+        <div className="text-center py-8">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-500/20 to-[#ff006e]/20 border border-violet-500/30 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-violet-300 animate-spin" />
+          </div>
+          
+          <h4 className="text-lg font-semibold text-zinc-100 mb-2">
+            OSION schärft Deinen Project Twin
+          </h4>
+          
+          <p className="text-sm text-zinc-400 max-w-md mx-auto">
+            Deine Ergänzungen werden analysiert und in den bestehenden Twin integriert...
+          </p>
+        </div>
+      </motion.section>
+    )
+  }
+  
+  // Fehler-State
+  if (updateError && hasSubmitted) {
+    return (
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="panel-card overflow-hidden p-8"
+      >
+        <div className="text-center py-8">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-rose-500/20 to-rose-600/20 border border-rose-500/30 flex items-center justify-center">
+            <AlertCircle className="w-8 h-8 text-rose-400" />
+          </div>
+          
+          <h4 className="text-lg font-semibold text-zinc-100 mb-2">
+            Aktualisierung fehlgeschlagen
+          </h4>
+          
+          <p className="text-sm text-rose-400/80 max-w-md mx-auto mb-6">
+            {updateError}
+          </p>
+          
+          <p className="text-sm text-zinc-500 max-w-md mx-auto mb-6">
+            Der Project Twin wurde nicht verändert. Deine Antworten sind noch vorhanden.
+          </p>
+          
+          <Button
+            variant="primary"
+            onClick={() => {
+              setHasSubmitted(false)
+              onRetry?.()
+            }}
+            className="bg-gradient-to-r from-violet-600 to-violet-700"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Erneut versuchen
+          </Button>
+        </div>
+      </motion.section>
+    )
   }
   
   return (
@@ -118,12 +198,11 @@ export default function ContextQuestionsCard({
               </div>
               
               <h4 className="text-lg font-semibold text-zinc-100 mb-2">
-                Ergänzungen erfasst
+                Project Twin aktualisiert
               </h4>
               
               <p className="text-sm text-zinc-400 max-w-md mx-auto mb-6">
-                {answeredCount} {answeredCount === 1 ? 'Antwort' : 'Antworten'} gespeichert. 
-                Im nächsten Schritt kann Load Pilot Deinen Project Twin damit aktualisieren.
+                Deine Ergänzungen wurden übernommen. Der bestehende Project Twin wurde mit dem neuen Kontext geschärft.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -132,7 +211,8 @@ export default function ContextQuestionsCard({
                   onClick={handleSubmit}
                   className="bg-gradient-to-r from-violet-600 to-violet-700"
                 >
-                  Weitere Antworten hinzufügen
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Weitere Angaben hinzufügen
                 </Button>
               </div>
             </div>

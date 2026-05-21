@@ -9,7 +9,7 @@ import RefineContextModal from '../components/twin/RefineContextModal'
 import ProjectHistoryTimeline from '../components/twin/ProjectHistoryTimeline'
 import { generateContextQuestions } from '../lib/contextQuestions'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
-import { updateProjectTwin } from '../services/projectTwinUpdateApi'
+import { updateProjectTwin, buildAdditionalInputFromAnswers, buildContextAnswers } from '../services/projectTwinUpdateApi'
 
 interface ProjectTwinScreenProps {
   onBack: () => void
@@ -25,6 +25,129 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
   const [updateError, setUpdateError] = useState<string | null>(null)
   
   const analysis = twin?.analysis ?? null
+
+  // Schritt 4: Handler für Context-Update mit Antworten
+  const handleUpdateWithAnswers = useCallback(async (answers: Record<string, string>) => {
+    if (!twin || !analysis) return
+    
+    setIsUpdating(true)
+    setUpdateError(null)
+
+    try {
+      // Generiere Fragen für den Build
+      const questions = generateContextQuestions(
+        analysis.quality.missingContext,
+        twin.originalInput || '',
+        analysis.project.type
+      )
+      
+      // Baue additionalInput aus Antworten
+      const additionalInput = buildAdditionalInputFromAnswers(answers, questions)
+      const contextAnswers = buildContextAnswers(answers, questions)
+
+      const response = await updateProjectTwin({
+        existingTwin: analysis,
+        additionalInput,
+        originalInput: twin.originalInput || (twin as unknown as { sourceInput?: string }).sourceInput || '',
+        updateMode: 'refine_existing_twin',
+        contextAnswers,
+        previousUpdates: twin.updates,
+        currentProgress: twin.progress
+      })
+
+      // Berechne neuen Progress
+      const progressIncrease = calculateProgressIncrease(
+        analysis!.quality,
+        response.analysis.quality
+      )
+      const newProgress = {
+        ...twin.progress,
+        percent: Math.min(100, twin.progress.percent + progressIncrease),
+        stage: determineProgressStage(response.analysis.quality) as import('../types/projectTwinV2').ProgressStage,
+        updatedAt: new Date().toISOString()
+      }
+
+      // Erstelle Update-Eintrag
+      const updateEntry = {
+        id: `upd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        createdAt: new Date().toISOString(),
+        input: additionalInput,
+        summary: response.updateSummary || `Project Twin geschärft: ${response.meta.fieldsModified.join(', ')}`,
+        source: 'context_form' as const,
+        changedFields: response.changedFields || response.meta.fieldsModified.map(field => ({
+          field,
+          before: 'vorher',
+          after: 'nachher'
+        })),
+        previousProgressPercent: twin.progress.percent,
+        newProgressPercent: newProgress.percent,
+        previousNextMoveTitle: analysis!.nextMove.title,
+        newNextMoveTitle: response.analysis.nextMove.title
+      }
+
+      // Erstelle aktualisierten Twin
+      const updatedTwin: StoredProjectTwin = {
+        ...twin,
+        updatedAt: new Date().toISOString(),
+        latestInput: additionalInput.trim(),
+        analysis: response.analysis,
+        progress: newProgress,
+        updates: [...twin.updates, updateEntry],
+        // Aktualisiere Kontextfragen - entferne beantwortete
+        contextQuestions: questions.map(q => ({
+          ...q,
+          answer: answers[q.id] || q.answer,
+          status: answers[q.id] ? 'answered' as const : q.status,
+          answeredAt: answers[q.id] ? new Date().toISOString() : q.answeredAt
+        }))
+      }
+
+      onTwinUpdate?.(updatedTwin)
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : 'Update fehlgeschlagen')
+      throw err // Re-throw für ContextQuestionsCard
+    } finally {
+      setIsUpdating(false)
+    }
+  }, [twin, analysis, onTwinUpdate])
+
+  // Hilfsfunktion: Progress-Zuwachs berechnen
+  function calculateProgressIncrease(
+    oldQuality: NonNullable<typeof analysis>['quality'],
+    newQuality: NonNullable<typeof analysis>['quality']
+  ): number {
+    let increase = 0
+    
+    // Confidence-Steigerung
+    const confidenceMap = { low: 0, medium: 1, high: 2 }
+    const oldConf = confidenceMap[oldQuality.confidence]
+    const newConf = confidenceMap[newQuality.confidence]
+    if (newConf > oldConf) {
+      increase += 10 * (newConf - oldConf)
+    }
+    
+    // Missing Context reduziert
+    const contextReduction = oldQuality.missingContext.length - newQuality.missingContext.length
+    if (contextReduction > 0) {
+      increase += 10 * contextReduction
+    }
+    
+    // Cap auf maximal 25 pro Update
+    return Math.min(25, increase)
+  }
+
+  // Hilfsfunktion: Progress-Stage bestimmen
+  function determineProgressStage(
+    quality: NonNullable<typeof analysis>['quality']
+  ): string {
+    if (quality.confidence === 'high' && quality.missingContext.length === 0) {
+      return 'clarified'
+    }
+    if (quality.confidence !== 'low' && quality.missingContext.length < 3) {
+      return 'needs_context'
+    }
+    return 'created'
+  }
 
   const handleRefineSubmit = useCallback(async (additionalInput: string) => {
     if (!twin || !analysis) return
@@ -257,11 +380,10 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
           )}
           missingContext={quality.missingContext}
           confidence={quality.confidence}
-          onSubmitAnswers={(answers) => {
-            // Schritt 3: Nur lokal sammeln, noch nicht an Bridge senden
-            console.log('[ContextQuestionsCard] Antworten gesammelt:', answers)
-            // In Schritt 4: Hier wird die Bridge-Anfrage eingebaut
-          }}
+          onSubmitAnswers={handleUpdateWithAnswers}
+          isUpdating={isUpdating}
+          updateError={updateError}
+          onRetry={() => setUpdateError(null)}
         />
       )}
 
