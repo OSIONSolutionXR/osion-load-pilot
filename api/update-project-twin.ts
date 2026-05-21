@@ -485,7 +485,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         error: 'analysis_extraction_failed',
         message: 'Keine gültige Analyse aus Bridge-Response extrahiert.',
         stage,
-        debug: extractDebug
+        debug: {
+          ...extractDebug,
+          bridgeResponsePreview: JSON.stringify(bridgeJson).substring(0, 800)
+        }
       })
     }
 
