@@ -27,10 +27,6 @@ function isNullableString(value) {
   return value === null || typeof value === 'string'
 }
 
-function isStringArray(value) {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string')
-}
-
 function isEnum(value, allowed) {
   return typeof value === 'string' && allowed.includes(value)
 }
@@ -47,19 +43,6 @@ function containsDisallowedFallbackPhrase(value) {
   return DISALLOWED_FALLBACK_PHRASES.some((phrase) => value.includes(phrase))
 }
 
-function normalizeMissingContext(values) {
-  const seen = new Set()
-  return values
-    .map((value) => cleanString(value))
-    .filter((value) => value.length > 0)
-    .filter((value) => {
-      const key = value.toLowerCase()
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-}
-
 function isClearlyInsufficientInput(input) {
   const trimmed = input.trim()
   if (!trimmed) return true
@@ -68,14 +51,6 @@ function isClearlyInsufficientInput(input) {
   if (/^(abc|test|hallo|hello|hi|123|\?+|auto)$/iu.test(trimmed)) return true
   if (trimmed.split(/\s+/).length === 1 && trimmed.length < 10) return true
   return false
-}
-
-function isGoalOrientedUsableInput(input) {
-  const trimmed = input.trim()
-  if (isClearlyInsufficientInput(trimmed)) return false
-  const wordCount = trimmed.split(/\s+/).filter(Boolean).length
-  if (wordCount < 4) return false
-  return /(ich\s+(will|möchte)|wir\s+(wollen|möchten)|ich\s+plane|ich\s+brauche)/iu.test(trimmed)
 }
 
 function detectDomainFromInput(input) {
@@ -87,140 +62,65 @@ function detectDomainFromInput(input) {
   return 'internal_project'
 }
 
-function buildUsableGoalAnalysis(input) {
-  const domain = detectDomainFromInput(input)
-  const normalized = input.toLowerCase()
+// Kompakte Twin-Zusammenfassung für Updates bauen
+function buildCompactTwinContext(existingTwin) {
+  if (!existingTwin) return {}
 
-  if (domain === 'private_purchase' && /(auto|fahrzeug)/u.test(normalized)) {
-    return {
-      project: {
-        title: 'Autokauf vorbereiten',
-        description:
-          'Der Kauf eines Autos soll strukturiert vorbereitet werden, damit Budget, Anforderungen, Finanzierung und Vergleichsoptionen vor der Entscheidung sauber definiert sind.',
-        type: 'private_purchase',
-        status: 'active'
-      },
-      nextMove: {
-        title: 'Budget, Fahrzeuganforderungen und Kaufrahmen festlegen',
-        reason:
-          'Der Input beschreibt ein klares Ziel, aber noch keine Rahmenbedingungen. Der erste wirksame Schritt ist daher die Eingrenzung von Budget, Nutzungsprofil, Fahrzeugtyp, Zahlungsweise und Zeitrahmen.',
-        effort: 'low',
-        impact: 'high',
-        deadline: null
-      },
-      actors: [
-        { name: 'Käufer', role: 'Entscheider', influence: 'high', waitingFor: null },
-        { name: 'Verkäufer/Händler', role: 'Anbieter', influence: 'medium', waitingFor: null },
-        { name: 'Versicherung', role: 'Kostenfaktor', influence: 'medium', waitingFor: null },
-        { name: 'Finanzierungspartner', role: 'Kapitalgeber', influence: 'medium', waitingFor: 'Finanzierungsanfrage' }
-      ],
-      dependencies: [
-        { from: 'Budgetrahmen', to: 'Fahrzeugauswahl', status: 'required', isBlocker: true, explanation: 'Ohne Budget keine sinnvolle Vorauswahl.' },
-        { from: 'Nutzungsprofil', to: 'Fahrzeugtyp', status: 'required', isBlocker: true, explanation: 'Das Einsatzprofil bestimmt den geeigneten Fahrzeugtyp.' },
-        { from: 'Zahlungsweise', to: 'Verhandlungsstrategie', status: 'required', isBlocker: false, explanation: 'Barzahlung oder Finanzierung verändert Verhandlung und Optionen.' },
-        { from: 'Versicherungskosten', to: 'Gesamtkosten', status: 'required', isBlocker: false, explanation: 'Laufende Kosten beeinflussen die reale Tragbarkeit.' },
-        { from: 'Probefahrt/Prüfung', to: 'Kaufentscheidung', status: 'required', isBlocker: true, explanation: 'Technischer und praktischer Check reduziert Fehlkäufe.' }
-      ],
-      risks: [
-        { title: 'Impulskauf', severity: 'medium', explanation: 'Schnelle Entscheidung ohne Kriterien führt oft zu Fehlentscheidungen.' },
-        { title: 'Unterschätzte Gesamtkosten', severity: 'high', explanation: 'Versicherung, Wartung und Betrieb werden häufig zu niedrig angesetzt.' },
-        { title: 'Unpassendes Fahrzeug', severity: 'high', explanation: 'Fahrzeug passt nicht zum tatsächlichen Nutzungsprofil.' },
-        { title: 'Finanzierung nicht geprüft', severity: 'medium', explanation: 'Späte Klärung kann Kaufoptionen und Fristen gefährden.' },
-        { title: 'Keine Vergleichsangebote', severity: 'medium', explanation: 'Fehlender Marktvergleich erhöht das Risiko für einen schlechten Preis.' }
-      ],
-      scenarios: [],
-      actions: [
-        { title: 'Budgetrahmen festlegen', owner: 'Käufer', priority: 'high', messageDraft: null },
-        { title: 'Muss-Kriterien definieren', owner: 'Käufer', priority: 'high', messageDraft: null },
-        { title: 'Zahlungsweise klären', owner: 'Käufer', priority: 'medium', messageDraft: null },
-        { title: 'Vergleichsangebote sammeln', owner: 'Käufer', priority: 'high', messageDraft: null },
-        { title: 'Versicherungskosten prüfen', owner: 'Käufer', priority: 'medium', messageDraft: null }
-      ],
-      quality: {
-        inputQuality: 'usable',
-        isActionable: true,
-        confidence: 'medium',
-        missingContext: ['Budget', 'Nutzungsprofil', 'Fahrzeugtyp', 'Zahlungsweise', 'Zeitrahmen'],
-        reason: 'Klares Ziel vorhanden; Kontext für eine präzise Umsetzung muss im nächsten Schritt ergänzt werden.'
-      }
-    }
-  }
-
-  return {
+  // Nur die wesentlichen Felder extrahieren
+  const compact = {
     project: {
-      title: 'Ziel strukturiert umsetzen',
-      description: `Das Ziel "${input.trim()}" ist erkennbar und wird in eine umsetzbare Projektstruktur überführt.`,
-      type: domain,
-      status: 'active'
+      title: existingTwin.project?.title || '',
+      description: existingTwin.project?.description?.substring(0, 500) || '',
+      type: existingTwin.project?.type || 'internal_project',
+      status: existingTwin.project?.status || 'active'
     },
     nextMove: {
-      title: 'Zielbild und Rahmenbedingungen konkretisieren',
-      reason: 'Das Ziel ist klar, aber für belastbare Entscheidungen fehlen konkrete Rahmenparameter.',
-      effort: 'low',
-      impact: 'high',
-      deadline: null
+      title: existingTwin.nextMove?.title || '',
+      reason: existingTwin.nextMove?.reason?.substring(0, 300) || '',
+      effort: existingTwin.nextMove?.effort || 'low',
+      impact: existingTwin.nextMove?.impact || 'medium'
     },
-    actors: [{ name: 'Auftraggeber', role: 'Entscheider', influence: 'high', waitingFor: null }],
-    dependencies: [],
-    risks: [{ title: 'Unklare Prioritäten', severity: 'medium', explanation: 'Ohne klare Rahmenbedingungen entstehen Verzögerungen und Fehlfokus.' }],
-    scenarios: [],
-    actions: [
-      { title: 'Zielkriterien festlegen', owner: 'Auftraggeber', priority: 'high', messageDraft: null },
-      { title: 'Randbedingungen klären', owner: 'Auftraggeber', priority: 'high', messageDraft: null },
-      { title: 'Nächsten Umsetzungsschritt terminieren', owner: 'Auftraggeber', priority: 'medium', messageDraft: null }
-    ],
+    actors: (existingTwin.actors || []).slice(0, 5).map(a => ({ name: a.name, role: a.role })),
+    dependencies: (existingTwin.dependencies || []).slice(0, 5).map(d => ({ from: d.from, to: d.to, isBlocker: d.isBlocker })),
+    risks: (existingTwin.risks || []).slice(0, 5).map(r => ({ title: r.title, severity: r.severity })),
+    actions: (existingTwin.actions || []).slice(0, 5).map(a => ({ title: a.title, priority: a.priority })),
     quality: {
-      inputQuality: 'usable',
-      isActionable: true,
-      confidence: 'low',
-      missingContext: ['Rahmenbedingungen', 'Zeitrahmen', 'Erfolgskriterien'],
-      reason: 'Der Input ist grob, aber projektfähig und kann strukturiert weitergeführt werden.'
+      confidence: existingTwin.quality?.confidence || 'low',
+      missingContext: (existingTwin.quality?.missingContext || []).slice(0, 10)
     }
   }
+
+  return compact
 }
 
-function buildInsufficientAnalysis(input, reason) {
-  const missingContext = ['Ziel', 'gewünschtes Ergebnis', 'offene Entscheidung', 'beteiligte Personen', 'Frist']
+// Prüfe ob Update-Input zu schwach ist
+function isInsufficientUpdateInput(additionalInput) {
+  const trimmed = additionalInput.trim()
+  if (trimmed.length < 10) return true
+  if (/^(test|abc|123|asdf|xyz|nein|ja|ok|nope|maybe)$/iu.test(trimmed)) return true
+  const wordCount = trimmed.split(/\s+/).filter(Boolean).length
+  if (wordCount < 3) return true
+  // Prüfe auf generische Antworten ohne konkrete Information
+  const concreteWords = /\b(budget|kosten|euro|€|termin|frist|datum|monat|woche|tag|entscheid|ja|nein|vielleicht|später|früher|mehr|weniger|neu|alt)\b/gi
+  if (!concreteWords.test(trimmed) && wordCount < 5) return true
+  return false
+}
 
-  return {
-    project: {
-      title: 'Projektlage unvollständig',
-      description: 'Bitte ergänze Ziel, gewünschtes Ergebnis, offene Entscheidung, beteiligte Personen und Frist.',
-      type: 'clarification',
-      status: 'waiting'
-    },
-    nextMove: {
-      title: 'Input gezielt ergänzen',
-      reason: reason || 'Der Input ist noch nicht konkret genug für eine belastbare Analyse.',
-      effort: 'low',
-      impact: 'high',
-      deadline: null
-    },
-    actors: [],
-    dependencies: [],
-    risks: [],
-    scenarios: [],
-    actions: [
-      {
-        title: 'Projektlage konkretisieren',
-        owner: 'Marcel',
-        priority: 'high',
-        messageDraft: 'Beschreibe Ziel, Problem, offene Entscheidung, beteiligte Personen und Frist in 2 bis 5 Sätzen.'
-      }
-    ],
-    quality: {
-      inputQuality: 'insufficient',
-      isActionable: false,
-      confidence: 'low',
-      missingContext,
-      reason: reason || 'Der Input ist noch nicht konkret genug für eine belastbare Analyse.'
-    },
-    meta: {
-      domain: 'unclear',
-      analysisMode: 'quality-gate',
-      promptVersion: PROMPT_VERSION,
-      generatedAt: new Date().toISOString()
-    }
+function validateAnalysis(data) {
+  if (!isObject(data)) return false
+  if (!isObject(data.project) || !isObject(data.nextMove)) return false
+
+  return (
+    isString(data.project.title) &&
+    isString(data.project.description) &&
+    isEnum(data.project.status, ['active', 'blocked', 'waiting', 'parked'])
+  )
+}
+
+function assertNoGenericOutput(analysis) {
+  const allText = JSON.stringify(analysis).toLowerCase()
+  if (containsDisallowedFallbackPhrase(allText)) {
+    throw new Error('Analysis contains generic fallback phrases')
   }
 }
 
@@ -235,31 +135,14 @@ Nicht jeden kurzen Input als Müll werten. Ein klarer Zielsatz ist speicherfähi
 
 Schema:
 {
-  "project": {
-    "title": "string",
-    "description": "string",
-    "type": "private_purchase|financing|hospitality_growth|sales|operations|internal_project|unclear|clarification",
-    "status": "active|blocked|waiting|parked"
-  },
-  "nextMove": {
-    "title": "string",
-    "reason": "string",
-    "effort": "low|medium|high",
-    "impact": "low|medium|high",
-    "deadline": "string|null"
-  },
+  "project": { "title": "string", "description": "string", "type": "string", "status": "active|blocked|waiting|parked" },
+  "nextMove": { "title": "string", "reason": "string", "effort": "low|medium|high", "impact": "low|medium|high", "deadline": "string|null" },
   "actors": [{"name": "string", "role": "string", "influence": "low|medium|high", "waitingFor": "string|null"}],
   "dependencies": [{"from": "string", "to": "string", "status": "required|blocked|waiting|done", "isBlocker": true, "explanation": "string"}],
   "risks": [{"title": "string", "severity": "low|medium|high", "explanation": "string"}],
   "scenarios": [{"title": "string", "outcome": "string", "riskLevel": "low|medium|high", "recommendation": "string"}],
   "actions": [{"title": "string", "owner": "string", "priority": "low|medium|high", "messageDraft": "string|null"}],
-  "quality": {
-    "inputQuality": "insufficient|usable|strong",
-    "isActionable": true,
-    "confidence": "low|medium|high",
-    "missingContext": ["string"],
-    "reason": "string"
-  }
+  "quality": { "inputQuality": "insufficient|usable|strong", "isActionable": true, "confidence": "low|medium|high", "missingContext": ["string"], "reason": "string" }
 }
 
 Nutzereingang: ${input}
@@ -271,23 +154,8 @@ Antworte ausschließlich mit validem JSON ohne Markdown.`
   try {
     const { stdout } = await execFileAsync(
       'openclaw',
-      [
-        'infer',
-        'model',
-        'run',
-        '--gateway',
-        '--model',
-        'ollama/kimi-k2.5:cloud',
-        '--prompt',
-        fullPrompt,
-        '--thinking',
-        'off',
-        '--json'
-      ],
-      {
-        timeout: REQUEST_TIMEOUT_MS,
-        maxBuffer: 10 * 1024 * 1024
-      }
+      ['infer', 'model', 'run', '--gateway', '--model', 'ollama/kimi-k2.5:cloud', '--prompt', fullPrompt, '--thinking', 'off', '--json'],
+      { timeout: REQUEST_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 }
     )
 
     const envelope = JSON.parse(stdout)
@@ -298,106 +166,17 @@ Antworte ausschließlich mit validem JSON ohne Markdown.`
 
     return JSON.parse(stripJsonFences(content))
   } catch (error) {
-    if (error?.code === 'ETIMEDOUT') {
-      throw new Error('OpenClaw infer timeout')
+    if (error?.code === 'ETIMEDOUT' || error?.message?.includes('timeout')) {
+      throw new Error('TIMEOUT: OpenClaw infer timed out')
     }
     throw new Error(error instanceof Error ? error.message : 'OpenClaw infer failed')
   }
 }
 
-function validateAnalysis(data) {
-  if (!isObject(data)) return false
-  if (!isObject(data.project) || !isObject(data.nextMove)) return false
-  if (!Array.isArray(data.actors) || !Array.isArray(data.dependencies) || !Array.isArray(data.risks) || !Array.isArray(data.scenarios) || !Array.isArray(data.actions)) return false
-
-  const validProject =
-    isString(data.project.title) &&
-    isString(data.project.description) &&
-    isString(data.project.type) &&
-    isEnum(data.project.status, ['active', 'blocked', 'waiting', 'parked'])
-
-  const validNextMove =
-    isString(data.nextMove.title) &&
-    isString(data.nextMove.reason) &&
-    isEnum(data.nextMove.effort, ['low', 'medium', 'high']) &&
-    isEnum(data.nextMove.impact, ['low', 'medium', 'high']) &&
-    isNullableString(data.nextMove.deadline)
-
-  const validActors = data.actors.every((actor) =>
-    isObject(actor) &&
-    isString(actor.name) &&
-    isString(actor.role) &&
-    isEnum(actor.influence, ['low', 'medium', 'high']) &&
-    isNullableString(actor.waitingFor)
-  )
-
-  const validDependencies = data.dependencies.every((dep) =>
-    isObject(dep) &&
-    isString(dep.from) &&
-    isString(dep.to) &&
-    isEnum(dep.status, ['required', 'blocked', 'waiting', 'done']) &&
-    typeof dep.isBlocker === 'boolean' &&
-    isString(dep.explanation)
-  )
-
-  const validRisks = data.risks.every((risk) =>
-    isObject(risk) &&
-    isString(risk.title) &&
-    isEnum(risk.severity, ['low', 'medium', 'high']) &&
-    isString(risk.explanation)
-  )
-
-  const validScenarios = data.scenarios.every((sc) =>
-    isObject(sc) &&
-    isString(sc.title) &&
-    isString(sc.outcome) &&
-    isEnum(sc.riskLevel, ['low', 'medium', 'high']) &&
-    isString(sc.recommendation)
-  )
-
-  const validActions = data.actions.every((action) =>
-    isObject(action) &&
-    isString(action.title) &&
-    isString(action.owner) &&
-    isEnum(action.priority, ['low', 'medium', 'high']) &&
-    (!('messageDraft' in action) || isNullableString(action.messageDraft))
-  )
-
-  return validProject && validNextMove && validActors && validDependencies && validRisks && validScenarios && validActions
-}
-
-function assertNoGenericOutput(analysis) {
-  const allText = JSON.stringify(analysis).toLowerCase()
-  
-  if (containsDisallowedFallbackPhrase(allText)) {
-    throw new Error('Analysis contains generic fallback phrases')
-  }
-
-  if (analysis.project?.title === 'Projektlage mit mehreren offenen Punkten') {
-    throw new Error('Analysis contains generic project title')
-  }
-
-  if (analysis.nextMove?.title === 'Top-1-Hebel festlegen' || analysis.nextMove?.title === 'Den unmittelbarsten Geld- oder Blockerhebel zuerst bewegen') {
-    throw new Error('Analysis contains generic next move')
-  }
-}
-
 export async function analyzeProjectInput(input) {
   const trimmed = input.trim()
-
-  if (!trimmed) {
-    throw new Error('Input missing')
-  }
-
-  if (trimmed.length > MAX_INPUT_LENGTH) {
-    throw new Error(`Input too long. Max ${MAX_INPUT_LENGTH} chars.`)
-  }
-
-  if (isClearlyInsufficientInput(trimmed)) {
-    return buildInsufficientAnalysis(trimmed, 'Der Input ist zu kurz oder zu unbestimmt, um daraus einen Project Twin abzuleiten.')
-  }
-
-  const goalUsableInput = isGoalOrientedUsableInput(trimmed)
+  if (!trimmed) throw new Error('Input missing')
+  if (trimmed.length > MAX_INPUT_LENGTH) throw new Error(`Input too long. Max ${MAX_INPUT_LENGTH} chars.`)
 
   try {
     const prompt = 'Erstelle einen konkreten Project Twin basierend auf dem Nutzereingang. Alle Details müssen zum Input passen.'
@@ -409,26 +188,8 @@ export async function analyzeProjectInput(input) {
 
     assertNoGenericOutput(analysis)
 
-    if (goalUsableInput && (!analysis.quality || analysis.quality.inputQuality === 'insufficient' || analysis.quality.isActionable !== true)) {
-      const forcedUsable = buildUsableGoalAnalysis(trimmed)
-      return {
-        ...forcedUsable,
-        meta: {
-          domain: forcedUsable.project.type,
-          analysisMode: 'openclaw-kimi',
-          promptVersion: PROMPT_VERSION,
-          generatedAt: new Date().toISOString()
-        }
-      }
-    }
-
-    const enriched = {
+    return {
       ...analysis,
-      quality: {
-        ...analysis.quality,
-        inputQuality: goalUsableInput ? (analysis.quality?.inputQuality === 'strong' ? 'strong' : 'usable') : analysis.quality?.inputQuality,
-        isActionable: goalUsableInput ? true : analysis.quality?.isActionable
-      },
       meta: {
         domain: analysis.project?.type || 'unclear',
         analysisMode: 'openclaw-kimi',
@@ -436,87 +197,65 @@ export async function analyzeProjectInput(input) {
         generatedAt: new Date().toISOString()
       }
     }
-
-    return enriched
   } catch (error) {
     console.error('Analysis failed:', error.message)
-    
-    if (isClearlyInsufficientInput(trimmed)) {
-      return buildInsufficientAnalysis(trimmed, error.message)
-    }
-    
     throw new Error(`Analysis unavailable: ${error.message}`)
   }
 }
 
-// ==================== UPDATE / REFINEMENT ====================
+// ==================== UPDATE / REFINEMENT (VEREINFACHT) ====================
 
 const UPDATE_PROMPT = `Du bist OSION Load Pilot im UPDATE-Modus.
 
-Deine Aufgabe: Aktualisiere einen bestehenden Project Twin basierend auf zusätzlichem Kontext vom Nutzer.
+AUFGABE: Aktualisiere einen bestehenden Project Twin mit neuem Kontext.
 
 WICHTIGE REGELN:
 1. Bewahre den bestehenden Twin als Basis - verwerfe NICHT alles
 2. Integriere den neuen Kontext INTELLIGENT
 3. Aktualisiere das Next Move, wenn der neue Kontext dies rechtfertigt
 4. Erhöhe confidence (low→medium→high), wenn wichtige Lücken geschlossen wurden
-5. Reduziere missingContext für geklärte Punkte - füge sie NICHT doppelt hinzu
-6. Füge neue Akteure hinzu, wenn sie im neuen Kontext erwähnt werden
-7. Passe Risiken an, wenn neue Informationen die Risikolage verändern
-8. Aktualisiere Abhängigkeiten bei neuen Blockern oder Pfaden
-9. Projekt-Titel und Beschreibung sollten PRÄZISER werden, nicht austauschbar
-10. Die Aktualisierung sollte SUBSTANTIELL sein - nicht nur kosmetisch
+5. Reduziere missingContext für geklärte Punkte
+6. Füge neue Akteure/Risiken/Aktionen nur hinzu, wenn sie im neuen Kontext erwähnt werden
+7. Antworte mit dem KOMPLETTEN aktualisierten ProjectTwinAnalysis-Schema
 
 VERHALTEN BEI CONFIDENCE:
-- Wenn vorher "low" und jetzt mehr Kontext da ist → "medium" oder "high"
-- Wenn vorher "medium" und wichtige Lücken geschlossen → "high"
+- "low" → "medium" oder "high", wenn wichtige Lücken geschlossen
 - Nur "low" behalten, wenn noch kritische Informationen fehlen
 
-VERHALTEN BEI missingContext:
-- Entferne geklärte Punkte (z.B. "Budget" wenn Budget jetzt bekannt)
-- Behalte ungeklärte Punkte bei
-- Füge nur hinzu, wenn NEUE Lücken entstehen
+Antworte NUR mit validem JSON im vollständigen ProjectTwinAnalysis-Schema. Keine Markdown-Fences.`
 
-Antworte NUR mit validem JSON, keine Markdown-Fences.`
+async function callOpenClawGatewayForUpdate(compactTwinContext, additionalInput) {
+  // Prüfe auf zu schwachen Update-Input
+  if (isInsufficientUpdateInput(additionalInput)) {
+    throw new Error('INSUFFICIENT_UPDATE: Die Ergänzung ist noch zu allgemein. Bitte ergänze eine konkrete Information (z.B. Budget, Frist, Entscheidung, Status).')
+  }
 
-async function callOpenClawGatewayForUpdate(existingTwin, additionalInput, originalInput) {
-  const contextPrompt = `BESTEHENDER PROJECT TWIN:
-${JSON.stringify(existingTwin, null, 2)}
-
-URSPRÜNGLICHER INPUT: "${originalInput}"
-
-ZUSÄTZLICHER KONTEXT: "${additionalInput}"
-
-INSTRUKTION:
-Aktualisiere den Project Twin. Integriere den zusätzlichen Kontext intelligent.
-Bewahre das Nützliche, verbessere das Verwertbare.
-
-Antworte mit validem JSON im ProjectTwinAnalysis-Schema.`
+  const contextPrompt = [
+    'AUFGABE: Aktualisiere einen bestehenden OSION Project Twin mit neuem Kontext.',
+    '',
+    'BESTEHENDER PROJECT TWIN (Kompakt):',
+    JSON.stringify(compactTwinContext, null, 2),
+    '',
+    'NEUER KONTEXT:',
+    additionalInput.trim(),
+    '',
+    UPDATE_PROMPT
+  ].join('\n')
 
   try {
     const { stdout } = await execFileAsync(
       'openclaw',
-      [
-        'infer',
-        'model',
-        'run',
-        '--gateway',
-        '--model',
-        'ollama/kimi-k2.5:cloud',
-        '--prompt',
-        contextPrompt,
-        '--thinking',
-        'off',
-        '--json'
-      ],
-      {
-        timeout: REQUEST_TIMEOUT_MS,
-        maxBuffer: 1024 * 1024,
-        encoding: 'utf8'
-      }
+      ['infer', 'model', 'run', '--gateway', '--model', 'ollama/kimi-k2.5:cloud', '--prompt', contextPrompt, '--thinking', 'off', '--json'],
+      { timeout: REQUEST_TIMEOUT_MS, maxBuffer: 1024 * 1024, encoding: 'utf8' }
     )
 
-    const cleaned = stripJsonFences(stdout.trim())
+    const envelope = JSON.parse(stdout)
+    const content = envelope?.outputs?.[0]?.text
+    if (!content || typeof content !== 'string') {
+      throw new Error('Invalid OpenClaw infer response structure')
+    }
+
+    const cleaned = stripJsonFences(content.trim())
     let parsed
     try {
       parsed = JSON.parse(cleaned)
@@ -532,12 +271,15 @@ Antworte mit validem JSON im ProjectTwinAnalysis-Schema.`
 
     return parsed
   } catch (error) {
-    throw new Error(`OpenClaw Gateway Error: ${error.message}`)
+    if (error?.code === 'ETIMEDOUT' || error?.message?.includes('timeout') || error?.message?.includes('TIMEOUT')) {
+      throw new Error('TIMEOUT: OpenClaw infer timed out - Die Aktualisierung hat zu lange gedauert. Bitte versuche es mit weniger Text oder konkreteren Angaben erneut.')
+    }
+    throw error
   }
 }
 
 export async function updateProjectTwin({ existingTwin, additionalInput, originalInput }) {
-  const trimmedAdditional = additionalInput.trim()
+  const trimmedAdditional = additionalInput?.trim()
 
   if (!trimmedAdditional) {
     throw new Error('Additional input missing')
@@ -548,26 +290,22 @@ export async function updateProjectTwin({ existingTwin, additionalInput, origina
   }
 
   try {
-    const updatedAnalysis = await callOpenClawGatewayForUpdate(
-      existingTwin,
-      trimmedAdditional,
-      originalInput
-    )
+    // Kompakte Zusammenfassung bauen
+    const compactContext = buildCompactTwinContext(existingTwin)
 
-    // Ensure meta information is updated
-    const enriched = {
+    const updatedAnalysis = await callOpenClawGatewayForUpdate(compactContext, trimmedAdditional)
+
+    return {
       ...updatedAnalysis,
       meta: {
-        domain: updatedAnalysis.project?.type || existingTwin.project?.type || 'unclear',
+        domain: updatedAnalysis.project?.type || existingTwin?.project?.type || 'unclear',
         analysisMode: 'openclaw-kimi',
         promptVersion: PROMPT_VERSION,
         generatedAt: new Date().toISOString()
       }
     }
-
-    return enriched
   } catch (error) {
     console.error('Update failed:', error.message)
-    throw new Error(`Update unavailable: ${error.message}`)
+    throw error
   }
 }
