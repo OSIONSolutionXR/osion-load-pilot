@@ -144,6 +144,7 @@ export function createStoredProjectTwin(
     generatedSolutions: [],
     chatHistory: [],
     futureSimulation: undefined,
+    attentionQueue: [],
     meta: {
       ...meta,
       source: 'analysis',

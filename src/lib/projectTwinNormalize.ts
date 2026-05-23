@@ -163,6 +163,7 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
     generatedSolutions,
     chatHistory,
     futureSimulation: twin.futureSimulation,
+    attentionQueue: twin.attentionQueue || [],
     meta: {
       ...meta,
       source: meta.source || 'analysis',
@@ -228,6 +229,7 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     generatedSolutions: [],
     chatHistory: [],
     futureSimulation: undefined,
+    attentionQueue: [],
     meta
   }
 }

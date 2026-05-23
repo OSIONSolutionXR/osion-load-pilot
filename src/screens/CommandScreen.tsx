@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { 
   Zap, AlertTriangle, Clock, Target, ArrowRight, Plus, Activity, 
@@ -7,6 +7,13 @@ import {
 } from 'lucide-react'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
 import type { Measure, MeasureStatus, MeasurePriority } from '../types/measures'
+import type { AttentionQueueItem } from '../types/projectTwinV2'
+import AttentionQueueDetailModal from '../components/queue/AttentionQueueDetailModal'
+import { 
+  updateAttentionQueueItemStatus,
+  updateAttentionQueueItemNotes,
+  loadAttentionQueue
+} from '../lib/attentionQueueStore'
 import { 
   normalizeMeasures, 
   sortMeasuresByPriority, 
@@ -29,6 +36,18 @@ interface CommandScreenProps {
 export default function CommandScreen({ twins, onOpenTwin, onNewInput }: CommandScreenProps) {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [selectedMeasure, setSelectedMeasure] = useState<Measure | null>(null)
+  const [selectedQueueItem, setSelectedQueueItem] = useState<AttentionQueueItem | null>(null)
+  const [queueItemsMap, setQueueItemsMap] = useState<Record<string, AttentionQueueItem>>(() => {
+    // Lade alle gespeicherten Queue Items für alle Twins
+    const map: Record<string, AttentionQueueItem> = {}
+    twins.forEach(twin => {
+      const items = loadAttentionQueue(twin.id)
+      items.forEach(item => {
+        map[item.id] = item
+      })
+    })
+    return map
+  })
 
   const allTwins = twins
   const hasTwins = allTwins.length > 0
@@ -84,8 +103,31 @@ export default function CommandScreen({ twins, onOpenTwin, onNewInput }: Command
   const attentionQueue = useMemo(() => {
     return sortMeasuresByPriority(
       allMeasures.filter(m => m.status !== 'done' && m.status !== 'discarded')
-    ).slice(0, 5)
-  }, [allMeasures])
+    ).slice(0, 5).map(measure => {
+      // Konvertiere Measure zu AttentionQueueItem
+      const existingItem = queueItemsMap[measure.id]
+      const item: AttentionQueueItem = {
+        id: measure.id,
+        twinId: measure.projectId,
+        title: measure.title,
+        description: measure.description,
+        projectTitle: measure.projectTitle,
+        severity: measure.priority === 'critical' ? 'critical' : 
+                   measure.priority === 'high' ? 'high' : 
+                   measure.priority === 'medium' ? 'medium' : 'low',
+        status: measure.status === 'blocked' ? 'blocked' : 
+                existingItem?.status === 'done' ? 'done' : 'open',
+        category: measure.status === 'blocked' ? 'blocker' : 'action',
+        reason: measure.description,
+        nextStep: measure.notes,
+        notes: existingItem?.notes || '',
+        createdAt: measure.createdAt || new Date().toISOString(),
+        updatedAt: existingItem?.updatedAt || new Date().toISOString(),
+        completedAt: existingItem?.completedAt,
+      }
+      return item
+    })
+  }, [allMeasures, queueItemsMap])
 
   // Deadline board data
   const deadlineBoard = useMemo(() => {
@@ -130,19 +172,65 @@ export default function CommandScreen({ twins, onOpenTwin, onNewInput }: Command
     setSelectedMeasure(measure)
   }
 
+  const handleQueueItemClick = (item: AttentionQueueItem) => {
+    setSelectedQueueItem(item)
+  }
+
   const handleOpenTwin = (measure: Measure) => {
     onOpenTwin(measure.projectId)
   }
 
-  const getPriorityBadge = (priority: MeasurePriority) => {
-    const styles = {
-      critical: 'bg-rose-500/15 text-rose-600 border-rose-500/30',
-      high: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
-      medium: 'bg-blue-500/15 text-blue-600 border-blue-500/30',
-      low: 'bg-slate-500/15 text-slate-600 border-slate-500/30'
+  const handleOpenTwinFromQueue = () => {
+    if (selectedQueueItem) {
+      onOpenTwin(selectedQueueItem.twinId)
     }
-    return styles[priority] || styles.medium
   }
+
+  const handleQueueItemStatusChange = useCallback((itemId: string, newStatus: 'open' | 'blocked' | 'done') => {
+    const item = queueItemsMap[itemId]
+    if (item) {
+      const twinId = item.twinId
+      const updatedItems = updateAttentionQueueItemStatus(twinId, itemId, newStatus)
+      
+      // Update local state
+      const newMap = { ...queueItemsMap }
+      updatedItems.forEach(updatedItem => {
+        newMap[updatedItem.id] = updatedItem
+      })
+      setQueueItemsMap(newMap)
+      
+      // Update selected item if open
+      if (selectedQueueItem?.id === itemId) {
+        const updatedItem = updatedItems.find(i => i.id === itemId)
+        if (updatedItem) {
+          setSelectedQueueItem(updatedItem)
+        }
+      }
+    }
+  }, [queueItemsMap, selectedQueueItem])
+
+  const handleQueueItemNotesChange = useCallback((itemId: string, notes: string) => {
+    const item = queueItemsMap[itemId]
+    if (item) {
+      const twinId = item.twinId
+      const updatedItems = updateAttentionQueueItemNotes(twinId, itemId, notes)
+      
+      // Update local state
+      const newMap = { ...queueItemsMap }
+      updatedItems.forEach(updatedItem => {
+        newMap[updatedItem.id] = updatedItem
+      })
+      setQueueItemsMap(newMap)
+      
+      // Update selected item if open
+      if (selectedQueueItem?.id === itemId) {
+        const updatedItem = updatedItems.find(i => i.id === itemId)
+        if (updatedItem) {
+          setSelectedQueueItem(updatedItem)
+        }
+      }
+    }
+  }, [queueItemsMap, selectedQueueItem])
 
   const getStatusBadge = (status: MeasureStatus) => {
     const styles = {
@@ -323,61 +411,55 @@ export default function CommandScreen({ twins, onOpenTwin, onNewInput }: Command
             </div>
 
             <div className="space-y-3">
-              {attentionQueue.map((measure) => (
+              {attentionQueue.map((item) => (
                 <motion.div
-                  key={measure.id}
+                  key={item.id}
                   whileHover={{ x: 4 }}
                   className="flex items-center gap-4 p-4 rounded-xl border border-[var(--lp-border)] bg-[var(--lp-surface-soft)] cursor-pointer group"
-                  onClick={() => handleMeasureClick(measure)}
+                  onClick={() => handleQueueItemClick(item)}
                 >
                   {/* Priority Indicator */}
                   <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                    measure.priority === 'critical' ? 'bg-rose-500' :
-                    measure.priority === 'high' ? 'bg-amber-500' :
-                    measure.priority === 'medium' ? 'bg-blue-500' : 'bg-slate-400'
+                    item.severity === 'critical' ? 'bg-rose-500' :
+                    item.severity === 'high' ? 'bg-amber-500' :
+                    item.severity === 'medium' ? 'bg-blue-500' : 'bg-slate-400'
                   }`} />
                   
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${getPriorityBadge(measure.priority)}`}>
-                        {measure.priority === 'critical' ? 'Kritisch' :
-                         measure.priority === 'high' ? 'Hoch' :
-                         measure.priority === 'medium' ? 'Mittel' : 'Niedrig'}
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                        item.severity === 'critical' ? 'bg-rose-500/15 text-rose-600 border-rose-500/30' :
+                        item.severity === 'high' ? 'bg-amber-500/15 text-amber-600 border-amber-500/30' :
+                        item.severity === 'medium' ? 'bg-blue-500/15 text-blue-600 border-blue-500/30' :
+                        'bg-slate-500/15 text-slate-600 border-slate-500/30'
+                      }`}>
+                        {item.severity === 'critical' ? 'Kritisch' :
+                         item.severity === 'high' ? 'Hoch' :
+                         item.severity === 'medium' ? 'Mittel' : 'Niedrig'}
                       </span>
                       <span className="text-xs text-[var(--lp-muted)] truncate">
-                        {measure.projectTitle}
+                        {item.projectTitle}
                       </span>
                     </div>
                     <div className="font-medium text-[var(--lp-text)] truncate">
-                      {measure.title}
+                      {item.title}
                     </div>
-                    {measure.description && (
+                    {item.description && (
                       <div className="text-sm text-[var(--lp-muted)] truncate">
-                        {measure.description}
+                        {item.description}
                       </div>
                     )}
                   </div>
 
-                  {/* Due Date */}
-                  {measure.dueDate && (
-                    <div className="flex flex-col items-end gap-1">
-                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${getDueDateChip(measure.dueDate).className}`}>
-                        {getDueDateChip(measure.dueDate).label}
-                      </span>
-                      <span className="text-xs text-[var(--lp-muted)]">
-                        {formatDaysUntilDue(measure.dueDate)}
-                      </span>
-                    </div>
-                  )}
-
                   {/* Status */}
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusBadge(measure.status)}`}>
-                    {measure.status === 'open' ? 'Offen' :
-                     measure.status === 'in_progress' ? 'In Arbeit' :
-                     measure.status === 'blocked' ? 'Blockiert' :
-                     measure.status === 'waiting' ? 'Wartend' :
-                     measure.status === 'done' ? 'Erledigt' : 'Idee'}
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    item.status === 'open' ? 'bg-emerald-500/15 text-emerald-600' :
+                    item.status === 'blocked' ? 'bg-rose-500/15 text-rose-600' :
+                    'bg-slate-500/10 text-slate-500'
+                  }`}>
+                    {item.status === 'open' ? 'Offen' :
+                     item.status === 'blocked' ? 'Blockiert' : 'Erledigt'}
                   </span>
 
                   {/* Actions */}
@@ -386,7 +468,7 @@ export default function CommandScreen({ twins, onOpenTwin, onNewInput }: Command
                       className="lp-button-secondary text-xs py-1 px-2"
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleOpenTwin(measure)
+                        onOpenTwin(item.twinId)
                       }}
                     >
                       <ArrowRight className="w-3 h-3 mr-1" />
@@ -500,6 +582,15 @@ export default function CommandScreen({ twins, onOpenTwin, onNewInput }: Command
         measure={selectedMeasure}
         onClose={() => setSelectedMeasure(null)}
         onOpenTwin={() => selectedMeasure && handleOpenTwin(selectedMeasure)}
+      />
+
+      {/* Attention Queue Detail Modal */}
+      <AttentionQueueDetailModal
+        item={selectedQueueItem}
+        onClose={() => setSelectedQueueItem(null)}
+        onOpenTwin={handleOpenTwinFromQueue}
+        onStatusChange={handleQueueItemStatusChange}
+        onNotesChange={handleQueueItemNotesChange}
       />
     </div>
   )

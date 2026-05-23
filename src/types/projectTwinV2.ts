@@ -173,6 +173,31 @@ export interface ProjectTwinStorageMeta {
 }
 
 // ============================================================================
+// ATTENTION QUEUE ITEM
+// ============================================================================
+
+export type AttentionQueueItemStatus = 'open' | 'blocked' | 'done'
+export type AttentionQueueItemSeverity = 'low' | 'medium' | 'high' | 'critical'
+export type AttentionQueueItemCategory = 'blocker' | 'risk' | 'action' | 'dependency'
+
+export interface AttentionQueueItem {
+  id: string
+  twinId: string
+  title: string
+  description?: string
+  projectTitle: string
+  severity: AttentionQueueItemSeverity
+  status: AttentionQueueItemStatus
+  category: AttentionQueueItemCategory
+  reason?: string
+  nextStep?: string
+  notes?: string
+  createdAt: string
+  updatedAt: string
+  completedAt?: string
+}
+
+// ============================================================================
 // PROCESS STEP (Prozesspfad)
 // ============================================================================
 
@@ -223,6 +248,9 @@ export interface StoredProjectTwinV2 {
   chatHistory: ProjectTwinChatMessage[]
   futureSimulation?: ProjectFutureSimulation
   simulationRuns?: SimulationRun[]
+  
+  // Attention Queue (dynamisch generiert + persistent gespeicherte Änderungen)
+  attentionQueue: AttentionQueueItem[]
   
   // Meta
   meta: ProjectTwinStorageMeta
