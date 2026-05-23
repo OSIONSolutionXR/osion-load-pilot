@@ -204,7 +204,7 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
 
   return (
     <div 
-      className="min-h-full p-6"
+      className="flex min-h-full flex-col p-4 sm:p-6"
       style={{ 
         background: `radial-gradient(circle at top left, rgba(139, 92, 246, 0.16), transparent 34%),
                     radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 28%),
@@ -230,7 +230,7 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
         
         {/* Left: Chat Main Panel */}
         <section 
-          className="flex min-h-[720px] flex-col overflow-hidden rounded-3xl border shadow-2xl"
+          className="flex min-h-[calc(100vh-200px)] flex-col overflow-hidden rounded-3xl border shadow-2xl lg:min-h-[720px]"
           style={{ 
             backgroundColor: chatTheme.panelBg,
             borderColor: chatTheme.border
