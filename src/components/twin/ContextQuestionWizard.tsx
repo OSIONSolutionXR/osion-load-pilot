@@ -275,11 +275,14 @@ export default function ContextQuestionWizard({
             </div>
             <div className="flex-1 min-w-0 space-y-3">
               <div>
-                <p className="text-base font-medium text-zinc-100 mb-2">{currentQuestion.label}</p>
-                <div className="flex items-start gap-2">
-                  <HelpCircle className="w-4 h-4 text-zinc-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-zinc-400">{currentQuestion.reason}</p>
-                </div>
+                <p className="text-sm text-zinc-500 mb-1">{currentQuestion.label}</p>
+                <p className="text-lg font-medium text-zinc-100 mb-2">{currentQuestion.question}</p>
+                {currentQuestion.helperText && (
+                  <div className="flex items-start gap-2">
+                    <HelpCircle className="w-4 h-4 text-zinc-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-zinc-400">{currentQuestion.helperText}</p>
+                  </div>
+                )}
               </div>
               
               <ContextQuestionInput 

@@ -51,6 +51,8 @@ export type AnalysisMode = 'openclaw-kimi' | 'manual'
 export interface ProjectContextQuestion {
   id: string
   label: string
+  question: string  // ← Der eigentliche Fragetext
+  helperText?: string  // ← Zusätzliche Erklärung
   reason: string
   sourceMissingContext: string
   suggestedInputType: ContextQuestionInputType
@@ -465,7 +467,9 @@ export function generateContextQuestionsFromMissing(
     
     return {
       id: `ctxq-${Date.now()}-${index}`,
-      label: mapped.label,
+      label: ctx,
+      question: mapped.label,
+      helperText: mapped.reason,
       reason: mapped.reason,
       sourceMissingContext: ctx,
       suggestedInputType: mapped.inputType,

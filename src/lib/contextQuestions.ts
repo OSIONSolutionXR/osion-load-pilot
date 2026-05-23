@@ -404,7 +404,9 @@ export function generateContextQuestions(
     if (template) {
       questions.push({
         id: stableId,
-        label: template.label,
+        label: ctx,  // Themenbereich
+        question: template.label,  // ← Der eigentliche Fragetext
+        helperText: template.reason,  // ← Warum diese Frage wichtig ist
         reason: template.reason,
         sourceMissingContext: ctx,
         suggestedInputType: template.inputType,
@@ -455,7 +457,9 @@ export function generateContextQuestions(
     
     questions.push({
       id: stableId,
-      label: fallbackLabel,
+      label: ctx,  // Themenbereich
+      question: fallbackLabel,  // ← Der eigentliche Fragetext
+      helperText: fallbackReason,  // ← Warum diese Frage wichtig ist
       reason: fallbackReason,
       sourceMissingContext: ctx,
       suggestedInputType: fallbackInputType,
