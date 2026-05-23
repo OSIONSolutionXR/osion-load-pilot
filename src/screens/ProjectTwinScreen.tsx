@@ -15,14 +15,13 @@ import {
   Play,
   ListTodo,
   GitBranch,
-  Shield,
   Download,
-  Share2
+  Share2,
+  Shield
 } from 'lucide-react'
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Badge } from '../components/ui/Badge'
 import { ProcessPathPanel } from '../components/twin/ProcessPathPanel'
-import ContextQuestionsCard from '../components/twin/ContextQuestionsCard'
 import RefineContextModal from '../components/twin/RefineContextModal'
 import ActionDetailView from '../components/twin/ActionDetailView'
 import { FadeIn } from '../components/animations/MicroAnimations'
@@ -39,6 +38,7 @@ import { TwinSectionNav, type TwinModule } from '../components/twin/TwinSectionN
 import type { Measure } from '../types/measures'
 import ExportDialog from '../components/twin/ExportDialog'
 import IntegrationsPanel from '../components/twin/IntegrationsPanel'
+import ContextQuestionsCard from '../components/twin/ContextQuestionsCard'
 
 // Neue Interface für Twin-Öffnungs-Context
 export interface TwinOpenContext {
@@ -236,6 +236,9 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
     )
   }, [twin.contextQuestions, analysis.quality.missingContext, twin.originalInput, analysis.project.type])
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void contextQuestions
+
   // Next Action
   const nextActionTitle = nextMove?.title || 'Nächsten wirksamsten Schritt ableiten'
   const nextActionDescription = nextMove?.reason || 'Load Pilot priorisiert den nächsten Schritt auf Basis des aktuellen Project Twins.'
@@ -370,6 +373,15 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
                   actors={actors}
                 />
               )}
+              {activeModule === 'questions' && (
+                <QuestionsModule
+                  twin={twin}
+                  analysis={analysis}
+                  onSubmitAnswers={handleUpdateWithAnswers}
+                  isUpdating={isUpdating}
+                  updateError={updateError}
+                />
+              )}
               {activeModule === 'risks' && (
                 <RisksModule risks={risks} />
               )}
@@ -415,19 +427,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
             </motion.div>
           </AnimatePresence>
 
-          {/* 6. Context Questions */}
-          {contextQuestions.length > 0 && (
-            <ContextQuestionsCard
-              questions={contextQuestions}
-              missingContext={analysis.quality.missingContext}
-              confidence={analysis.quality.confidence}
-              onSubmitAnswers={handleUpdateWithAnswers}
-              isUpdating={isUpdating}
-              updateError={updateError}
-            />
-          )}
-
-          {/* 7. Project Continuation Box */}
+          {/* 6. Project Continuation Box */}
           <section className="lp-card lp-card--padded">
             <div className="flex items-center gap-2 mb-4">
               <GitCommit className="w-5 h-5 text-violet-400" />
@@ -520,6 +520,55 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
         onClose={() => setShowExportDialog(false)}
       />
     </div>
+  )
+}
+
+// Questions Module
+function QuestionsModule({ twin, analysis, onSubmitAnswers, isUpdating, updateError }: {
+  twin: StoredProjectTwin
+  analysis: ProjectTwinAnalysis
+  onSubmitAnswers: (answers: Record<string, string>) => Promise<void>
+  isUpdating: boolean
+  updateError: string | null
+}) {
+  // Generate context questions
+  const contextQuestions = useMemo(() => {
+    if (twin.contextQuestions && twin.contextQuestions.length > 0) {
+      const openQuestions = twin.contextQuestions.filter(q => q.status === 'open')
+      if (openQuestions.length > 0) {
+        return openQuestions
+      }
+    }
+    return generateContextQuestions(
+      analysis.quality.missingContext,
+      twin.originalInput || '',
+      analysis.project.type
+    )
+  }, [twin.contextQuestions, analysis.quality.missingContext, twin.originalInput, analysis.project.type])
+
+  if (contextQuestions.length === 0) {
+    return (
+      <section className="lp-card lp-card--padded text-center py-12">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
+          <Brain className="w-8 h-8 text-emerald-400" />
+        </div>
+        <h3 className="text-xl font-semibold text-[var(--lp-text)] mb-2">Keine offenen Fragen</h3>
+        <p className="text-[var(--lp-muted)] max-w-md mx-auto">
+          Der Project Twin ist aktuell geschärft. Alle relevanten Kontextfragen wurden beantwortet.
+        </p>
+      </section>
+    )
+  }
+
+  return (
+    <ContextQuestionsCard
+      questions={contextQuestions}
+      missingContext={analysis.quality.missingContext}
+      confidence={analysis.quality.confidence}
+      onSubmitAnswers={onSubmitAnswers}
+      isUpdating={isUpdating}
+      updateError={updateError}
+    />
   )
 }
 
