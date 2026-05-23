@@ -42,6 +42,9 @@ import MeasuresPanel from '../components/twin/MeasuresPanel'
 import ExportDialog from '../components/twin/ExportDialog'
 import IntegrationsPanel from '../components/twin/IntegrationsPanel'
 import ContextQuestionsCard from '../components/twin/ContextQuestionsCard'
+import ContactsPanel from '../components/twin/ContactsPanel'
+import EmailAccountsPanel from '../components/twin/EmailAccountsPanel'
+import ApprovalQueuePanel from '../components/twin/ApprovalQueuePanel'
 
 // Neue Interface für Twin-Öffnungs-Context
 export interface TwinOpenContext {
@@ -469,6 +472,15 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
                     twin={twin}
                     onTwinUpdate={onTwinUpdate}
                   />
+                )}
+                {activeModule === 'contacts' && (
+                  <ContactsPanel twin={twin} />
+                )}
+                {activeModule === 'emailAccounts' && (
+                  <EmailAccountsPanel twin={twin} />
+                )}
+                {activeModule === 'approvalQueue' && (
+                  <ApprovalQueuePanel twin={twin} />
                 )}
               </motion.div>
             )}

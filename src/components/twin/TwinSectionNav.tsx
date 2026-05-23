@@ -7,13 +7,16 @@ import {
   Database,
   PlayCircle,
   HelpCircle,
-  ClipboardList
+  ClipboardList,
+  Users,
+  Mail,
+  ShieldCheck
 } from 'lucide-react'
 import type { ProjectTwinAnalysis } from '../../types/projectTwin'
 import type { StoredProjectTwinV2 } from '../../types/projectTwinV2'
 
 // Twin Module Types
-export type TwinModule = 'process' | 'questions' | 'measures' | 'risks' | 'actions' | 'decisions' | 'memory' | 'simulation'
+export type TwinModule = 'process' | 'questions' | 'measures' | 'risks' | 'actions' | 'decisions' | 'memory' | 'simulation' | 'contacts' | 'emailAccounts' | 'approvalQueue'
 
 interface TwinSectionNavProps {
   activeSection: TwinModule
@@ -115,6 +118,30 @@ const sections: SectionConfig[] = [
     subtitle: 'Zukunft prüfen',
     icon: PlayCircle,
     getCount: (_analysis, twin) => twin?.simulationRuns?.length || twin?.futureSimulation ? 1 : 0,
+    getStatus: () => 'neutral'
+  },
+  {
+    id: 'contacts',
+    label: 'Verbindungen',
+    subtitle: 'Kontakte & externe Stellen',
+    icon: Users,
+    getCount: () => 0, // Wird aus contactsStore gelesen
+    getStatus: () => 'neutral'
+  },
+  {
+    id: 'emailAccounts',
+    label: 'E-Mail-Konten',
+    subtitle: 'Versandadressen verwalten',
+    icon: Mail,
+    getCount: () => 0, // Wird aus emailAccountsStore gelesen
+    getStatus: () => 'neutral'
+  },
+  {
+    id: 'approvalQueue',
+    label: 'Freigabezentrale',
+    subtitle: 'KI-Ergebnisse freigeben',
+    icon: ShieldCheck,
+    getCount: () => 0, // Wird aus approvalQueueStore gelesen
     getStatus: () => 'neutral'
   }
 ]
