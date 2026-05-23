@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   Send,
-  Bot,
   User,
   Wifi,
   WifiOff,
@@ -12,7 +11,9 @@ import {
   FolderKanban,
   ChevronDown,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Zap,
+  AlertCircle
 } from 'lucide-react'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
 import { sendChatMessage, checkChatConnection, type ChatMessage } from '../services/chatService'
@@ -31,6 +32,27 @@ const generateMessageId = () => `msg-${Date.now()}-${Math.random().toString(36).
 const formatTime = (timestamp: string) => {
   const date = new Date(timestamp)
   return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+}
+
+// Chat Theme Colors
+const chatTheme = {
+  pageBg: "#070A12",
+  panelBg: "#0B1020",
+  panelBgSoft: "#111827",
+  cardBg: "#121826",
+  cardBgHover: "#172033",
+  border: "rgba(148, 163, 184, 0.18)",
+  borderStrong: "rgba(148, 163, 184, 0.32)",
+  textPrimary: "#F8FAFC",
+  textSecondary: "#CBD5E1",
+  textMuted: "#94A3B8",
+  inputBg: "#0F172A",
+  assistantBubble: "#111827",
+  userBubble: "#2563EB",
+  accent: "#8B5CF6",
+  accent2: "#EC4899",
+  danger: "#FB7185",
+  success: "#22C55E"
 }
 
 export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwin }: ChatScreenProps) {
@@ -81,15 +103,6 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
     setConnectionStatus(result.connected ? 'connected' : 'error')
   }, [])
 
-  // @ts-expect-error - activeTwin wird später für Projektkontext an KI übergeben
-  const _activeTwin = useMemo(() => {
-    if (projectContext === 'all') return null
-    if (projectContext === 'active') {
-      return twins.find(t => t.id === activeTwinId) || twins[0] || null
-    }
-    return twins.find(t => t.id === projectContext.twinId) || null
-  }, [twins, activeTwinId, projectContext])
-
   const contextLabel = useMemo(() => {
     if (projectContext === 'all') return 'Alle Projekte'
     if (projectContext === 'active') {
@@ -117,7 +130,6 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
     setInputText('')
     setIsLoading(true)
 
-    // Cancel any pending request
     abortControllerRef.current?.abort()
     abortControllerRef.current = new AbortController()
 
@@ -164,8 +176,8 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
   const StatusBadge = () => {
     if (connectionStatus === 'checking') {
       return (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full text-xs text-amber-400">
-          <Loader2 className="w-3 h-3 animate-spin" />
+        <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-300">
+          <Loader2 className="h-4 w-4 animate-spin" />
           <span>Verbinde...</span>
         </div>
       )
@@ -174,54 +186,74 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
       return (
         <button
           onClick={checkConnection}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 rounded-full text-xs text-rose-400 hover:bg-rose-500/20 transition-colors"
+          className="inline-flex items-center gap-2 rounded-full border border-rose-500/35 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-300 transition-all hover:bg-rose-500/20"
         >
-          <WifiOff className="w-3 h-3" />
+          <WifiOff className="h-4 w-4" />
           <span>Nicht verbunden</span>
-          <RefreshCw className="w-3 h-3 ml-1" />
+          <RefreshCw className="h-3.5 w-3.5 ml-1" />
         </button>
       )
     }
     return (
-      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-xs text-emerald-400">
-        <Wifi className="w-3 h-3" />
+      <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300">
+        <Wifi className="h-4 w-4" />
         <span>KI verbunden</span>
       </div>
     )
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div 
+      className="min-h-full p-6"
+      style={{ 
+        background: `radial-gradient(circle at top left, rgba(139, 92, 246, 0.16), transparent 34%),
+                    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 28%),
+                    ${chatTheme.pageBg}`,
+        color: chatTheme.textPrimary 
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 pb-6 border-b border-white/10">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-lg shadow-violet-500/20">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">OSION KI-Chat</h1>
-            <p className="text-sm text-white/50">Projektsteuerung, Maßnahmen, Freigaben und Verbindungen per KI bearbeiten</p>
-          </div>
+      <header className="mb-6 flex items-center justify-between gap-6">
+        <div>
+          <h1 className="text-[28px] font-extrabold tracking-tight text-slate-50">
+            OSION KI-Chat
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Projektsteuerung, Maßnahmen, Freigaben und Verbindungen per KI bearbeiten
+          </p>
         </div>
         <StatusBadge />
-      </div>
+      </header>
 
-      <div className="flex-1 flex gap-6 min-h-0">
-        {/* Left: Chat */}
-        <div className="flex-1 flex flex-col min-w-0 bg-black/50 rounded-2xl border border-white/10 overflow-hidden">
-          {/* Project Context Selector */}
-          <div className="px-6 py-4 border-b border-white/10">
+      {/* Main Grid */}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        
+        {/* Left: Chat Main Panel */}
+        <section 
+          className="flex min-h-[720px] flex-col overflow-hidden rounded-3xl border shadow-2xl"
+          style={{ 
+            backgroundColor: chatTheme.panelBg,
+            borderColor: chatTheme.border
+          }}
+        >
+          {/* Toolbar / Project Context */}
+          <div 
+            className="border-b p-4"
+            style={{ borderColor: chatTheme.border, backgroundColor: 'rgba(15, 23, 42, 0.78)' }}
+          >
             <div className="relative">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Projektkontext
+              </label>
               <button
                 onClick={() => setShowContextDropdown(!showContextDropdown)}
-                className="flex items-center gap-3 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm transition-all"
+                className="mt-2 flex w-full items-center justify-between rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-left text-slate-100 transition-all hover:border-violet-500/50"
               >
-                <FolderKanban className="w-4 h-4 text-white/50" />
-                <div className="text-left">
-                  <div className="text-xs text-white/40 uppercase tracking-wide">Projektkontext</div>
-                  <div className="text-white font-medium">{contextLabel}</div>
+                <div className="flex items-center gap-3">
+                  <FolderKanban className="h-5 w-5 text-slate-500" />
+                  <span className="font-medium">{contextLabel}</span>
                 </div>
-                <ChevronDown className={`w-4 h-4 text-white/50 ml-4 transition-transform ${showContextDropdown ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-5 w-5 text-slate-500 transition-transform ${showContextDropdown ? 'rotate-180' : ''}`} />
               </button>
 
               <AnimatePresence>
@@ -230,43 +262,43 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
-                    className="absolute top-full left-0 mt-2 w-80 bg-zinc-900 border border-white/20 rounded-xl shadow-2xl z-50 overflow-hidden"
+                    className="absolute top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl"
                   >
                     <button
                       onClick={() => { setProjectContext('all'); setShowContextDropdown(false); }}
-                      className={`w-full px-4 py-3 text-left text-sm hover:bg-white/5 transition-colors flex items-center gap-3 ${
-                        projectContext === 'all' ? 'bg-violet-500/20 text-violet-300' : 'text-zinc-300'
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${
+                        projectContext === 'all' ? 'bg-violet-500/20 text-violet-300' : 'text-slate-300 hover:bg-slate-800'
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                        <FolderKanban className="w-4 h-4 text-white/50" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800">
+                        <FolderKanban className="h-4 w-4 text-slate-500" />
                       </div>
                       Alle Projekte
                     </button>
                     <button
                       onClick={() => { setProjectContext('active'); setShowContextDropdown(false); }}
-                      className={`w-full px-4 py-3 text-left text-sm hover:bg-white/5 transition-colors flex items-center gap-3 ${
-                        projectContext === 'active' ? 'bg-violet-500/20 text-violet-300' : 'text-zinc-300'
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${
+                        projectContext === 'active' ? 'bg-violet-500/20 text-violet-300' : 'text-slate-300 hover:bg-slate-800'
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800">
+                        <div className="h-2 w-2 rounded-full bg-emerald-400" />
                       </div>
                       Aktives Projekt
                     </button>
-                    {twins.length > 0 && <div className="border-t border-white/10 my-1" />}
+                    {twins.length > 0 && <div className="border-t border-slate-800 my-1" />}
                     {twins.map(twin => (
                       <button
                         key={twin.id}
                         onClick={() => { setProjectContext({ twinId: twin.id, title: twin.title }); setShowContextDropdown(false); }}
-                        className={`w-full px-4 py-3 text-left text-sm hover:bg-white/5 transition-colors flex items-center gap-3 ${
+                        className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${
                           typeof projectContext === 'object' && projectContext.twinId === twin.id 
                             ? 'bg-violet-500/20 text-violet-300' 
-                            : 'text-zinc-300'
+                            : 'text-slate-300 hover:bg-slate-800'
                         }`}
                       >
-                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                          <FolderKanban className="w-4 h-4 text-white/50" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800">
+                          <FolderKanban className="h-4 w-4 text-slate-500" />
                         </div>
                         <span className="truncate">{twin.title}</span>
                       </button>
@@ -277,42 +309,44 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
             <AnimatePresence mode="popLayout">
-              {messages.map((msg, _index) => (
+              {messages.map((msg) => (
                 <motion.div
                   key={msg.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+                  className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
                 >
                   {/* Avatar */}
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    msg.role === 'user' 
-                      ? 'bg-violet-500' 
-                      : msg.isError 
-                        ? 'bg-rose-500/20 border border-rose-500/30' 
-                        : 'bg-white/10 border border-white/20'
-                  }`}
+                  <div 
+                    className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
+                      msg.role === 'user' 
+                        ? 'bg-gradient-to-br from-blue-600 to-violet-600' 
+                        : msg.isError 
+                          ? 'bg-rose-500/20 border border-rose-500/30' 
+                          : 'bg-slate-800 border border-slate-700'
+                    }`}
                   >
                     {msg.role === 'user' ? (
-                      <User className="w-5 h-5 text-white" />
+                      <User className="h-5 w-5 text-white" />
                     ) : msg.isError ? (
-                      <div className="text-rose-400 font-bold text-sm">!</div>
+                      <AlertCircle className="h-5 w-5 text-rose-400" />
                     ) : (
-                      <Bot className="w-5 h-5 text-violet-300" />
+                      <Sparkles className="h-5 w-5 text-violet-300" />
                     )}
                   </div>
 
                   {/* Message Bubble */}
-                  <div className={`max-w-[80%] rounded-2xl px-5 py-4 shadow-lg ${
-                    msg.role === 'user'
-                      ? 'bg-white text-black'
-                      : msg.isError
-                        ? 'bg-rose-500/10 border border-rose-500/20 text-rose-100'
-                        : 'bg-zinc-900 border border-white/10 text-white'
-                  }`}
+                  <div 
+                    className={`max-w-[78%] rounded-2xl px-5 py-4 shadow-lg ${
+                      msg.role === 'user'
+                        ? 'bg-gradient-to-br from-blue-600 to-violet-600 text-white'
+                        : msg.isError
+                          ? 'border border-rose-500/20 bg-rose-500/10 text-rose-100'
+                          : 'border border-slate-700 bg-slate-900 text-slate-100'
+                    }`}
                   >
                     <div className="whitespace-pre-wrap text-[15px] leading-relaxed">
                       {msg.content.split('\n').map((line, i) => {
@@ -330,9 +364,8 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
                         )
                       })}
                     </div>
-                    
-                    <div className={`text-xs mt-2 ${
-                      msg.role === 'user' ? 'text-black/40' : 'text-white/30'
+                    <div className={`mt-2 text-xs ${
+                      msg.role === 'user' ? 'text-white/60' : 'text-slate-500'
                     }`}>
                       {formatTime(msg.timestamp)}
                     </div>
@@ -346,14 +379,14 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex gap-4"
+                className="flex gap-3"
               >
-                <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-violet-300" />
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-800">
+                  <Sparkles className="h-5 w-5 text-violet-300" />
                 </div>
-                <div className="bg-zinc-900 border border-white/10 rounded-2xl px-5 py-4">
-                  <div className="flex items-center gap-3 text-white/50">
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                <div className="max-w-[78%] rounded-2xl border border-slate-700 bg-slate-900 px-5 py-4">
+                  <div className="flex items-center gap-3 text-slate-400">
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     <span className="text-sm">OSION X ONE denkt...</span>
                   </div>
                 </div>
@@ -363,76 +396,98 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
-          <div className="px-6 py-4 border-t border-white/10">
-            <div className="relative">
-              <textarea
-                ref={inputRef}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSend()
+          {/* Input Bar */}
+          <div 
+            className="border-t p-4"
+            style={{ borderColor: chatTheme.border, backgroundColor: 'rgba(15, 23, 42, 0.88)' }}
+          >
+            <form 
+              className="rounded-2xl border p-3 transition-all focus-within:border-violet-500 focus-within:shadow-[0_0_0_4px_rgba(139,92,246,0.14)]"
+              style={{ borderColor: 'rgba(148, 163, 184, 0.25)', backgroundColor: chatTheme.inputBg }}
+              onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+            >
+              <div className="flex gap-3">
+                <textarea
+                  ref={inputRef}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSend()
+                    }
+                  }}
+                  placeholder={connectionStatus === 'error' 
+                    ? "KI nicht verbunden. Bitte Verbindung prüfen..." 
+                    : "Schreibe an OSION..."
                   }
-                }}
-                placeholder={connectionStatus === 'error' 
-                  ? "KI nicht verbunden. Bitte Verbindung prüfen..." 
-                  : "Schreibe eine Nachricht..."
-                }
-                disabled={isLoading || connectionStatus === 'error'}
-                className="w-full min-h-[60px] max-h-[160px] px-5 py-4 pr-16 bg-white text-black rounded-xl text-sm placeholder:text-black/40 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                rows={1}
-              />
-              
-              <div className="absolute right-3 bottom-3">
-                {isLoading ? (
-                  <button
-                    onClick={handleStop}
-                    className="p-2.5 bg-rose-500 hover:bg-rose-400 text-white rounded-lg transition-colors"
-                    title="Abbrechen"
-                  >
-                    <StopCircle className="w-5 h-5" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSend}
-                    disabled={!inputText.trim() || connectionStatus === 'error'}
-                    className="p-2.5 bg-violet-600 hover:bg-violet-500 disabled:bg-black/20 disabled:text-black/40 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                    title="Senden"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
-                )}
+                  disabled={isLoading || connectionStatus === 'error'}
+                  className="min-h-[54px] flex-1 resize-none bg-transparent text-base text-slate-50 placeholder:text-slate-500 outline-none"
+                  rows={1}
+                />
+                <button
+                  type="submit"
+                  disabled={!inputText.trim() || isLoading || connectionStatus === 'error'}
+                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 transition-all hover:scale-105 disabled:scale-100 disabled:opacity-40"
+                >
+                  {isLoading ? (
+                    <StopCircle className="h-5 w-5" onClick={(e) => { e.stopPropagation(); handleStop(); }} />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                </button>
               </div>
-            </div>
-
-            <div className="flex justify-between items-center mt-3 text-xs text-white/30">
-              <span>{inputText.length}/{MAX_MESSAGE_LENGTH} Zeichen</span>
-              <span className="hidden sm:inline">Enter zum Senden, Shift+Enter für Zeilenumbruch</span>
-            </div>
+              
+              <div className="mt-2 flex justify-between text-xs text-slate-500">
+                <span>Enter zum Senden, Shift+Enter für Zeilenumbruch</span>
+                <span>{inputText.length}/{MAX_MESSAGE_LENGTH} Zeichen</span>
+              </div>
+            </form>
           </div>
-        </div>
+        </section>
 
         {/* Right: Suggestions Panel */}
-        <div className="w-80 flex-shrink-0 hidden xl:block">
-          <div className="bg-zinc-900/50 border border-white/10 rounded-2xl p-6">
-            <h3 className="text-sm font-medium text-white/70 mb-4 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-violet-400" />
-              KI-Vorschläge
-            </h3>
-            
-            <div className="bg-black/50 border border-white/5 rounded-xl p-6 text-center">
-              <MessageSquare className="w-10 h-10 text-white/20 mx-auto mb-4" />
-              <p className="text-sm text-white/50 mb-2">
-                Noch keine Vorschläge
-              </p>
-              <p className="text-xs text-white/30">
-                Sobald ein Projekt aktiv ist oder du eine Frage stellst, erscheinen hier passende nächste Schritte.
-              </p>
+        <aside 
+          className="rounded-3xl border p-5 shadow-2xl"
+          style={{ backgroundColor: chatTheme.panelBg, borderColor: chatTheme.border }}
+        >
+          <div className="mb-4 flex items-center gap-3">
+            <div className="rounded-xl bg-violet-500/15 p-2 text-violet-300">
+              <Zap className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-slate-50">KI-Vorschläge</h2>
+              <p className="text-xs text-slate-500">Aktionen und nächste Schritte</p>
             </div>
           </div>
-        </div>
+
+          <div className="space-y-3">
+            {/* Empty State */}
+            <div className="rounded-2xl border border-dashed p-6 text-center" style={{ borderColor: 'rgba(148, 163, 184, 0.25)', backgroundColor: 'rgba(15, 23, 42, 0.74)' }}>
+              <MessageSquare className="mx-auto mb-3 h-8 w-8 text-slate-500" />
+              <p className="font-semibold text-slate-200">Noch keine Vorschläge</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Sobald Du eine Frage stellst oder ein Projekt auswählst, erscheinen hier passende nächste Schritte.
+              </p>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="pt-2">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600">Schnellbefehle</p>
+              <div className="flex flex-wrap gap-2">
+                {['Blockierte Maßnahmen', 'Fällige Aufgaben', 'Freigaben prüfen'].map((label) => (
+                  <button
+                    key={label}
+                    disabled={connectionStatus === 'error'}
+                    className="rounded-full border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300 transition-all hover:border-violet-500 hover:text-white disabled:opacity-50"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   )
