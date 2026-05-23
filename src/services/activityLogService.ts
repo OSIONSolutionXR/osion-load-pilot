@@ -340,8 +340,22 @@ export function logSolutionUsed(
 }
 
 /**
- * Loggt eine Chat-Nachricht
+ * Loggt ein Attention Queue Item Update
  */
+export function logAttentionQueueItemUpdated(
+  twin: StoredProjectTwinV2,
+  itemId: string,
+  itemTitle: string,
+  changes: Record<string, unknown>
+): StoredProjectTwinV2 {
+  return logActivity(twin, {
+    type: 'twin_updated',
+    actor: 'user',
+    description: `Attention Queue Item "${itemTitle}" bearbeitet`,
+    details: { changes },
+    relatedEntityId: itemId
+  })
+}
 export function logChatMessage(
   twin: StoredProjectTwinV2,
   messageId: string,

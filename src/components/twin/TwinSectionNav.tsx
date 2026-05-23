@@ -6,13 +6,14 @@ import {
   GitFork,
   Database,
   PlayCircle,
-  HelpCircle
+  HelpCircle,
+  ClipboardList
 } from 'lucide-react'
 import type { ProjectTwinAnalysis } from '../../types/projectTwin'
 import type { StoredProjectTwinV2 } from '../../types/projectTwinV2'
 
 // Twin Module Types
-export type TwinModule = 'process' | 'questions' | 'risks' | 'actions' | 'decisions' | 'memory' | 'simulation'
+export type TwinModule = 'process' | 'questions' | 'measures' | 'risks' | 'actions' | 'decisions' | 'memory' | 'simulation'
 
 interface TwinSectionNavProps {
   activeSection: TwinModule
@@ -54,6 +55,20 @@ const sections: SectionConfig[] = [
     getStatus: (_analysis, twin) => {
       const openQuestions = twin?.contextQuestions?.filter(q => q.status === 'open').length || 0
       return openQuestions > 0 ? 'info' : 'neutral'
+    }
+  },
+  {
+    id: 'measures',
+    label: 'Maßnahmen',
+    subtitle: 'Offene Aufgaben',
+    icon: ClipboardList,
+    getCount: (_analysis, twin) => twin?.measures?.filter(m => m.status !== 'done' && m.status !== 'discarded').length || 0,
+    getStatus: (_analysis, twin) => {
+      const blockedMeasures = twin?.measures?.filter(m => m.status === 'blocked').length || 0
+      const inProgressMeasures = twin?.measures?.filter(m => m.status === 'in_progress').length || 0
+      if (blockedMeasures > 0) return 'warning'
+      if (inProgressMeasures > 0) return 'info'
+      return 'neutral'
     }
   },
   {

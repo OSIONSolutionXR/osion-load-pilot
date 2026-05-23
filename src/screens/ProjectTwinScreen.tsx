@@ -36,6 +36,7 @@ import MeasureExecutionPanel from '../components/twin/MeasureExecutionPanel'
 import SimulationPanel from '../components/twin/SimulationPanel'
 import { TwinSectionNav, type TwinModule } from '../components/twin/TwinSectionNav'
 import type { Measure } from '../types/measures'
+import MeasuresPanel from '../components/twin/MeasuresPanel'
 import ExportDialog from '../components/twin/ExportDialog'
 import IntegrationsPanel from '../components/twin/IntegrationsPanel'
 import ContextQuestionsCard from '../components/twin/ContextQuestionsCard'
@@ -380,6 +381,17 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
                   onSubmitAnswers={handleUpdateWithAnswers}
                   isUpdating={isUpdating}
                   updateError={updateError}
+                />
+              )}
+              {activeModule === 'measures' && (
+                <MeasuresPanel
+                  twin={twin}
+                  onMeasureClick={(measure) => {
+                    setSelectedMeasure(measure)
+                    setShowExecutionPanel(true)
+                  }}
+                  onAddMeasure={() => setShowAddMeasure(true)}
+                  onTwinUpdate={onTwinUpdate}
                 />
               )}
               {activeModule === 'risks' && (
