@@ -1,100 +1,74 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   Send,
   Bot,
   User,
   Sparkles,
+  AlertCircle,
   CheckCircle,
   FolderKanban,
-  CheckSquare,
-  Users,
-  Mail,
-  ShieldCheck,
-  AlertTriangle,
   ChevronDown,
-  Plus
+  Wifi,
+  WifiOff,
+  Loader2,
+  StopCircle,
+  RefreshCw,
+  MessageSquare
 } from 'lucide-react'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
-import { useMeasuresStoreV2, type MeasureV2 } from '../lib/measuresStoreV2'
-import { useContactsStore } from '../lib/contactsStore'
-import { useEmailAccountsStore } from '../lib/emailAccountsStore'
-import { useApprovalQueueStore } from '../lib/approvalQueueStore'
-import { useRiskStore } from '../lib/riskStore'
+import { sendChatMessage } from '../services/chatService'
+import type { ChatMessage, ChatStatus } from '../types/chat'
 
 interface ChatScreenProps {
   twins: StoredProjectTwin[]
   activeTwinId: string | null
-  onOpenTwin: (id: string) => void
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onOpenTwin: (_id: string) => void
 }
 
-type ProjectContext = 'all' | 'active' | { twinId: string; title: string }
+type ProjectContextValue = 'all' | 'active' | { twinId: string; title: string }
 
-interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: string
-  context?: ProjectContext
+const MAX_MESSAGE_LENGTH = 4000
+
+// Utility functions
+const generateMessageId = () => `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+const formatTime = (timestamp: string) => {
+  const date = new Date(timestamp)
+  return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
 }
 
-interface SuggestionCard {
-  id: string
-  type: 'measure' | 'email_draft' | 'autopilot' | 'checklist' | 'risk' | 'summary'
-  title: string
-  description: string
-  data?: any
-  actions: { label: string; variant: 'primary' | 'secondary' | 'danger'; onClick: () => void }[]
-}
-
-export default function ChatScreen({ twins, activeTwinId, onOpenTwin }: ChatScreenProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: 'Willkommen im OSION KI-Chat. Ich helfe dir bei der Projektsteuerung, Maßnahmen, Freigaben und Verbindungen.\n\nWähle ein Projekt oder arbeite mit "Alle Projekte" projektübergreifend.',
-      timestamp: new Date().toISOString()
-    }
-  ])
+export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwin }: ChatScreenProps) {
+  // State
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState('')
-  const [projectContext, setProjectContext] = useState<ProjectContext>('active')
-  const [suggestions, setSuggestions] = useState<SuggestionCard[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [projectContext, setProjectContext] = useState<ProjectContextValue>('active')
+  const [chatStatus, setChatStatus] = useState<ChatStatus>('idle')
   const [showContextDropdown, setShowContextDropdown] = useState(false)
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking')
+  
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Stores
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { measures, addMeasure, updateMeasure: _updateMeasure } = useMeasuresStoreV2()
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { contacts, addContact: _addContact } = useContactsStore()
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { accounts: _accounts } = useEmailAccountsStore()
-  const { items: approvalItems, addItem: addApprovalItem } = useApprovalQueueStore()
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { risks: _risks } = useRiskStore()
-
-  // Get active twin
-  const activeTwin = useMemo(() => {
-    if (projectContext === 'all') return null
-    if (projectContext === 'active') {
-      return twins.find(t => t.id === activeTwinId) || twins[0] || null
+  // Welcome message on mount
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([{
+        id: generateMessageId(),
+        role: 'assistant',
+        content: 'Willkommen im OSION KI-Chat. Ich helfe dir bei der Projektsteuerung, Maßnahmen und Freigaben.\n\nWähle ein Projekt aus dem Dropdown oder stelle mir eine Frage.',
+        timestamp: new Date().toISOString()
+      }])
     }
-    return twins.find(t => t.id === projectContext.twinId) || null
-  }, [twins, activeTwinId, projectContext])
+  }, [messages.length])
 
-  // Get context label
-  const contextLabel = useMemo(() => {
-    if (projectContext === 'all') return 'Alle Projekte'
-    if (projectContext === 'active') {
-      const twin = twins.find(t => t.id === activeTwinId)
-      return twin ? `Aktives: ${twin.title}` : 'Kein aktives Projekt'
-    }
-    return projectContext.title
-  }, [projectContext, twins, activeTwinId])
+  // Check connection on mount
+  useEffect(() => {
+    checkConnection()
+  }, [])
 
-  // Scroll to bottom
+  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -107,526 +81,401 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin }: ChatScre
     }
   }, [inputText])
 
-  // Filter data by context
-  const contextMeasures = useMemo(() => {
-    if (!activeTwin) return measures
-    return measures.filter(m => m.twinId === activeTwin.id)
-  }, [measures, activeTwin])
-
-  const contextContacts = useMemo(() => {
-    if (!activeTwin) return contacts
-    return contacts.filter(c => c.twinId === activeTwin.id)
-  }, [contacts, activeTwin])
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const contextRisks = useMemo(() => {
-    // Risk store doesn't have projectId filtering - use all risks
-    return [] // TODO: Add project-specific risks when available
+  const checkConnection = useCallback(async () => {
+    setConnectionStatus('checking')
+    try {
+      const response = await fetch('/api/chat', { method: 'HEAD' })
+      setConnectionStatus(response.ok ? 'connected' : 'error')
+    } catch {
+      setConnectionStatus('error')
+    }
   }, [])
 
-  // Handle send message
+  const activeTwin = useMemo(() => {
+    if (projectContext === 'all') return null
+    if (projectContext === 'active') {
+      return twins.find(t => t.id === activeTwinId) || twins[0] || null
+    }
+    return twins.find(t => t.id === projectContext.twinId) || null
+  }, [twins, activeTwinId, projectContext])
+
+  const contextLabel = useMemo(() => {
+    if (projectContext === 'all') return 'Alle Projekte'
+    if (projectContext === 'active') {
+      const twin = twins.find(t => t.id === activeTwinId)
+      return twin ? twin.title : 'Kein aktives Projekt'
+    }
+    return projectContext.title
+  }, [projectContext, twins, activeTwinId])
+
   const handleSend = useCallback(async () => {
-    if (!inputText.trim()) return
+    if (!inputText.trim() || chatStatus === 'loading') return
+    if (inputText.length > MAX_MESSAGE_LENGTH) {
+      alert(`Nachricht ist zu lang. Maximal ${MAX_MESSAGE_LENGTH} Zeichen erlaubt.`)
+      return
+    }
 
     const userMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
+      id: generateMessageId(),
       role: 'user',
-      content: inputText,
-      timestamp: new Date().toISOString(),
-      context: projectContext
+      content: inputText.trim(),
+      timestamp: new Date().toISOString()
     }
 
     setMessages(prev => [...prev, userMessage])
     setInputText('')
-    setIsLoading(true)
-    setSuggestions([])
+    setChatStatus('loading')
 
-    // Simulate AI processing
-    setTimeout(() => {
-      processUserMessage(userMessage.content)
-      setIsLoading(false)
-    }, 1000)
-  }, [inputText, projectContext])
+    // Cancel any pending request
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = new AbortController()
 
-  // Process user message and generate response
-  const processUserMessage = useCallback((content: string) => {
-    const lowerContent = content.toLowerCase()
-    let response = ''
-    let newSuggestions: SuggestionCard[] = []
+    try {
+      const projectContextData = activeTwin ? {
+        projectId: activeTwin.id,
+        projectTitle: activeTwin.title,
+        measuresCount: 0,
+        risksCount: 0,
+        contactsCount: 0
+      } as const : undefined
 
-    // Blockierte Maßnahmen
-    if (lowerContent.includes('blockiert') && lowerContent.includes('maßnahme')) {
-      const blocked = contextMeasures.filter(m => m.status === 'blocked')
-      if (blocked.length === 0) {
-        response = 'Keine blockierten Maßnahmen gefunden.'
-      } else {
-        response = `Ich habe **${blocked.length} blockierte Maßnahme${blocked.length > 1 ? 'n' : ''}** gefunden:`
-        newSuggestions = blocked.slice(0, 5).map(m => ({
-          id: `blocked-${m.id}`,
-          type: 'measure' as const,
-          title: m.title,
-          description: m.description || 'Keine Beschreibung',
-          data: m,
-          actions: [
-            { label: 'Bearbeiten', variant: 'secondary', onClick: () => handleEditMeasure(m) },
-            { label: 'In Twin öffnen', variant: 'primary', onClick: () => activeTwin && onOpenTwin(activeTwin.id) }
-          ]
-        }))
+      const response = await sendChatMessage(
+        userMessage.content,
+        messages.map(m => ({ 
+          role: m.role, 
+          content: m.content, 
+          timestamp: m.timestamp 
+        } as const)),
+        projectContextData
+      )
+
+      if ('error' in response) {
+        throw new Error(response.error)
       }
-    }
-    // Maßnahme erstellen
-    else if (lowerContent.includes('erstelle') && lowerContent.includes('maßnahme')) {
-      const titleMatch = content.match(/maßnahme[:\s]+(.+?)(?:\.|$)/i)
-      const title = titleMatch ? titleMatch[1].trim() : content.replace(/erstelle.*maßnahme/i, '').trim()
-      
-      response = `Soll ich eine neue Maßnahme erstellen?`
-      newSuggestions = [{
-        id: 'create-measure',
-        type: 'measure',
-        title: title || 'Neue Maßnahme',
-        description: 'Vorschlag basierend auf deiner Anfrage',
-        actions: [
-          { 
-            label: 'Übernehmen', 
-            variant: 'primary', 
-            onClick: () => handleCreateMeasure(title || 'Neue Maßnahme', '') 
-          },
-          { label: 'Bearbeiten', variant: 'secondary', onClick: () => {} },
-          { label: 'Ablehnen', variant: 'danger', onClick: () => setSuggestions([]) }
-        ]
-      }]
-    }
-    // E-Mail an Steuerberater
-    else if (lowerContent.includes('e-mail') && lowerContent.includes('steuerberater')) {
-      response = 'Soll ich einen E-Mail-Entwurf für den Steuerberater erstellen?'
-      newSuggestions = [{
-        id: 'email-draft',
-        type: 'email_draft',
-        title: 'E-Mail an Steuerberater',
-        description: 'Betreff: Fehlende Unterlagen für Projekt',
-        actions: [
-          { 
-            label: 'In Freigabezentrale', 
-            variant: 'primary', 
-            onClick: () => handleCreateEmailDraft('Steuerberater', 'Fehlende Unterlagen') 
-          },
-          { label: 'Bearbeiten', variant: 'secondary', onClick: () => {} },
-          { label: 'Ablehnen', variant: 'danger', onClick: () => setSuggestions([]) }
-        ]
-      }]
-    }
-    // Autopilot starten
-    else if (lowerContent.includes('autopilot') && lowerContent.includes('start')) {
-      response = 'Soll ich den Maßnahmen-Autopilot für dieses Projekt starten?'
-      newSuggestions = [{
-        id: 'autopilot',
-        type: 'autopilot',
-        title: 'Maßnahmen-Autopilot',
-        description: 'KI-gestützte Analyse und Vorschläge für das Projekt',
-        actions: [
-          { label: 'Starten', variant: 'primary', onClick: () => handleStartAutopilot() },
-          { label: 'Nur vorbereiten', variant: 'secondary', onClick: () => {} },
-          { label: 'Abbrechen', variant: 'danger', onClick: () => setSuggestions([]) }
-        ]
-      }]
-    }
-    // Kontakte fehlen
-    else if (lowerContent.includes('kontakt') && lowerContent.includes('fehl')) {
-      if (contextContacts.length === 0) {
-        response = 'Es sind noch keine Kontakte für dieses Projekt hinterlegt.'
-      } else {
-        response = `Das Projekt hat **${contextContacts.length} Kontakt(e)**:`
-        newSuggestions = contextContacts.slice(0, 5).map(c => ({
-          id: `contact-${c.id}`,
-          type: 'summary' as const,
-          title: c.name,
-          description: `${c.category}${c.company ? ` bei ${c.company}` : ''}`,
-          actions: [
-            { label: 'Details', variant: 'secondary', onClick: () => {} }
-          ]
-        }))
-      }
-    }
-    // E-Mail-Entwürfe Freigabe
-    else if (lowerContent.includes('e-mail') && lowerContent.includes('freigabe')) {
-      const pending = approvalItems.filter(i => i.status === 'waiting_for_approval')
-      if (pending.length === 0) {
-        response = 'Keine E-Mail-Entwürfe warten auf Freigabe.'
-      } else {
-        response = `**${pending.length} E-Mail-Entwurf(e)** warten auf Freigabe:`
-        newSuggestions = pending.slice(0, 5).map(i => ({
-          id: `approval-${i.id}`,
-          type: 'email_draft',
-          title: i.title,
-          description: i.content.substring(0, 100) + '...',
-          actions: [
-            { label: 'Freigeben', variant: 'primary', onClick: () => handleApproveItem(i.id) },
-            { label: 'Bearbeiten', variant: 'secondary', onClick: () => {} },
-            { label: 'Ablehnen', variant: 'danger', onClick: () => {} }
-          ]
-        }))
-      }
-    }
-    // Allgemeine Hilfe
-    else {
-      response = `Ich habe deine Anfrage verstanden. Für das Projekt **${activeTwin?.title || 'Alle Projekte'}** kann ich dir helfen mit:
 
-• **Maßnahmen** anzeigen, erstellen, bearbeiten
-• **Kontakte** verwalten und verknüpfen
-• **E-Mail-Entwürfe** vorbereiten und freigeben
-• **Risiken** analysieren
-• **Autopilot** für automatisierte Vorschläge
-
-Was möchtest du tun?`
-    }
-
-    const assistantMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      role: 'assistant',
-      content: response,
-      timestamp: new Date().toISOString(),
-      context: projectContext
-    }
-
-    setMessages(prev => [...prev, assistantMessage])
-    setSuggestions(newSuggestions)
-  }, [contextMeasures, contextContacts, contextRisks, approvalItems, activeTwin, projectContext, onOpenTwin])
-
-  // Action handlers
-  const handleCreateMeasure = (title: string, description: string) => {
-    if (!activeTwin) return
-    addMeasure({
-      projectId: activeTwin.id,
-      twinId: activeTwin.id,
-      title,
-      description,
-      status: 'open',
-      priority: 'medium',
-      aiMode: 'manual',
-      linkedContactIds: [],
-      allowedActions: [],
-      blockedActions: [],
-      requiredInputs: [],
-      outputs: [],
-      executionLog: []
-    })
-    setSuggestions([])
-    setMessages(prev => [...prev, {
-      id: `msg-${Date.now()}`,
-      role: 'assistant',
-      content: `✅ Maßnahme "${title}" wurde erstellt und im Projektverlauf dokumentiert.`,
-      timestamp: new Date().toISOString()
-    }])
-  }
-
-  const handleEditMeasure = (measure: MeasureV2) => {
-    // Would open edit modal in real implementation
-    console.log('Edit measure:', measure)
-  }
-
-  const handleCreateEmailDraft = (recipient: string, subject: string) => {
-    if (!activeTwin) return
-    addApprovalItem({
-      projectId: activeTwin.id,
-      twinId: activeTwin.id,
-      measureId: '',
-      title: `E-Mail: ${subject}`,
-      resultType: 'email_draft',
-      content: `Betreff: ${subject}\n\nAn: ${recipient}\n\nLieber ${recipient},\n\n...`,
-      riskLevel: 'low',
-      requiredAction: 'Freigabe erforderlich',
-      linkedContactIds: [],
-      status: 'waiting_for_approval'
-    })
-    setSuggestions([])
-    setMessages(prev => [...prev, {
-      id: `msg-${Date.now()}`,
-      role: 'assistant',
-      content: `✅ E-Mail-Entwurf wurde in die Freigabezentrale übernommen.`,
-      timestamp: new Date().toISOString()
-    }])
-  }
-
-  const handleStartAutopilot = () => {
-    setSuggestions([])
-    setMessages(prev => [...prev, {
-      id: `msg-${Date.now()}`,
-      role: 'assistant',
-      content: `🤖 Autopilot wird vorbereitet...\n\nIch analysiere das Projekt und erstelle Vorschläge für Maßnahmen, Kontakte und nächste Schritte. Dies kann einen Moment dauern.`,
-      timestamp: new Date().toISOString()
-    }])
-    // Simulate autopilot running
-    setTimeout(() => {
-      setMessages(prev => [...prev, {
-        id: `msg-${Date.now()}`,
+      const assistantMessage: ChatMessage = {
+        id: generateMessageId(),
         role: 'assistant',
-        content: `✅ Autopilot-Analyse abgeschlossen. Ich habe 3 neue Maßnahmenvorschläge und 2 Kontakt-Empfehlungen identifiziert.\n\nMöchtest du die Vorschläge sehen?`,
+        content: response.text || 'Keine Antwort erhalten.',
         timestamp: new Date().toISOString()
-      }])
-    }, 2000)
+      }
+
+      setMessages(prev => [...prev, assistantMessage])
+      setChatStatus('success')
+      setConnectionStatus('connected')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+      
+      const errorMsg: ChatMessage = {
+        id: generateMessageId(),
+        role: 'assistant',
+        content: `**KI-Verbindung nicht erreichbar**\n\n${errorMessage}\n\nBitte prüfe die Verbindung oder versuche es später erneut.`,
+        timestamp: new Date().toISOString(),
+        isError: true
+      }
+
+      setMessages(prev => [...prev, errorMsg])
+      setChatStatus('error')
+      setConnectionStatus('error')
+    }
+  }, [inputText, chatStatus, messages, activeTwin])
+
+  const handleStop = useCallback(() => {
+    abortControllerRef.current?.abort()
+    setChatStatus('idle')
+  }, [])
+
+  const handleRetry = useCallback(() => {
+    checkConnection()
+  }, [checkConnection])
+
+  // Status badge
+  const StatusBadge = () => {
+    if (connectionStatus === 'checking') {
+      return (
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 text-amber-400 rounded-full text-xs">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          <span>Prüfe...</span>
+        </div>
+      )
+    }
+    if (connectionStatus === 'error') {
+      return (
+        <button
+          onClick={handleRetry}
+          className="flex items-center gap-1.5 px-2 py-1 bg-rose-500/10 text-rose-400 rounded-full text-xs hover:bg-rose-500/20 transition-colors"
+        >
+          <WifiOff className="w-3 h-3" />
+          <span>Nicht verbunden</span>
+          <RefreshCw className="w-3 h-3 ml-1" />
+        </button>
+      )
+    }
+    return (
+      <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs">
+        <Wifi className="w-3 h-3" />
+        <span>KI verbunden</span>
+      </div>
+    )
   }
 
-  const handleApproveItem = (_itemId: string) => {
-    setSuggestions([])
-    setMessages(prev => [...prev, {
-      id: `msg-${Date.now()}`,
-      role: 'assistant',
-      content: `✅ Freigabe erteilt. Die Aktion wird ausgeführt und im Projektverlauf dokumentiert.`,
-      timestamp: new Date().toISOString()
-    }])
-  }
-
-  // Quick commands
-  const quickCommands = [
-    { label: 'Blockierte Maßnahmen', icon: AlertTriangle, onClick: () => setInputText('Liste mir alle blockierten Maßnahmen auf.') },
-    { label: 'Neue Maßnahme', icon: Plus, onClick: () => setInputText('Erstelle eine Maßnahme: ') },
-    { label: 'Kontakte prüfen', icon: Users, onClick: () => setInputText('Welche Kontakte fehlen?') },
-    { label: 'Freigaben', icon: ShieldCheck, onClick: () => setInputText('Zeige alle E-Mail-Entwürfe zur Freigabe.') },
-  ]
+  // Suggestions panel (only show if we have actual suggestions in a real implementation)
+  const hasSuggestions = false // Will be populated from actual AI responses
 
   return (
-    <div className="h-full flex gap-6">
-      {/* Left: Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header with Project Dropdown */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Bot className="w-5 h-5 text-violet-500" />
-            <h2 className="text-lg font-semibold text-zinc-100">OSION KI-Chat</h2>
-          </div>
-          <p className="text-sm text-zinc-500 mb-4">
-            Projektsteuerung, Maßnahmen, Freigaben und Verbindungen per KI bearbeiten
-          </p>
-
-          {/* Project Context Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowContextDropdown(!showContextDropdown)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-sm transition-colors"
-            >
-              <FolderKanban className="w-4 h-4 text-zinc-400" />
-              <span className="text-zinc-300">Projektkontext:</span>
-              <span className="text-zinc-100 font-medium">{contextLabel}</span>
-              <ChevronDown className="w-4 h-4 text-zinc-500 ml-2" />
-            </button>
-
-            <AnimatePresence>
-              {showContextDropdown && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-full left-0 mt-2 w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden"
-                >
-                  <button
-                    onClick={() => { setProjectContext('all'); setShowContextDropdown(false); }}
-                    className={`w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors ${projectContext === 'all' ? 'bg-zinc-800/50 text-violet-400' : 'text-zinc-300'}`}
-                  >
-                    Alle Projekte
-                  </button>
-                  <button
-                    onClick={() => { setProjectContext('active'); setShowContextDropdown(false); }}
-                    className={`w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors ${projectContext === 'active' ? 'bg-zinc-800/50 text-violet-400' : 'text-zinc-300'}`}
-                  >
-                    Aktives Projekt
-                  </button>
-                  <div className="border-t border-zinc-800 my-1" />
-                  {twins.map(twin => (
-                    <button
-                      key={twin.id}
-                      onClick={() => { setProjectContext({ twinId: twin.id, title: twin.title }); setShowContextDropdown(false); }}
-                      className={`w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors ${
-                        typeof projectContext === 'object' && projectContext.twinId === twin.id 
-                          ? 'bg-zinc-800/50 text-violet-400' 
-                          : 'text-zinc-300'
-                      }`}
-                    >
-                      {twin.title}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6 pb-4 border-b border-zinc-800">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
+              <Bot className="w-5 h-5 text-violet-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-zinc-100">OSION KI-Chat</h2>
+              <p className="text-sm text-zinc-500">Projektsteuerung, Maßnahmen, Freigaben und Verbindungen per KI bearbeiten</p>
+            </div>
           </div>
         </div>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-          {messages.map((msg) => (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-            >
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                msg.role === 'user' ? 'bg-violet-600' : 'bg-zinc-800'
-              }`}>
-                {msg.role === 'user' ? (
-                  <User className="w-4 h-4 text-white" />
-                ) : (
-                  <Bot className="w-4 h-4 text-violet-400" />
-                )}
-              </div>
-              <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                msg.role === 'user' 
-                  ? 'bg-violet-600 text-white' 
-                  : 'bg-zinc-800/50 border border-zinc-700 text-zinc-300'
-              }`}>
-                {msg.content.split('\n').map((line, i) => (
-                  <span key={i}>
-                    {line.replace(/\*\*(.+?)\*\*/g, '$1')}
-                    {i < msg.content.split('\n').length - 1 && <br />}
-                  </span>
-                ))}
-              </div>
-            </motion.div>
-          ))}
-          
-          {isLoading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex gap-3"
-            >
-              <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-violet-400" />
-              </div>
-              <div className="bg-zinc-800/50 border border-zinc-700 rounded-2xl px-4 py-3">
-                <div className="flex gap-1">
-                  <motion.div
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ repeat: Infinity, duration: 0.6 }}
-                    className="w-1.5 h-1.5 bg-violet-500 rounded-full"
-                  />
-                  <motion.div
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ repeat: Infinity, duration: 0.6, delay: 0.1 }}
-                    className="w-1.5 h-1.5 bg-violet-500 rounded-full"
-                  />
-                  <motion.div
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }}
-                    className="w-1.5 h-1.5 bg-violet-500 rounded-full"
-                  />
-                </div>
-              </div>
-            </motion.div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Quick Commands */}
-        <div className="flex flex-wrap gap-2 mt-4 mb-4">
-          {quickCommands.map((cmd) => (
-            <button
-              key={cmd.label}
-              onClick={cmd.onClick}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-400 hover:text-zinc-300 transition-colors"
-            >
-              <cmd.icon className="w-3.5 h-3.5" />
-              {cmd.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Input */}
-        <div className="relative">
-          <textarea
-            ref={inputRef}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSend()
-              }
-            }}
-            placeholder="Schreibe eine Nachricht..."
-            className="w-full min-h-[60px] max-h-[200px] px-4 py-3 pr-12 bg-zinc-800/50 border border-zinc-700 rounded-xl text-sm text-zinc-100 placeholder-zinc-500 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500/50"
-            rows={1}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!inputText.trim() || isLoading}
-            className="absolute right-3 bottom-3 p-1.5 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:cursor-not-allowed rounded-lg transition-colors"
-          >
-            <Send className="w-4 h-4 text-white" />
-          </button>
-        </div>
+        <StatusBadge />
       </div>
 
-      {/* Right: Suggestions Panel */}
-      <div className="w-80 flex-shrink-0">
-        <div className="sticky top-0">
-          <h3 className="text-sm font-medium text-zinc-400 mb-4 flex items-center gap-2">
-            <Sparkles className="w-4 h-4" />
-            KI-Vorschläge
-          </h3>
-          
-          <AnimatePresence mode="popLayout">
-            {suggestions.length === 0 ? (
+      {/* Project Context Selector */}
+      <div className="relative mb-6">
+        <button
+          onClick={() => setShowContextDropdown(!showContextDropdown)}
+          className="flex items-center gap-3 px-4 py-3 bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 rounded-xl text-sm transition-all"
+        >
+          <FolderKanban className="w-4 h-4 text-zinc-400" />
+          <div className="text-left">
+            <div className="text-xs text-zinc-500 uppercase tracking-wide">Projektkontext</div>
+            <div className="text-zinc-200 font-medium">{contextLabel}</div>
+          </div>
+          <ChevronDown className={`w-4 h-4 text-zinc-500 ml-4 transition-transform ${showContextDropdown ? 'rotate-180' : ''}`} />
+        </button>
+
+        <AnimatePresence>
+          {showContextDropdown && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="absolute top-full left-0 mt-2 w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden"
+            >
+              <button
+                onClick={() => { setProjectContext('all'); setShowContextDropdown(false); }}
+                className={`w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3 ${
+                  projectContext === 'all' ? 'bg-zinc-800/50 text-violet-400' : 'text-zinc-300'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
+                  <FolderKanban className="w-4 h-4 text-zinc-500" />
+                </div>
+                Alle Projekte
+              </button>
+              <button
+                onClick={() => { setProjectContext('active'); setShowContextDropdown(false); }}
+                className={`w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3 ${
+                  projectContext === 'active' ? 'bg-zinc-800/50 text-violet-400' : 'text-zinc-300'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 text-zinc-500" />
+                </div>
+                Aktives Projekt
+              </button>
+              {twins.length > 0 && <div className="border-t border-zinc-800 my-1" />}
+              {twins.map(twin => (
+                <button
+                  key={twin.id}
+                  onClick={() => { setProjectContext({ twinId: twin.id, title: twin.title }); setShowContextDropdown(false); }}
+                  className={`w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3 ${
+                    typeof projectContext === 'object' && projectContext.twinId === twin.id 
+                      ? 'bg-zinc-800/50 text-violet-400' 
+                      : 'text-zinc-300'
+                  }`}
+                >
+                  <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
+                    <FolderKanban className="w-4 h-4 text-zinc-500" />
+                  </div>
+                  <span className="truncate">{twin.title}</span>
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex gap-6 min-h-0">
+        {/* Left: Messages */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Messages Container */}
+          <div className="flex-1 overflow-y-auto space-y-4 pr-2 -mr-2">
+            <AnimatePresence mode="popLayout">
+              {messages.map((message, index) => (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2, delay: index === messages.length - 1 ? 0 : 0 }}
+                  className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                >
+                  {/* Avatar */}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    message.role === 'user' 
+                      ? 'bg-violet-600' 
+                      : message.isError 
+                        ? 'bg-rose-500/20' 
+                        : 'bg-zinc-800'
+                  }`}>
+                    {message.role === 'user' ? (
+                      <User className="w-4 h-4 text-white" />
+                    ) : message.isError ? (
+                      <AlertCircle className="w-4 h-4 text-rose-400" />
+                    ) : (
+                      <Bot className="w-4 h-4 text-violet-400" />
+                    )}
+                  </div>
+
+                  {/* Message Bubble */}
+                  <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    message.role === 'user'
+                      ? 'bg-violet-600 text-white'
+                      : message.isError
+                        ? 'bg-rose-500/10 border border-rose-500/20 text-rose-100'
+                        : 'bg-zinc-800/50 border border-zinc-700/50 text-zinc-200'
+                  }`}>
+                    {/* Content with markdown-like formatting */}
+                    <div className="whitespace-pre-wrap">
+                      {message.content.split('\n').map((line, i) => {
+                        // Bold text **text**
+                        const parts = line.split(/(\*\*.*?\*\*)/g)
+                        return (
+                          <span key={i}>
+                            {parts.map((part, j) => {
+                              if (part.startsWith('**') && part.endsWith('**')) {
+                                return <strong key={j} className="font-semibold">{part.slice(2, -2)}</strong>
+                              }
+                              return part
+                            })}
+                            {i < message.content.split('\n').length - 1 && <br />}
+                          </span>
+                        )
+                      })}
+                    </div>
+                    
+                    {/* Timestamp */}
+                    <div className={`text-[10px] mt-2 ${
+                      message.role === 'user' ? 'text-violet-200/60' : 'text-zinc-500'
+                    }`}>
+                      {formatTime(message.timestamp)}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {/* Loading indicator */}
+            {chatStatus === 'loading' && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-sm text-zinc-500 text-center py-8"
+                className="flex gap-3"
               >
-                Schreibe im Chat, um Vorschläge zu erhalten
+                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-violet-400" />
+                </div>
+                <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm text-zinc-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>KI arbeitet...</span>
+                  </div>
+                </div>
               </motion.div>
-            ) : (
-              <div className="space-y-3">
-                {suggestions.map((suggestion) => (
-                  <motion.div
-                    key={suggestion.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4"
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input Area */}
+          <div className="mt-4 pt-4 border-t border-zinc-800">
+            <div className="relative">
+              <textarea
+                ref={inputRef}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSend()
+                  }
+                }}
+                placeholder={connectionStatus === 'error' 
+                  ? "KI nicht verbunden. Bitte Verbindung prüfen..." 
+                  : "Stelle eine Frage..."
+                }
+                disabled={chatStatus === 'loading' || connectionStatus === 'error'}
+                className="w-full min-h-[56px] max-h-[160px] px-4 py-3 pr-14 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-zinc-100 placeholder-zinc-500 resize-none focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                rows={1}
+              />
+              
+              {/* Send/Stop Button */}
+              <div className="absolute right-3 bottom-3">
+                {chatStatus === 'loading' ? (
+                  <button
+                    onClick={handleStop}
+                    className="p-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 rounded-lg transition-colors"
+                    title="Abbrechen"
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      {suggestion.type === 'measure' && <CheckSquare className="w-4 h-4 text-blue-400" />}
-                      {suggestion.type === 'email_draft' && <Mail className="w-4 h-4 text-amber-400" />}
-                      {suggestion.type === 'autopilot' && <Bot className="w-4 h-4 text-violet-400" />}
-                      {suggestion.type === 'checklist' && <CheckCircle className="w-4 h-4 text-green-400" />}
-                      {suggestion.type === 'risk' && <AlertTriangle className="w-4 h-4 text-rose-400" />}
-                      {suggestion.type === 'summary' && <Sparkles className="w-4 h-4 text-cyan-400" />}
-                      <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
-                        {suggestion.type === 'measure' && 'Maßnahme'}
-                        {suggestion.type === 'email_draft' && 'E-Mail-Entwurf'}
-                        {suggestion.type === 'autopilot' && 'Autopilot'}
-                        {suggestion.type === 'checklist' && 'Checkliste'}
-                        {suggestion.type === 'risk' && 'Risiko'}
-                        {suggestion.type === 'summary' && 'Info'}
-                      </span>
-                    </div>
-                    
-                    <h4 className="text-sm font-medium text-zinc-100 mb-1">{suggestion.title}</h4>
-                    <p className="text-xs text-zinc-500 mb-3 line-clamp-2">{suggestion.description}</p>
-                    
-                    <div className="flex flex-wrap gap-2">
-                      {suggestion.actions.map((action, idx) => (
-                        <button
-                          key={idx}
-                          onClick={action.onClick}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                            action.variant === 'primary'
-                              ? 'bg-violet-600 hover:bg-violet-500 text-white'
-                              : action.variant === 'secondary'
-                              ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300'
-                              : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-400'
-                          }`}
-                        >
-                          {action.label}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                ))}
+                    <StopCircle className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSend}
+                    disabled={!inputText.trim() || connectionStatus === 'error'}
+                    className="p-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    title="Senden"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Character count */}
+            <div className="flex justify-between items-center mt-2 text-xs text-zinc-500">
+              <span>{inputText.length}/{MAX_MESSAGE_LENGTH} Zeichen</span>
+              <span className="hidden sm:inline">Enter zum Senden, Shift+Enter für Zeilenumbruch</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Suggestions Panel */}
+        <div className="w-80 flex-shrink-0 hidden lg:block">
+          <div className="sticky top-0">
+            <h3 className="text-sm font-medium text-zinc-400 mb-4 flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              KI-Vorschläge
+            </h3>
+            
+            {hasSuggestions ? (
+              <div className="space-y-3">
+                {/* Suggestions would go here */}
+              </div>
+            ) : (
+              <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-6 text-center">
+                <MessageSquare className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
+                <p className="text-sm text-zinc-500 mb-2">
+                  Noch keine Vorschläge
+                </p>
+                <p className="text-xs text-zinc-600">
+                  Sobald ein Projekt aktiv ist oder du eine Frage stellst, erscheinen hier passende Vorschläge.
+                </p>
               </div>
             )}
-          </AnimatePresence>
+          </div>
         </div>
       </div>
     </div>
