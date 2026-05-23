@@ -22,6 +22,8 @@ import { useState, useCallback, useMemo, useEffect } from 'react'
 import RisksPanel from '../components/twin/RisksPanel'
 import { Badge } from '../components/ui/Badge'
 import { ProcessPathPanel } from '../components/twin/ProcessPathPanel'
+import ProcessPanel from '../components/twin/ProcessPanel'
+import EmptyStatePanel from '../components/twin/EmptyStatePanel'
 import RefineContextModal from '../components/twin/RefineContextModal'
 import ActionDetailView from '../components/twin/ActionDetailView'
 import { FadeIn } from '../components/animations/MicroAnimations'
@@ -57,7 +59,7 @@ interface ProjectTwinScreenProps {
 }
 
 export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpdate, openContext }: ProjectTwinScreenProps) {
-  const [activeModule, setActiveModule] = useState<TwinModule>('process')
+  const [activeModule, setActiveModule] = useState<TwinModule | null>(null)
   const [showRefineModal, setShowRefineModal] = useState(false)
   const [showAddMeasure, setShowAddMeasure] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
@@ -70,6 +72,11 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
   const [showActionDetail, setShowActionDetail] = useState(false)
 
   const analysis = twin?.analysis ?? null
+
+  // Handler für Modul-Auswahl mit Toggle-Funktionalität
+  const handleSectionChange = useCallback((section: TwinModule) => {
+    setActiveModule(prev => prev === section ? null : section)
+  }, [])
 
   // Apply openContext when provided (Command → Twin)
   useEffect(() => {
@@ -217,7 +224,11 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
     )
   }
 
-  const { project, nextMove, actors, dependencies, risks, scenarios, actions } = analysis
+  const { project, nextMove, scenarios, actions, risks } = analysis
+
+  // actors und dependencies werden in ProjectTwinAnalysis verwendet
+  void analysis.actors
+  void analysis.dependencies
 
   // Generate context questions - prefer existing questions from twin, fallback to generating from missingContext
   const contextQuestions = useMemo(() => {
@@ -353,98 +364,114 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
 
           {/* 4. Twin Section Navigation - Neue große Bereichsbuttons */}
           <TwinSectionNav
-            activeSection={activeModule}
-            onSectionChange={setActiveModule}
+            activeSection={activeModule || 'process'}
+            onSectionChange={handleSectionChange}
             analysis={analysis}
             twin={twin}
           />
 
-          {/* 5. Active Module Panel */}
+          {/* 5. Active Module Panel oder Empty State */}
           <AnimatePresence mode="wait">
-            <motion.div
-              key={activeModule}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-            >
-              {activeModule === 'process' && (
-                <ProcessModule
-                  dependencies={dependencies}
-                  actors={actors}
-                />
-              )}
-              {activeModule === 'questions' && (
-                <QuestionsModule
+            {activeModule === null ? (
+              <motion.div
+                key="empty-state"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <EmptyStatePanel
                   twin={twin}
                   analysis={analysis}
-                  onSubmitAnswers={handleUpdateWithAnswers}
-                  isUpdating={isUpdating}
-                  updateError={updateError}
+                  onSectionChange={setActiveModule}
                 />
-              )}
-              {activeModule === 'measures' && (
-                <MeasuresPanel
-                  twin={twin}
-                  onMeasureClick={(measure) => {
-                    setSelectedMeasure(measure)
-                    setShowExecutionPanel(true)
-                  }}
-                  onAddMeasure={() => setShowAddMeasure(true)}
-                  onTwinUpdate={onTwinUpdate}
-                />
-              )}
-              {activeModule === 'risks' && (
-                <RisksPanel 
-                  risks={risks} 
-                  projectId={twin?.id}
-                  projectTitle={twin?.title}
-                  onAddMeasure={(measure) => {
-                    // Handle new measure from risk
-                    console.log('New measure from risk:', measure)
-                  }}
-                />
-              )}
-              {activeModule === 'actions' && (
-                <ActionsModule
-                  actions={actions}
-                  onActionClick={handleActionClick}
-                  onAddMeasure={() => setShowAddMeasure(true)}
-                  onExecuteMeasure={(action) => {
-                    // Convert ProjectAction to Measure
-                    const measure: Measure = {
-                      id: `M-${twin?.id || 'unknown'}-${Date.now()}`,
-                      projectId: twin?.id || '',
-                      projectTitle: twin?.title || '',
-                      title: action.title,
-                      description: action.messageDraft || undefined,
-                      status: 'open',
-                      priority: action.priority === 'high' ? 'high' : action.priority === 'medium' ? 'medium' : 'low',
-                      dueDate: null,
-                      owner: action.owner || 'Unassigned',
-                      valueScore: action.priority === 'high' ? 8 : action.priority === 'medium' ? 5 : 3,
-                      source: 'twin_action',
-                      createdAt: new Date().toISOString(),
-                      parentId: null
-                    }
-                    setSelectedMeasure(measure)
-                    setShowExecutionPanel(true)
-                  }}
-                />
-              )}
-              {activeModule === 'decisions' && (
-                <DecisionsModule scenarios={scenarios} />
-              )}
-              {activeModule === 'memory' && (
-                <MemoryModule twin={twin} />
-              )}
-              {activeModule === 'simulation' && (
-                <SimulationPanel 
-                  twin={twin}
-                  onTwinUpdate={onTwinUpdate}
-                />
-              )}
-            </motion.div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={activeModule}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {activeModule === 'process' && (
+                  <ProcessPanel
+                    twin={twin}
+                    analysis={analysis}
+                  />
+                )}
+                {activeModule === 'questions' && (
+                  <QuestionsModule
+                    twin={twin}
+                    analysis={analysis}
+                    onSubmitAnswers={handleUpdateWithAnswers}
+                    isUpdating={isUpdating}
+                    updateError={updateError}
+                  />
+                )}
+                {activeModule === 'measures' && (
+                  <MeasuresPanel
+                    twin={twin}
+                    onMeasureClick={(measure) => {
+                      setSelectedMeasure(measure)
+                      setShowExecutionPanel(true)
+                    }}
+                    onAddMeasure={() => setShowAddMeasure(true)}
+                    onTwinUpdate={onTwinUpdate}
+                  />
+                )}
+                {activeModule === 'risks' && (
+                  <RisksPanel 
+                    risks={risks} 
+                    projectId={twin?.id}
+                    projectTitle={twin?.title}
+                    onAddMeasure={(measure) => {
+                      // Handle new measure from risk
+                      console.log('New measure from risk:', measure)
+                    }}
+                  />
+                )}
+                {activeModule === 'actions' && (
+                  <ActionsModule
+                    actions={actions}
+                    onActionClick={handleActionClick}
+                    onAddMeasure={() => setShowAddMeasure(true)}
+                    onExecuteMeasure={(action) => {
+                      // Convert ProjectAction to Measure
+                      const measure: Measure = {
+                        id: `M-${twin?.id || 'unknown'}-${Date.now()}`,
+                        projectId: twin?.id || '',
+                        projectTitle: twin?.title || '',
+                        title: action.title,
+                        description: action.messageDraft || undefined,
+                        status: 'open',
+                        priority: action.priority === 'high' ? 'high' : action.priority === 'medium' ? 'medium' : 'low',
+                        dueDate: null,
+                        owner: action.owner || 'Unassigned',
+                        valueScore: action.priority === 'high' ? 8 : action.priority === 'medium' ? 5 : 3,
+                        source: 'twin_action',
+                        createdAt: new Date().toISOString(),
+                        parentId: null
+                      }
+                      setSelectedMeasure(measure)
+                      setShowExecutionPanel(true)
+                    }}
+                  />
+                )}
+                {activeModule === 'decisions' && (
+                  <DecisionsModule scenarios={scenarios} />
+                )}
+                {activeModule === 'memory' && (
+                  <MemoryModule twin={twin} />
+                )}
+                {activeModule === 'simulation' && (
+                  <SimulationPanel 
+                    twin={twin}
+                    onTwinUpdate={onTwinUpdate}
+                  />
+                )}
+              </motion.div>
+            )}
           </AnimatePresence>
 
           {/* 6. Project Continuation Box */}
@@ -592,7 +619,8 @@ function QuestionsModule({ twin, analysis, onSubmitAnswers, isUpdating, updateEr
   )
 }
 
-// Process Module
+// @ts-expect-error ProcessModule is temporarily unused while transitioning to ProcessPanel
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ProcessModule({ dependencies, actors }: {
   dependencies: ProjectTwinAnalysis['dependencies']
   actors: ProjectActor[]
