@@ -1,9 +1,9 @@
 /**
  * OSION Chat Service
- * Connects to the OpenClaw Bridge for real AI responses
+ * Connects to OpenAI API for real AI responses
  */
 
-const CHAT_API_URL = '/api/chat'
+const CHAT_API_URL = '/api/osion-chat'
 
 export interface ChatMessage {
   id: string
@@ -20,7 +20,7 @@ export interface ChatResponse {
 export type ChatStatus = 'idle' | 'loading' | 'error' | 'success'
 
 /**
- * Send a message to the chat API and get a real AI response
+ * Send a message to the OpenAI chat API and get a real AI response
  */
 export async function sendChatMessage(
   message: string,
@@ -43,17 +43,18 @@ export async function sendChatMessage(
       return { error: errorData.error || `HTTP ${response.status}` }
     }
 
-    const data = await response.json() as ChatResponse | { error: string }
+    const data = await response.json() as { answer?: string; error?: string }
     
-    if ('error' in data) {
+    if ('error' in data && data.error) {
       return { error: data.error }
     }
 
-    if (!data || typeof data.text !== 'string') {
+    const answer = data.answer
+    if (typeof answer !== 'string' || !answer) {
       return { error: 'Ungültige KI-Antwort' }
     }
 
-    return data
+    return { text: answer }
   } catch (error) {
     console.error('Chat service error:', error)
     return { error: error instanceof Error ? error.message : 'KI-Verbindung nicht erreichbar' }
@@ -75,7 +76,7 @@ export async function checkChatConnection(): Promise<{ connected: boolean; error
   } catch (error) {
     return { 
       connected: false, 
-      error: error instanceof Error ? error.message : 'Verbindung fehlgeschlagen' 
+      error: error instanceof Error ? error.message : 'Verbindung fehlingschlagen' 
     }
   }
 }
