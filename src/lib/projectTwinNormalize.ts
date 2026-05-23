@@ -149,33 +149,16 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
   const meta = twin.meta || createDefaultMeta(twin.analysis)
 
   // Measures normalisieren
-  const measures: Measure[] = twin.measures || extractMeasuresFromTwin({
-    id,
-    schemaVersion: 2,
-    title,
-    description,
-    createdAt,
-    updatedAt,
-    originalInput,
-    latestInput,
-    analysis: twin.analysis,
-    processSteps,
-    contextQuestions,
-    updates,
-    progress,
-    generatedSolutions,
-    chatHistory,
-    futureSimulation: twin.futureSimulation,
-    attentionQueue: twin.attentionQueue || [],
-    measures: [],
-    meta
-  } as StoredProjectTwinV2)
+  const measures: Measure[] = twin.measures || extractMeasuresFromTwin(twin as StoredProjectTwinV2)
 
   // Simulations normalisieren
   const simulations = twin.simulations || {
     scenarios: [],
     results: []
   }
+
+  // Activity Log (neu in V2, Migration)
+  const activityLog = twin.activityLog || []
 
   return {
     id,
@@ -197,6 +180,7 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
     attentionQueue: twin.attentionQueue || [],
     measures,
     simulations,
+    activityLog,
     meta: {
       ...meta,
       source: meta.source || 'analysis',
@@ -265,8 +249,9 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     futureSimulation: undefined,
     attentionQueue: [],
     measures: [],
-    meta
-  } as StoredProjectTwinV2)
+    meta,
+    activityLog: []
+  } as unknown as StoredProjectTwinV2)
 
   return {
     id: v1.id || `twin-${now}-${Math.random().toString(36).slice(2, 8)}`,
@@ -288,6 +273,7 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     attentionQueue: [],
     measures,
     simulations: { scenarios: [], results: [] },
+    activityLog: [],
     meta
   }
 }

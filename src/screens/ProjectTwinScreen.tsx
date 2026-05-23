@@ -15,7 +15,9 @@ import {
   Play,
   ListTodo,
   GitBranch,
-  Shield
+  Shield,
+  Download,
+  Share2
 } from 'lucide-react'
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Badge } from '../components/ui/Badge'
@@ -35,6 +37,8 @@ import MeasureExecutionPanel from '../components/twin/MeasureExecutionPanel'
 import SimulationPanel from '../components/twin/SimulationPanel'
 import { TwinSectionNav, type TwinModule } from '../components/twin/TwinSectionNav'
 import type { Measure } from '../types/measures'
+import ExportDialog from '../components/twin/ExportDialog'
+import IntegrationsPanel from '../components/twin/IntegrationsPanel'
 
 // Neue Interface für Twin-Öffnungs-Context
 export interface TwinOpenContext {
@@ -55,6 +59,8 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
   const [activeModule, setActiveModule] = useState<TwinModule>('process')
   const [showRefineModal, setShowRefineModal] = useState(false)
   const [showAddMeasure, setShowAddMeasure] = useState(false)
+  const [showExportDialog, setShowExportDialog] = useState(false)
+  const [showIntegrationsPanel, setShowIntegrationsPanel] = useState(false)
   const [showExecutionPanel, setShowExecutionPanel] = useState(false)
   const [selectedMeasure, setSelectedMeasure] = useState<Measure | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -287,6 +293,22 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
                   <Zap className="w-4 h-4 mr-1" />
                   Schärfen
                 </button>
+                <button 
+                  onClick={() => setShowIntegrationsPanel(true)} 
+                  className="lp-button-secondary text-sm"
+                  title="Integrationen"
+                >
+                  <Share2 className="w-4 h-4 mr-1" />
+                  Teilen
+                </button>
+                <button 
+                  onClick={() => setShowExportDialog(true)} 
+                  className="lp-button-secondary text-sm"
+                  title="Bericht erstellen"
+                >
+                  <Download className="w-4 h-4 mr-1" />
+                  Export
+                </button>
               </div>
             </div>
           </section>
@@ -479,9 +501,24 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
         project={twin}
         onExecutionCreated={(execution) => {
           console.log('Execution created:', execution)
-          // Execution wurde erstellt
         }}
         onTwinUpdate={onTwinUpdate}
+        onOpenIntegrations={() => setShowIntegrationsPanel(true)}
+      />
+
+      {/* Integrations Panel */}
+      <IntegrationsPanel
+        isOpen={showIntegrationsPanel}
+        onClose={() => setShowIntegrationsPanel(false)}
+        twin={twin}
+        selectedMeasure={selectedMeasure}
+      />
+
+      {/* Export Dialog */}
+      <ExportDialog
+        twin={twin}
+        isOpen={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
       />
     </div>
   )

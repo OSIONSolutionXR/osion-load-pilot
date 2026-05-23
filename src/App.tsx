@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MotionConfig } from 'motion/react'
 import SidebarNavigation from './components/layout/SidebarNavigation'
+import { FloatingActionButton } from './components/ui/FloatingActionButton'
 import type { ViewState } from './types'
 import type { TwinOpenContext } from './screens/ProjectTwinScreen'
 
@@ -8,6 +9,7 @@ import CommandScreen from './screens/CommandScreen'
 import ProjectTwinScreen from './screens/ProjectTwinScreen'
 import ProjectsScreen from './screens/ProjectsScreen'
 import InputScreen from './screens/InputScreen'
+import AddMeasurePanel from './components/twin/AddMeasurePanel'
 import {
   createStoredProjectTwin,
   loadStoredProjectTwins,
@@ -39,6 +41,9 @@ function App() {
   const [activeTwinId, setActiveTwinId] = useState<string | null>(null)
   const [twinOpenContext, setTwinOpenContext] = useState<TwinOpenContext | undefined>(undefined)
   const [hasHydrated, setHasHydrated] = useState(false)
+  
+  // FAB / Add Measure Panel state
+  const [isAddMeasureOpen, setIsAddMeasureOpen] = useState(false)
 
   useEffect(() => {
     const storedTwins = loadStoredProjectTwins()
@@ -215,6 +220,27 @@ function App() {
               />
             )}
           </div>
+          
+          {/* Floating Action Button for mobile - only show on twin/projects/measure views */}
+          {(currentView === 'twin' || currentView === 'projects' || currentView === 'measures') && (
+            <FloatingActionButton 
+              onClick={() => setIsAddMeasureOpen(true)}
+              label="Neue Maßnahme"
+            />
+          )}
+          
+          {/* Add Measure Panel */}
+          <AddMeasurePanel
+            isOpen={isAddMeasureOpen}
+            onClose={() => setIsAddMeasureOpen(false)}
+            projects={twins}
+            defaultProjectId={activeTwin?.id}
+            onMeasureCreated={(measure) => {
+              // Handle measure creation - could navigate to measures view
+              console.log('Measure created:', measure)
+            }}
+            onTwinUpdate={handleUpdateTwin}
+          />
         </main>
       </div>
     </MotionConfig>

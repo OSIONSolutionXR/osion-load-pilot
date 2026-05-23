@@ -194,6 +194,40 @@ export interface ProjectFutureSimulation {
 }
 
 // ============================================================================
+// ACTIVITY LOG
+// ============================================================================
+
+export type ActivityLogType = 
+  | 'project_created' 
+  | 'context_answered' 
+  | 'measure_added' 
+  | 'measure_updated' 
+  | 'measure_completed' 
+  | 'measure_deleted'
+  | 'scenario_run'
+  | 'scenario_completed'
+  | 'queue_action_generated' 
+  | 'twin_updated' 
+  | 'simulation_completed'
+  | 'progress_updated'
+  | 'question_skipped'
+  | 'solution_generated'
+  | 'solution_used'
+  | 'chat_message'
+
+export type ActivityLogActor = 'user' | 'system' | 'ai'
+
+export interface ActivityLogEntry {
+  id: string
+  timestamp: string
+  type: ActivityLogType
+  actor: ActivityLogActor
+  description: string
+  details?: Record<string, unknown>
+  relatedEntityId?: string  // measureId, scenarioId, questionId, etc.
+}
+
+// ============================================================================
 // STORAGE META
 // ============================================================================
 
@@ -307,6 +341,9 @@ export interface StoredProjectTwinV2 {
   
   // Scenario Simulations (Baustein 6)
   simulations?: SimulationsContainer
+  
+  // Activity Log (Baustein 7)
+  activityLog: ActivityLogEntry[]
   
   // Meta
   meta: ProjectTwinStorageMeta

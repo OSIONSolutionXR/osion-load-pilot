@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { 
   X, Sparkles, Save, Calendar, User, Flag, 
-  Target, FileText, AlertCircle, Loader2
+  Target, FileText, AlertCircle, Loader2, CheckCircle, Mail, MessageSquare, Share2
 } from 'lucide-react'
 import type { Measure, MeasureStatus, MeasurePriority } from '../../types/measures'
 import type { StoredProjectTwin } from '../../lib/projectTwinStore'
 import { updateProjectTwin } from '../../services/projectTwinUpdateApi'
 import { normalizeProjectTwinUpdateResponse, buildUpdatedTwinFromResult } from '../../services/projectTwinUpdateNormalizer'
+import { exportSingleMeasureToICS, downloadICS } from '../../services/calendarExportService'
+import { generateMeasureEmailDraft, generateEmailDraft } from '../../services/emailIntegrationService'
+import { generateSingleMeasureSlackMessage } from '../../services/slackShareService'
 
 interface AddMeasurePanelProps {
   isOpen: boolean
@@ -65,6 +68,7 @@ export default function AddMeasurePanel({
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [copiedSection, setCopiedSection] = useState<string | null>(null)
 
   const validateForm = (): boolean => {
     const errors: string[] = []
@@ -78,6 +82,82 @@ export default function AddMeasurePanel({
 
     setValidationErrors(errors)
     return errors.length === 0
+  }
+
+  // Integrations-Handler
+  const handleAddToCalendar = () => {
+    if (!formData.dueDate) {
+      setError('Bitte wähle zuerst ein Fälligkeitsdatum aus.')
+      return
+    }
+    
+    const measurePreview: Measure = {
+      id: 'temp',
+      projectId: formData.projectId,
+      projectTitle: projects.find(p => p.id === formData.projectId)?.title || '',
+      title: formData.title || 'Neue Maßnahme',
+      description: formData.description || undefined,
+      status: formData.status,
+      priority: formData.priority,
+      dueDate: formData.dueDate,
+      owner: formData.owner,
+      valueScore: formData.valueScore,
+      source: 'manual',
+      createdAt: new Date().toISOString(),
+      parentId: null
+    }
+    
+    try {
+      const ics = exportSingleMeasureToICS(measurePreview)
+      downloadICS(ics, `massnahme-${(formData.title || 'neu').toLowerCase().replace(/[^a-z0-9]/g, '-')}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Fehler beim Export')
+    }
+  }
+
+  const handleShareViaEmail = () => {
+    const measurePreview: Measure = {
+      id: 'temp',
+      projectId: formData.projectId,
+      projectTitle: projects.find(p => p.id === formData.projectId)?.title || '',
+      title: formData.title || 'Neue Maßnahme',
+      description: formData.description || undefined,
+      status: formData.status,
+      priority: formData.priority,
+      dueDate: formData.dueDate || null,
+      owner: formData.owner || 'Unassigned',
+      valueScore: formData.valueScore,
+      source: 'manual',
+      createdAt: new Date().toISOString(),
+      parentId: null
+    }
+    
+    const draft = generateMeasureEmailDraft(measurePreview)
+    const mailto = generateEmailDraft(draft.recipient, draft.subject, draft.body)
+    window.location.href = mailto
+  }
+
+  const handleShareViaSlack = async () => {
+    const measurePreview: Measure = {
+      id: 'temp',
+      projectId: formData.projectId,
+      projectTitle: projects.find(p => p.id === formData.projectId)?.title || '',
+      title: formData.title || 'Neue Maßnahme',
+      description: formData.description || undefined,
+      status: formData.status,
+      priority: formData.priority,
+      dueDate: formData.dueDate || null,
+      owner: formData.owner || 'Unassigned',
+      valueScore: formData.valueScore,
+      source: 'manual',
+      createdAt: new Date().toISOString(),
+      parentId: null
+    }
+    
+    const text = generateSingleMeasureSlackMessage(measurePreview)
+    await navigator.clipboard.writeText(text)
+    setCopiedSection('slack')
+    setTimeout(() => setCopiedSection(null), 2000)
   }
 
   const buildMeasureAdditionalInput = (data: MeasureFormData): string => {
@@ -275,6 +355,7 @@ Erstelle eine vollständige Maßnahme mit allen relevanten Feldern.`
     setQuickInput('')
     setError(null)
     setValidationErrors([])
+    setCopiedSection(null)
     onClose()
   }
 
@@ -299,36 +380,37 @@ Erstelle eine vollständige Maßnahme mit allen relevanten Feldern.`
             onClick={resetAndClose}
           />
           
-          {/* Panel */}
+          {/* Panel - Mobile fullscreen with bottom sheet feel */}
           <motion.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-[var(--lp-panel)] border-l border-[var(--lp-border)] z-50 shadow-2xl flex flex-col"
+            className="fixed right-0 top-0 bottom-0 w-full sm:max-w-lg bg-[var(--lp-surface)] border-l border-[var(--lp-border)] z-50 shadow-2xl flex flex-col sm:rounded-l-2xl overflow-hidden"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-[var(--lp-border)]">
+            {/* Header - Sticky on mobile */}
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[var(--lp-border)] bg-[var(--lp-surface)] sticky top-0 z-10">
               <div>
-                <h2 className="text-xl font-semibold text-[var(--lp-text)]">Neue Maßnahme</h2>
-                <p className="text-sm text-[var(--lp-muted)]">Strukturierte Arbeitsbausteine erstellen</p>
+                <h2 className="text-lg sm:text-xl font-semibold text-[var(--lp-text)]">Neue Maßnahme</h2>
+                <p className="text-xs sm:text-sm text-[var(--lp-muted)]">Strukturierte Arbeitsbausteine erstellen</p>
               </div>
               <button 
                 onClick={resetAndClose}
-                className="p-2 hover:bg-[var(--lp-surface)] rounded-lg transition-colors"
+                className="p-3 -mr-2 hover:bg-[var(--lp-surface-soft)] rounded-xl transition-colors touch-manipulation"
+                aria-label="Schließen"
               >
-                <X className="w-5 h-5 text-[var(--lp-muted)]" />
+                <X className="w-6 h-6 text-[var(--lp-muted)]" />
               </button>
             </div>
 
-            {/* Mode Toggle */}
+            {/* Mode Toggle - Touch friendly */}
             <div className="flex p-2 gap-2 border-b border-[var(--lp-border)]">
               <button
                 onClick={() => setMode('quick')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-colors touch-manipulation ${
                   mode === 'quick' 
-                    ? 'bg-[var(--lp-cobalt)] text-white' 
-                    : 'bg-[var(--lp-surface)] text-[var(--lp-muted)] hover:text-[var(--lp-text)]'
+                    ? 'bg-[var(--lp-accent)] text-white shadow-lg shadow-[var(--lp-accent)]/25' 
+                    : 'bg-[var(--lp-surface-soft)] text-[var(--lp-muted)] hover:text-[var(--lp-text)]'
                 }`}
               >
                 <Sparkles className="w-4 h-4 inline mr-2" />
@@ -336,10 +418,10 @@ Erstelle eine vollständige Maßnahme mit allen relevanten Feldern.`
               </button>
               <button
                 onClick={() => setMode('structured')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-colors touch-manipulation ${
                   mode === 'structured' 
-                    ? 'bg-[var(--lp-cobalt)] text-white' 
-                    : 'bg-[var(--lp-surface)] text-[var(--lp-muted)] hover:text-[var(--lp-text)]'
+                    ? 'bg-[var(--lp-accent)] text-white shadow-lg shadow-[var(--lp-accent)]/25' 
+                    : 'bg-[var(--lp-surface-soft)] text-[var(--lp-muted)] hover:text-[var(--lp-text)]'
                 }`}
               >
                 <FileText className="w-4 h-4 inline mr-2" />
@@ -347,8 +429,8 @@ Erstelle eine vollständige Maßnahme mit allen relevanten Feldern.`
               </button>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Content - Scrollable with safe area padding */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-safe">
               {/* Project Selection - Always visible */}
               <div>
                 <label className="block text-sm font-medium text-[var(--lp-text)] mb-2">
@@ -401,6 +483,49 @@ Erstelle eine vollständige Maßnahme mit allen relevanten Feldern.`
               ) : (
                 /* Structured Mode */
                 <div className="space-y-4">
+                  {/* Quick Share Toolbar */}
+                  {formData.title && (
+                    <div className="p-4 rounded-xl bg-[var(--lp-surface-soft)] border border-[var(--lp-border)] mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Share2 className="w-4 h-4 text-[var(--lp-cobalt)]" />
+                        <span className="text-sm font-medium text-[var(--lp-text)]">Schnell teilen</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={handleAddToCalendar}
+                          disabled={!formData.dueDate}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors text-sm disabled:opacity-50"
+                        >
+                          <Calendar className="w-4 h-4" />
+                          In Kalender
+                        </button>
+                        <button
+                          onClick={handleShareViaEmail}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm"
+                        >
+                          <Mail className="w-4 h-4" />
+                          Per E-Mail
+                        </button>
+                        <button
+                          onClick={handleShareViaSlack}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 transition-colors text-sm"
+                        >
+                          {copiedSection === 'slack' ? (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              Kopiert!
+                            </>
+                          ) : (
+                            <>
+                              <MessageSquare className="w-4 h-4" />
+                              Für Slack
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Title */}
                   <div>
                     <label className="block text-sm font-medium text-[var(--lp-text)] mb-2">

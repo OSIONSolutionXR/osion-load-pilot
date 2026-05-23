@@ -1,5 +1,6 @@
 import type { ProjectTwinAnalysis } from '../types/projectTwin'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
+import { logTwinUpdated, logProgressUpdated } from './activityLogService'
 
 /**
  * Normalisiert verschiedene Update-Response-Formate von der Bridge
@@ -270,7 +271,7 @@ export function buildUpdatedTwinFromResult(
   }
 
   // Deep merge: Neue Analysis übernimmt, aber IDs/Metadaten bleiben erhalten
-  return {
+  const updatedTwin = {
     ...existingTwin,
     updatedAt: now,
     latestInput: additionalInput.trim(),
@@ -285,4 +286,19 @@ export function buildUpdatedTwinFromResult(
     updates: [...(existingTwin.updates || []), updateEntry],
     contextQuestions: [] // Nach Update sind Kontextfragen zurückgesetzt
   }
+
+  // Logge den Update
+  const twinWithLog = logTwinUpdated(updatedTwin, 'manual', normalized.updateSummary)
+
+  // Logge Progress-Update falls sich etwas geändert hat
+  if (existingTwin.progress.percent !== normalized.newProgress.percent) {
+    return logProgressUpdated(
+      twinWithLog,
+      existingTwin.progress.percent,
+      normalized.newProgress.percent,
+      normalized.updateSummary
+    )
+  }
+
+  return twinWithLog
 }

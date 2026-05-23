@@ -1385,3 +1385,604 @@ body {
   align-items: center;
   justify-content: center;
 }
+
+/* ============================================
+   MOBILE OPTIMIZATION - TOUCH & PERFORMANCE
+   ============================================ */
+
+/* === TOUCH HIGHLIGHT & ACTIVE STATES === */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Touch-friendly button sizing - min 44x44px */
+button,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+a {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Larger touch targets on mobile */
+@media (max-width: 640px) {
+  .lp-sidebar__item {
+    min-height: 48px;
+    padding: 0 16px;
+  }
+  
+  .top-nav__link {
+    min-height: 44px;
+    padding: 0 12px;
+  }
+  
+  .twin-section-button {
+    min-height: 72px;
+    padding: 12px;
+  }
+  
+  .twin-section-button__icon {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* Active states for touch (no hover) */
+@media (hover: none) {
+  .lp-button-primary:active,
+  .lp-button-secondary:active,
+  .btn-primary:active,
+  .btn-secondary:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+  
+  .twin-section-button:active {
+    transform: scale(0.98);
+    background: var(--lp-surface-soft);
+  }
+  
+  .lp-sidebar__item:active {
+    background: rgba(37, 99, 235, 0.1);
+  }
+}
+
+/* Hide hover effects on touch devices */
+@media (hover: none) {
+  .twin-section-button:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .lp-card:hover {
+    transform: none;
+    box-shadow: var(--shadow-card);
+  }
+}
+
+/* === TWIN NAVIGATION - MOBILE OPTIMIZED === */
+/* < 640px: Icons only, stacked in 3x2 grid */
+@media (max-width: 640px) {
+  .twin-section-nav {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  
+  .twin-section-button {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 80px;
+    padding: 12px 8px;
+    gap: 8px;
+  }
+  
+  .twin-section-button__content {
+    align-items: center;
+    gap: 2px;
+  }
+  
+  .twin-section-button__header {
+    justify-content: center;
+  }
+  
+  .twin-section-button__label {
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  
+  .twin-section-button__subtitle {
+    display: none;
+  }
+  
+  .twin-section-button__count {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    min-width: 18px;
+    height: 18px;
+    font-size: 10px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .twin-section-button {
+    position: relative;
+  }
+}
+
+/* < 480px: 2x3 grid, more compact */
+@media (max-width: 480px) {
+  .twin-section-nav {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  
+  .twin-section-button {
+    min-height: 64px;
+    padding: 8px;
+  }
+  
+  .twin-section-button__icon {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .twin-section-button__icon svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* === MODALS - MOBILE FULLSCREEN === */
+@media (max-width: 640px) {
+  /* AddMeasurePanel, MeasureExecutionPanel mobile fullscreen */
+  [class*="Panel"] > div[class*="fixed right-0"],
+  [class*="fixed right-0 top-0 bottom-0"] {
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+  }
+  
+  /* Modal content padding adjustments */
+  [class*="fixed right-0"] > div[class*="p-6"] {
+    padding: 16px;
+  }
+  
+  /* Modal header sticky */
+  [class*="fixed right-0"] > div:first-child {
+    position: sticky;
+    top: 0;
+    background: inherit;
+    z-index: 10;
+  }
+  
+  /* Bottom sheet style for mobile */
+  .mobile-bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 85vh;
+    border-radius: 20px 20px 0 0;
+    transform: translateY(100%);
+    transition: transform 0.3s ease-out;
+  }
+  
+  .mobile-bottom-sheet.is-open {
+    transform: translateY(0);
+  }
+  
+  /* Drag handle for bottom sheet */
+  .mobile-bottom-sheet::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    background: var(--lp-border-strong);
+    border-radius: 2px;
+  }
+}
+
+/* === FLOATING ACTION BUTTON (FAB) === */
+.lp-fab {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--lp-accent), var(--lp-info));
+  color: white;
+  border: none;
+  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 40;
+  transition: all 0.2s ease;
+}
+
+.lp-fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 24px rgba(37, 99, 235, 0.5);
+}
+
+.lp-fab:active {
+  transform: scale(0.95);
+}
+
+.lp-fab svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* FAB with label for larger screens */
+@media (min-width: 641px) {
+  .lp-fab--extended {
+    width: auto;
+    padding: 0 20px;
+    border-radius: 28px;
+    gap: 8px;
+  }
+  
+  .lp-fab--extended span {
+    font-size: 14px;
+    font-weight: 600;
+  }
+}
+
+/* Hide FAB on very small screens when bottom nav is present */
+@media (max-width: 480px) {
+  .lp-fab {
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* === STICKY HEADER ACTIONS === */
+.sticky-header-actions {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--lp-border);
+  padding: 12px 16px;
+  margin: -16px -16px 16px -16px;
+}
+
+/* === PULL TO REFRESH INDICATOR === */
+.pull-to-refresh {
+  position: absolute;
+  top: -60px;
+  left: 0;
+  right: 0;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lp-muted);
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.pull-to-refresh.is-pulling {
+  opacity: 1;
+}
+
+.pull-to-refresh-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--lp-border);
+  border-top-color: var(--lp-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* === MOBILE SIDEBAR OVERLAY === */
+.lp-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.lp-sidebar-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* === TABLES - MOBILE CARDS VIEW === */
+@media (max-width: 768px) {
+  .mobile-table-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .mobile-table-card-row {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    background: var(--lp-surface);
+    border: 1px solid var(--lp-border);
+    border-radius: 12px;
+    gap: 8px;
+  }
+  
+  .mobile-table-card-row__cell {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .mobile-table-card-row__label {
+    font-size: 12px;
+    color: var(--lp-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .mobile-table-card-row__value {
+    font-weight: 500;
+  }
+}
+
+/* Horizontal scroll tables on mobile */
+.mobile-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+
+.mobile-table-scroll table {
+  min-width: 600px;
+}
+
+/* === FORM INPUTS - MOBILE OPTIMIZED === */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+  
+  /* Better touch targets for selects */
+  select {
+    padding-right: 40px;
+  }
+  
+  /* Larger checkboxes/radios */
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+/* === SEARCH & FILTER INPUTS === */
+.search-input-wrapper {
+  position: relative;
+}
+
+.search-input-wrapper input {
+  padding-left: 44px;
+}
+
+.search-input-wrapper .search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--lp-muted);
+  pointer-events: none;
+}
+
+/* Clear button for search */
+.search-input-wrapper .clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--lp-surface-soft);
+  color: var(--lp-muted);
+  border: none;
+  cursor: pointer;
+}
+
+/* === SAFE AREA INSETS FOR NOTCH PHONES === */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .lp-main-header {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+  
+  .lp-sidebar__top {
+    padding-top: max(16px, env(safe-area-inset-top));
+    height: auto;
+    min-height: 72px;
+  }
+  
+  .mobile-bottom-sheet {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* === PERFORMANCE OPTIMIZATIONS === */
+/* GPU acceleration for smooth animations */
+.will-change-transform {
+  will-change: transform;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .twin-section-button,
+  .lp-fab,
+  .lp-card,
+  [class*="fixed"] {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Touch-friendly dropdowns - no hover menus */
+@media (max-width: 1024px) {
+  [class*="dropdown"]:hover [class*="dropdown-menu"] {
+    display: none;
+  }
+  
+  [class*="dropdown"][class*="is-open"] [class*="dropdown-menu"] {
+    display: block;
+  }
+}
+
+/* === SWIPE GESTURE INDICATORS === */
+.swipe-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.swipe-indicator--left {
+  left: 0;
+  background: linear-gradient(90deg, var(--lp-success-soft), transparent);
+}
+
+.swipe-indicator--right {
+  right: 0;
+  background: linear-gradient(-90deg, var(--lp-danger-soft), transparent);
+}
+
+.swipe-indicator.is-visible {
+  opacity: 1;
+}
+
+/* === MOBILE-ONLY UTILITIES === */
+.mobile-only {
+  display: none;
+}
+
+.desktop-only {
+  display: initial;
+}
+
+@media (max-width: 1024px) {
+  .mobile-only {
+    display: initial;
+  }
+  
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .mobile-sm-only {
+    display: initial;
+  }
+  
+  .mobile-sm-hide {
+    display: none !important;
+  }
+}
+
+/* === SCROLLBAR STYLING FOR MOBILE === */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    border-radius: 2px;
+  }
+}
+
+/* === BUTTON GROUPS - MOBILE STACK === */
+@media (max-width: 480px) {
+  .btn-group-horizontal {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .btn-group-horizontal > * {
+    width: 100%;
+  }
+}
+
+/* === CARD SPACING MOBILE === */
+@media (max-width: 640px) {
+  .lp-card--padded {
+    padding: 16px;
+  }
+  
+  .lp-card--hero {
+    padding: 20px;
+  }
+  
+  .app-shell-content {
+    padding: 12px;
+  }
+}
+
+/* === LOADING STATES === */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--lp-surface-soft) 25%,
+    var(--lp-surface) 50%,
+    var(--lp-surface-soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* === FOCUS VISIBLE FOR KEYBOARD NAVIGATION === */
+.js-focus-visible :focus:not(.focus-visible) {
+  outline: none;
+}
+
+.focus-visible {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: 2px;
+}

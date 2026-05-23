@@ -101,11 +101,11 @@ const statusConfig: Record<SectionStatus, { border: string; bg: string; badge: s
     iconBg: 'bg-[var(--lp-accent)]'
   },
   info: {
-    border: 'border-[var(--lp-cobalt)]/30',
+    border: 'border-[var(--lp-accent)]/30',
     bg: 'bg-[var(--lp-surface)]',
-    badge: 'bg-[var(--lp-cobalt)]/20',
-    badgeText: 'text-[var(--lp-cobalt)]',
-    iconBg: 'bg-[var(--lp-cobalt)]'
+    badge: 'bg-[var(--lp-accent)]/20',
+    badgeText: 'text-[var(--lp-accent)]',
+    iconBg: 'bg-[var(--lp-accent)]'
   },
   warning: {
     border: 'border-amber-500/30',

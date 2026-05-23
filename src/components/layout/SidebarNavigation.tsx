@@ -69,30 +69,51 @@ export default function SidebarNavigation({
     setMobileOpen(false);
   }, [activeView]);
 
+  // Lock body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileOpen]);
+
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Mobile overlay - improved with backdrop blur */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-200 lg:hidden"
           onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
         />
       )}
 
-      {/* Mobile menu button */}
+      {/* Mobile menu button - improved touch target */}
       <button
         type="button"
         className="lp-mobile-menu-button"
         onClick={() => setMobileOpen(!mobileOpen)}
-        aria-label="Menü"
+        aria-label={mobileOpen ? 'Menü schließen' : 'Menü öffnen'}
+        aria-expanded={mobileOpen}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M3 12h18M3 6h18M3 18h18" />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          {mobileOpen ? (
+            <path d="M18 6L6 18M6 6l12 12" />
+          ) : (
+            <path d="M3 12h18M3 6h18M3 18h18" />
+          )}
         </svg>
       </button>
 
       {/* Sidebar */}
-      <aside className={`lp-sidebar ${mobileOpen ? 'is-mobile-open' : ''} ${collapsed ? 'is-collapsed' : ''}`}>
+      <aside 
+        className={`lp-sidebar ${mobileOpen ? 'is-mobile-open' : ''} ${collapsed ? 'is-collapsed' : ''}`}
+        aria-label="Hauptnavigation"
+      >
         {/* Top section */}
         <div className="lp-sidebar__top">
           <div className="lp-sidebar__logo">

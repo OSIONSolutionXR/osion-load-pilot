@@ -22,6 +22,15 @@ import {
   generateContextQuestionsFromMissing
 } from '../types/projectTwinV2'
 import { extractMeasuresFromTwin } from './measuresNormalize'
+import { 
+  logProjectCreated,
+  logContextAnswered,
+  logMeasureAdded,
+  logMeasureUpdated,
+  logMeasureCompleted,
+  logMeasureDeleted
+  // logTwinUpdated, logProgressUpdated werden in projectTwinUpdateNormalizer verwendet
+} from '../services/activityLogService'
 
 // Re-export V2 als primären Typ (backward compatibility)
 export type StoredProjectTwin = StoredProjectTwinV2
@@ -149,6 +158,7 @@ export function createStoredProjectTwin(
     futureSimulation: undefined,
     attentionQueue: [],
     measures: [],
+    activityLog: [],
     meta: {
       ...meta,
       source: 'analysis',
@@ -158,7 +168,7 @@ export function createStoredProjectTwin(
 
   const twinId = `twin-${timestamp}-${Math.random().toString(36).slice(2, 8)}`
 
-  return {
+  const newTwin: StoredProjectTwinV2 = {
     id: twinId,
     schemaVersion: 2,
     title: analysis.project.title || 'Neues Projekt',
@@ -177,12 +187,16 @@ export function createStoredProjectTwin(
     futureSimulation: undefined,
     attentionQueue: [],
     measures,
+    activityLog: [],
     meta: {
       ...meta,
       source: 'analysis',
       localOnly: true
     }
   }
+
+  // Logge die Projekterstellung
+  return logProjectCreated(newTwin, 'analysis')
 }
 
 // ============================================================================
@@ -362,14 +376,17 @@ export function updateTwinProgress(
 }
 
 /**
- * Markiert eine Kontextfrage als beantwortet
+ * Markiert eine Kontextfrage als beantwortet (mit Logging)
  */
 export function answerContextQuestion(
   twin: StoredProjectTwinV2,
   questionId: string,
   answer: string
 ): StoredProjectTwinV2 {
-  return {
+  const question = twin.contextQuestions.find(q => q.id === questionId)
+  if (!question) return twin
+
+  const updatedTwin = {
     ...twin,
     updatedAt: new Date().toISOString(),
     contextQuestions: twin.contextQuestions.map(q =>
@@ -378,6 +395,9 @@ export function answerContextQuestion(
         : q
     )
   }
+
+  // Logge die beantwortete Frage
+  return logContextAnswered(updatedTwin, questionId, question.label, answer)
 }
 
 /**
@@ -402,48 +422,65 @@ export function updateTwinMeta(
 // ============================================================================
 
 /**
- * Fügt eine neue Maßnahme zum Twin hinzu
+ * Fügt eine neue Maßnahme zum Twin hinzu (mit Logging)
  */
 export function addMeasureToTwin(
   twin: StoredProjectTwinV2,
   measure: Measure
 ): StoredProjectTwinV2 {
-  return {
+  const updatedTwin = {
     ...twin,
     updatedAt: new Date().toISOString(),
     measures: [...(twin.measures || []), measure]
   }
+  return logMeasureAdded(updatedTwin, measure.id, measure.title)
 }
 
 /**
- * Aktualisiert eine bestehende Maßnahme im Twin
+ * Aktualisiert eine bestehende Maßnahme im Twin (mit Logging)
  */
 export function updateTwinMeasure(
   twin: StoredProjectTwinV2,
   measureId: string,
   updates: Partial<Measure>
 ): StoredProjectTwinV2 {
-  return {
+  const existingMeasure = twin.measures?.find(m => m.id === measureId)
+  if (!existingMeasure) return twin
+
+  const wasCompleted = updates.status === 'done' && existingMeasure.status !== 'done'
+  
+  const updatedTwin = {
     ...twin,
     updatedAt: new Date().toISOString(),
     measures: twin.measures?.map(m =>
       m.id === measureId ? { ...m, ...updates } : m
     ) || []
   }
+
+  // Logge das Update
+  if (wasCompleted) {
+    return logMeasureCompleted(updatedTwin, measureId, existingMeasure.title)
+  }
+  return logMeasureUpdated(updatedTwin, measureId, existingMeasure.title, updates)
 }
 
 /**
- * Löscht eine Maßnahme aus dem Twin
+ * Löscht eine Maßnahme aus dem Twin (mit Logging)
  */
 export function deleteTwinMeasure(
   twin: StoredProjectTwinV2,
   measureId: string
 ): StoredProjectTwinV2 {
-  return {
+  const measure = twin.measures?.find(m => m.id === measureId)
+  if (!measure) return twin
+
+  const updatedTwin = {
     ...twin,
     updatedAt: new Date().toISOString(),
     measures: twin.measures?.filter(m => m.id !== measureId) || []
   }
+
+  return logMeasureDeleted(updatedTwin, measureId, measure.title)
 }
 
 /**

@@ -1,9 +1,14 @@
+/**
+ * OSION Load Pilot - Measure Execution Panel
+ * Erweitert mit Integrationen für Calendar, Email, Slack
+ */
+
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { 
   X, Sparkles, Clock, Shield, AlertCircle, 
   CheckCircle, FileText, Search, Mail, BarChart, Calendar, Database, PenTool,
-  Loader2, List, Target, Lock, AlertTriangle
+  Loader2, List, Target, Lock, AlertTriangle, Share2, MessageSquare, ExternalLink
 } from 'lucide-react'
 import type { Measure } from '../../types/measures'
 import type { 
@@ -23,6 +28,9 @@ import {
 } from '../../types/measureExecution'
 import type { StoredProjectTwin } from '../../lib/projectTwinStore'
 import { updateProjectTwin } from '../../services/projectTwinUpdateApi'
+import { exportSingleMeasureToICS, downloadICS } from '../../services/calendarExportService'
+import { generateMeasureEmailDraft, generateEmailDraft } from '../../services/emailIntegrationService'
+import { generateSingleMeasureSlackMessage } from '../../services/slackShareService'
 
 interface MeasureExecutionPanelProps {
   isOpen: boolean
@@ -31,6 +39,7 @@ interface MeasureExecutionPanelProps {
   project: StoredProjectTwin | null
   onExecutionCreated: (execution: MeasureExecution) => void
   onTwinUpdate?: (updatedTwin: StoredProjectTwin) => void
+  onOpenIntegrations?: () => void
 }
 
 export default function MeasureExecutionPanel({ 
@@ -39,7 +48,8 @@ export default function MeasureExecutionPanel({
   measure,
   project,
   onExecutionCreated,
-  onTwinUpdate
+  onTwinUpdate,
+  onOpenIntegrations
 }: MeasureExecutionPanelProps) {
   const [formData, setFormData] = useState<ExecutionFormData>(INITIAL_EXECUTION_FORM)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -47,6 +57,7 @@ export default function MeasureExecutionPanel({
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [showPlanPreview, setShowPlanPreview] = useState(false)
   const [generatedPlan, setGeneratedPlan] = useState<ExecutionPlan | null>(null)
+  const [copiedSection, setCopiedSection] = useState<string | null>(null)
 
   const validateForm = (): boolean => {
     const errors: string[] = []
@@ -234,6 +245,35 @@ Das Ergebnis sollte strukturiert sein und direkt in die Measure-Execution-Strukt
     }
   }
 
+  // Integrations-Handler
+  const handleAddToCalendar = () => {
+    if (!measure?.dueDate) {
+      setError('Diese Maßnahme hat kein Fälligkeitsdatum.')
+      return
+    }
+    try {
+      const ics = exportSingleMeasureToICS(measure)
+      downloadICS(ics, `maßnahme-${measure.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Fehler beim Export')
+    }
+  }
+
+  const handleShareViaEmail = () => {
+    if (!measure) return
+    const draft = generateMeasureEmailDraft(measure)
+    const mailto = generateEmailDraft(draft.recipient, draft.subject, draft.body)
+    window.location.href = mailto
+  }
+
+  const handleShareViaSlack = async () => {
+    if (!measure) return
+    const text = generateSingleMeasureSlackMessage(measure)
+    await navigator.clipboard.writeText(text)
+    setCopiedSection('slack')
+    setTimeout(() => setCopiedSection(null), 2000)
+  }
+
   if (!measure) return null
 
   return (
@@ -275,6 +315,59 @@ Das Ergebnis sollte strukturiert sein und direkt in die Measure-Execution-Strukt
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6">
+              {/* Quick Integrations Toolbar */}
+              {measure && (
+                <div className="mb-6 p-4 rounded-xl bg-[var(--lp-surface-soft)] border border-[var(--lp-border)]">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Share2 className="w-4 h-4 text-[var(--lp-cobalt)]" />
+                    <span className="text-sm font-medium text-[var(--lp-text)]">Schnell teilen</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {measure.dueDate && (
+                      <button
+                        onClick={handleAddToCalendar}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors text-sm"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        In Kalender
+                      </button>
+                    )}
+                    <button
+                      onClick={handleShareViaEmail}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Per E-Mail
+                    </button>
+                    <button
+                      onClick={handleShareViaSlack}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 transition-colors text-sm"
+                    >
+                      {copiedSection === 'slack' ? (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          Kopiert!
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare className="w-4 h-4" />
+                          Für Slack
+                        </>
+                      )}
+                    </button>
+                    {onOpenIntegrations && (
+                      <button
+                        onClick={onOpenIntegrations}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--lp-surface)] text-[var(--lp-muted)] hover:text-[var(--lp-text)] border border-[var(--lp-border)] transition-colors text-sm"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Alle Integrationen
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {!showPlanPreview ? (
                 /* Configuration Form */
                 <div className="space-y-6">
@@ -515,7 +608,7 @@ Das Ergebnis sollte strukturiert sein und direkt in die Measure-Execution-Strukt
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex items-start gap-3">
-                                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--lp-cobalt)]/20 text-[var(--lp-cobolt)] text-xs flex items-center justify-center font-medium">
+                                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--lp-cobalt)]/20 text-[var(--lp-cobalt)] text-xs flex items-center justify-center font-medium">
                                     {index + 1}
                                   </span>
                                   <div>
