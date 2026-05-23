@@ -92,17 +92,19 @@ export default function SidebarNavigation({
       </button>
 
       {/* Sidebar */}
-      <aside className={`lp-sidebar ${mobileOpen ? 'is-mobile-open' : ''}`}>
+      <aside className={`lp-sidebar ${mobileOpen ? 'is-mobile-open' : ''} ${collapsed ? 'is-collapsed' : ''}`}>
         {/* Top section */}
         <div className="lp-sidebar__top">
           <div className="lp-sidebar__logo">
             <Zap className="w-5 h-5" />
           </div>
 
-          <div className="lp-sidebar__brand">
-            <div className="lp-sidebar__brand-title">Load Pilot</div>
-            <div className="lp-sidebar__brand-subtitle">Project Twin System</div>
-          </div>
+          {!collapsed && (
+            <div className="lp-sidebar__brand">
+              <div className="lp-sidebar__brand-title">Load Pilot</div>
+              <div className="lp-sidebar__brand-subtitle">Project Twin System</div>
+            </div>
+          )}
 
           <button
             type="button"
