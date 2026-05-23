@@ -4,26 +4,22 @@ import {
   Send,
   Bot,
   User,
-  Sparkles,
-  AlertCircle,
-  CheckCircle,
-  FolderKanban,
-  ChevronDown,
   Wifi,
   WifiOff,
   Loader2,
   StopCircle,
   RefreshCw,
+  FolderKanban,
+  ChevronDown,
+  Sparkles,
   MessageSquare
 } from 'lucide-react'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
-import { sendChatMessage } from '../services/chatService'
-import type { ChatMessage, ChatStatus } from '../types/chat'
+import { sendChatMessage, checkChatConnection, type ChatMessage } from '../services/chatService'
 
 interface ChatScreenProps {
   twins: StoredProjectTwin[]
   activeTwinId: string | null
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onOpenTwin: (_id: string) => void
 }
 
@@ -31,7 +27,6 @@ type ProjectContextValue = 'all' | 'active' | { twinId: string; title: string }
 
 const MAX_MESSAGE_LENGTH = 4000
 
-// Utility functions
 const generateMessageId = () => `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 const formatTime = (timestamp: string) => {
   const date = new Date(timestamp)
@@ -39,11 +34,10 @@ const formatTime = (timestamp: string) => {
 }
 
 export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwin }: ChatScreenProps) {
-  // State
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState('')
   const [projectContext, setProjectContext] = useState<ProjectContextValue>('active')
-  const [chatStatus, setChatStatus] = useState<ChatStatus>('idle')
+  const [isLoading, setIsLoading] = useState(false)
   const [showContextDropdown, setShowContextDropdown] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking')
   
@@ -57,7 +51,7 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
       setMessages([{
         id: generateMessageId(),
         role: 'assistant',
-        content: 'Willkommen im OSION KI-Chat. Ich helfe dir bei der Projektsteuerung, Maßnahmen und Freigaben.\n\nWähle ein Projekt aus dem Dropdown oder stelle mir eine Frage.',
+        content: 'Willkommen im OSION KI-Chat. Ich bin OSION X ONE, deine KI-Assistenz für Projektsteuerung.\n\nWie kann ich dir helfen?',
         timestamp: new Date().toISOString()
       }])
     }
@@ -71,7 +65,7 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, isLoading])
 
   // Auto-resize textarea
   useEffect(() => {
@@ -83,15 +77,12 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
 
   const checkConnection = useCallback(async () => {
     setConnectionStatus('checking')
-    try {
-      const response = await fetch('/api/chat', { method: 'HEAD' })
-      setConnectionStatus(response.ok ? 'connected' : 'error')
-    } catch {
-      setConnectionStatus('error')
-    }
+    const result = await checkChatConnection()
+    setConnectionStatus(result.connected ? 'connected' : 'error')
   }, [])
 
-  const activeTwin = useMemo(() => {
+  // @ts-expect-error - activeTwin wird später für Projektkontext an KI übergeben
+  const _activeTwin = useMemo(() => {
     if (projectContext === 'all') return null
     if (projectContext === 'active') {
       return twins.find(t => t.id === activeTwinId) || twins[0] || null
@@ -109,7 +100,7 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
   }, [projectContext, twins, activeTwinId])
 
   const handleSend = useCallback(async () => {
-    if (!inputText.trim() || chatStatus === 'loading') return
+    if (!inputText.trim() || isLoading) return
     if (inputText.length > MAX_MESSAGE_LENGTH) {
       alert(`Nachricht ist zu lang. Maximal ${MAX_MESSAGE_LENGTH} Zeichen erlaubt.`)
       return
@@ -124,30 +115,15 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
 
     setMessages(prev => [...prev, userMessage])
     setInputText('')
-    setChatStatus('loading')
+    setIsLoading(true)
 
     // Cancel any pending request
     abortControllerRef.current?.abort()
     abortControllerRef.current = new AbortController()
 
     try {
-      const projectContextData = activeTwin ? {
-        projectId: activeTwin.id,
-        projectTitle: activeTwin.title,
-        measuresCount: 0,
-        risksCount: 0,
-        contactsCount: 0
-      } as const : undefined
-
-      const response = await sendChatMessage(
-        userMessage.content,
-        messages.map(m => ({ 
-          role: m.role, 
-          content: m.content, 
-          timestamp: m.timestamp 
-        } as const)),
-        projectContextData
-      )
+      const history = messages.map(m => ({ role: m.role, content: m.content }))
+      const response = await sendChatMessage(userMessage.content, history)
 
       if ('error' in response) {
         throw new Error(response.error)
@@ -156,12 +132,11 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
       const assistantMessage: ChatMessage = {
         id: generateMessageId(),
         role: 'assistant',
-        content: response.text || 'Keine Antwort erhalten.',
+        content: response.text,
         timestamp: new Date().toISOString()
       }
 
       setMessages(prev => [...prev, assistantMessage])
-      setChatStatus('success')
       setConnectionStatus('connected')
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
@@ -175,35 +150,31 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
       }
 
       setMessages(prev => [...prev, errorMsg])
-      setChatStatus('error')
       setConnectionStatus('error')
+    } finally {
+      setIsLoading(false)
     }
-  }, [inputText, chatStatus, messages, activeTwin])
+  }, [inputText, isLoading, messages])
 
   const handleStop = useCallback(() => {
     abortControllerRef.current?.abort()
-    setChatStatus('idle')
+    setIsLoading(false)
   }, [])
 
-  const handleRetry = useCallback(() => {
-    checkConnection()
-  }, [checkConnection])
-
-  // Status badge
   const StatusBadge = () => {
     if (connectionStatus === 'checking') {
       return (
-        <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 text-amber-400 rounded-full text-xs">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full text-xs text-amber-400">
           <Loader2 className="w-3 h-3 animate-spin" />
-          <span>Prüfe...</span>
+          <span>Verbinde...</span>
         </div>
       )
     }
     if (connectionStatus === 'error') {
       return (
         <button
-          onClick={handleRetry}
-          className="flex items-center gap-1.5 px-2 py-1 bg-rose-500/10 text-rose-400 rounded-full text-xs hover:bg-rose-500/20 transition-colors"
+          onClick={checkConnection}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 rounded-full text-xs text-rose-400 hover:bg-rose-500/20 transition-colors"
         >
           <WifiOff className="w-3 h-3" />
           <span>Nicht verbunden</span>
@@ -212,145 +183,139 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
       )
     }
     return (
-      <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-xs text-emerald-400">
         <Wifi className="w-3 h-3" />
         <span>KI verbunden</span>
       </div>
     )
   }
 
-  // Suggestions panel (only show if we have actual suggestions in a real implementation)
-  const hasSuggestions = false // Will be populated from actual AI responses
-
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6 pb-4 border-b border-zinc-800">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-violet-400" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-zinc-100">OSION KI-Chat</h2>
-              <p className="text-sm text-zinc-500">Projektsteuerung, Maßnahmen, Freigaben und Verbindungen per KI bearbeiten</p>
-            </div>
+      <div className="flex items-center justify-between mb-6 pb-6 border-b border-white/10">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <Sparkles className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white">OSION KI-Chat</h1>
+            <p className="text-sm text-white/50">Projektsteuerung, Maßnahmen, Freigaben und Verbindungen per KI bearbeiten</p>
           </div>
         </div>
         <StatusBadge />
       </div>
 
-      {/* Project Context Selector */}
-      <div className="relative mb-6">
-        <button
-          onClick={() => setShowContextDropdown(!showContextDropdown)}
-          className="flex items-center gap-3 px-4 py-3 bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 rounded-xl text-sm transition-all"
-        >
-          <FolderKanban className="w-4 h-4 text-zinc-400" />
-          <div className="text-left">
-            <div className="text-xs text-zinc-500 uppercase tracking-wide">Projektkontext</div>
-            <div className="text-zinc-200 font-medium">{contextLabel}</div>
-          </div>
-          <ChevronDown className={`w-4 h-4 text-zinc-500 ml-4 transition-transform ${showContextDropdown ? 'rotate-180' : ''}`} />
-        </button>
-
-        <AnimatePresence>
-          {showContextDropdown && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="absolute top-full left-0 mt-2 w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden"
-            >
-              <button
-                onClick={() => { setProjectContext('all'); setShowContextDropdown(false); }}
-                className={`w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3 ${
-                  projectContext === 'all' ? 'bg-zinc-800/50 text-violet-400' : 'text-zinc-300'
-                }`}
-              >
-                <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
-                  <FolderKanban className="w-4 h-4 text-zinc-500" />
-                </div>
-                Alle Projekte
-              </button>
-              <button
-                onClick={() => { setProjectContext('active'); setShowContextDropdown(false); }}
-                className={`w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3 ${
-                  projectContext === 'active' ? 'bg-zinc-800/50 text-violet-400' : 'text-zinc-300'
-                }`}
-              >
-                <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
-                  <CheckCircle className="w-4 h-4 text-zinc-500" />
-                </div>
-                Aktives Projekt
-              </button>
-              {twins.length > 0 && <div className="border-t border-zinc-800 my-1" />}
-              {twins.map(twin => (
-                <button
-                  key={twin.id}
-                  onClick={() => { setProjectContext({ twinId: twin.id, title: twin.title }); setShowContextDropdown(false); }}
-                  className={`w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3 ${
-                    typeof projectContext === 'object' && projectContext.twinId === twin.id 
-                      ? 'bg-zinc-800/50 text-violet-400' 
-                      : 'text-zinc-300'
-                  }`}
-                >
-                  <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
-                    <FolderKanban className="w-4 h-4 text-zinc-500" />
-                  </div>
-                  <span className="truncate">{twin.title}</span>
-                </button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Main Chat Area */}
       <div className="flex-1 flex gap-6 min-h-0">
-        {/* Left: Messages */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Messages Container */}
-          <div className="flex-1 overflow-y-auto space-y-4 pr-2 -mr-2">
+        {/* Left: Chat */}
+        <div className="flex-1 flex flex-col min-w-0 bg-black/50 rounded-2xl border border-white/10 overflow-hidden">
+          {/* Project Context Selector */}
+          <div className="px-6 py-4 border-b border-white/10">
+            <div className="relative">
+              <button
+                onClick={() => setShowContextDropdown(!showContextDropdown)}
+                className="flex items-center gap-3 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm transition-all"
+              >
+                <FolderKanban className="w-4 h-4 text-white/50" />
+                <div className="text-left">
+                  <div className="text-xs text-white/40 uppercase tracking-wide">Projektkontext</div>
+                  <div className="text-white font-medium">{contextLabel}</div>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-white/50 ml-4 transition-transform ${showContextDropdown ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {showContextDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    className="absolute top-full left-0 mt-2 w-80 bg-zinc-900 border border-white/20 rounded-xl shadow-2xl z-50 overflow-hidden"
+                  >
+                    <button
+                      onClick={() => { setProjectContext('all'); setShowContextDropdown(false); }}
+                      className={`w-full px-4 py-3 text-left text-sm hover:bg-white/5 transition-colors flex items-center gap-3 ${
+                        projectContext === 'all' ? 'bg-violet-500/20 text-violet-300' : 'text-zinc-300'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                        <FolderKanban className="w-4 h-4 text-white/50" />
+                      </div>
+                      Alle Projekte
+                    </button>
+                    <button
+                      onClick={() => { setProjectContext('active'); setShowContextDropdown(false); }}
+                      className={`w-full px-4 py-3 text-left text-sm hover:bg-white/5 transition-colors flex items-center gap-3 ${
+                        projectContext === 'active' ? 'bg-violet-500/20 text-violet-300' : 'text-zinc-300'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                      </div>
+                      Aktives Projekt
+                    </button>
+                    {twins.length > 0 && <div className="border-t border-white/10 my-1" />}
+                    {twins.map(twin => (
+                      <button
+                        key={twin.id}
+                        onClick={() => { setProjectContext({ twinId: twin.id, title: twin.title }); setShowContextDropdown(false); }}
+                        className={`w-full px-4 py-3 text-left text-sm hover:bg-white/5 transition-colors flex items-center gap-3 ${
+                          typeof projectContext === 'object' && projectContext.twinId === twin.id 
+                            ? 'bg-violet-500/20 text-violet-300' 
+                            : 'text-zinc-300'
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                          <FolderKanban className="w-4 h-4 text-white/50" />
+                        </div>
+                        <span className="truncate">{twin.title}</span>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
             <AnimatePresence mode="popLayout">
-              {messages.map((message, index) => (
+              {messages.map((msg, _index) => (
                 <motion.div
-                  key={message.id}
+                  key={msg.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.2, delay: index === messages.length - 1 ? 0 : 0 }}
-                  className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                  className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
                 >
                   {/* Avatar */}
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    message.role === 'user' 
-                      ? 'bg-violet-600' 
-                      : message.isError 
-                        ? 'bg-rose-500/20' 
-                        : 'bg-zinc-800'
-                  }`}>
-                    {message.role === 'user' ? (
-                      <User className="w-4 h-4 text-white" />
-                    ) : message.isError ? (
-                      <AlertCircle className="w-4 h-4 text-rose-400" />
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    msg.role === 'user' 
+                      ? 'bg-violet-500' 
+                      : msg.isError 
+                        ? 'bg-rose-500/20 border border-rose-500/30' 
+                        : 'bg-white/10 border border-white/20'
+                  }`}
+                  >
+                    {msg.role === 'user' ? (
+                      <User className="w-5 h-5 text-white" />
+                    ) : msg.isError ? (
+                      <div className="text-rose-400 font-bold text-sm">!</div>
                     ) : (
-                      <Bot className="w-4 h-4 text-violet-400" />
+                      <Bot className="w-5 h-5 text-violet-300" />
                     )}
                   </div>
 
                   {/* Message Bubble */}
-                  <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    message.role === 'user'
-                      ? 'bg-violet-600 text-white'
-                      : message.isError
+                  <div className={`max-w-[80%] rounded-2xl px-5 py-4 shadow-lg ${
+                    msg.role === 'user'
+                      ? 'bg-white text-black'
+                      : msg.isError
                         ? 'bg-rose-500/10 border border-rose-500/20 text-rose-100'
-                        : 'bg-zinc-800/50 border border-zinc-700/50 text-zinc-200'
-                  }`}>
-                    {/* Content with markdown-like formatting */}
-                    <div className="whitespace-pre-wrap">
-                      {message.content.split('\n').map((line, i) => {
-                        // Bold text **text**
+                        : 'bg-zinc-900 border border-white/10 text-white'
+                  }`}
+                  >
+                    <div className="whitespace-pre-wrap text-[15px] leading-relaxed">
+                      {msg.content.split('\n').map((line, i) => {
                         const parts = line.split(/(\*\*.*?\*\*)/g)
                         return (
                           <span key={i}>
@@ -360,17 +325,16 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
                               }
                               return part
                             })}
-                            {i < message.content.split('\n').length - 1 && <br />}
+                            {i < msg.content.split('\n').length - 1 && <br />}
                           </span>
                         )
                       })}
                     </div>
                     
-                    {/* Timestamp */}
-                    <div className={`text-[10px] mt-2 ${
-                      message.role === 'user' ? 'text-violet-200/60' : 'text-zinc-500'
+                    <div className={`text-xs mt-2 ${
+                      msg.role === 'user' ? 'text-black/40' : 'text-white/30'
                     }`}>
-                      {formatTime(message.timestamp)}
+                      {formatTime(msg.timestamp)}
                     </div>
                   </div>
                 </motion.div>
@@ -378,19 +342,19 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
             </AnimatePresence>
 
             {/* Loading indicator */}
-            {chatStatus === 'loading' && (
+            {isLoading && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex gap-3"
+                className="flex gap-4"
               >
-                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-violet-400" />
+                <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-violet-300" />
                 </div>
-                <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-2xl px-4 py-3">
-                  <div className="flex items-center gap-2 text-sm text-zinc-400">
+                <div className="bg-zinc-900 border border-white/10 rounded-2xl px-5 py-4">
+                  <div className="flex items-center gap-3 text-white/50">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>KI arbeitet...</span>
+                    <span className="text-sm">OSION X ONE denkt...</span>
                   </div>
                 </div>
               </motion.div>
@@ -399,8 +363,8 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
-          <div className="mt-4 pt-4 border-t border-zinc-800">
+          {/* Input */}
+          <div className="px-6 py-4 border-t border-white/10">
             <div className="relative">
               <textarea
                 ref={inputRef}
@@ -414,38 +378,36 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
                 }}
                 placeholder={connectionStatus === 'error' 
                   ? "KI nicht verbunden. Bitte Verbindung prüfen..." 
-                  : "Stelle eine Frage..."
+                  : "Schreibe eine Nachricht..."
                 }
-                disabled={chatStatus === 'loading' || connectionStatus === 'error'}
-                className="w-full min-h-[56px] max-h-[160px] px-4 py-3 pr-14 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-zinc-100 placeholder-zinc-500 resize-none focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading || connectionStatus === 'error'}
+                className="w-full min-h-[60px] max-h-[160px] px-5 py-4 pr-16 bg-white text-black rounded-xl text-sm placeholder:text-black/40 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 rows={1}
               />
               
-              {/* Send/Stop Button */}
               <div className="absolute right-3 bottom-3">
-                {chatStatus === 'loading' ? (
+                {isLoading ? (
                   <button
                     onClick={handleStop}
-                    className="p-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 rounded-lg transition-colors"
+                    className="p-2.5 bg-rose-500 hover:bg-rose-400 text-white rounded-lg transition-colors"
                     title="Abbrechen"
                   >
-                    <StopCircle className="w-4 h-4" />
+                    <StopCircle className="w-5 h-5" />
                   </button>
                 ) : (
                   <button
                     onClick={handleSend}
                     disabled={!inputText.trim() || connectionStatus === 'error'}
-                    className="p-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    className="p-2.5 bg-violet-600 hover:bg-violet-500 disabled:bg-black/20 disabled:text-black/40 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
                     title="Senden"
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className="w-5 h-5" />
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Character count */}
-            <div className="flex justify-between items-center mt-2 text-xs text-zinc-500">
+            <div className="flex justify-between items-center mt-3 text-xs text-white/30">
               <span>{inputText.length}/{MAX_MESSAGE_LENGTH} Zeichen</span>
               <span className="hidden sm:inline">Enter zum Senden, Shift+Enter für Zeilenumbruch</span>
             </div>
@@ -453,28 +415,22 @@ export default function ChatScreen({ twins, activeTwinId, onOpenTwin: _onOpenTwi
         </div>
 
         {/* Right: Suggestions Panel */}
-        <div className="w-80 flex-shrink-0 hidden lg:block">
-          <div className="sticky top-0">
-            <h3 className="text-sm font-medium text-zinc-400 mb-4 flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
+        <div className="w-80 flex-shrink-0 hidden xl:block">
+          <div className="bg-zinc-900/50 border border-white/10 rounded-2xl p-6">
+            <h3 className="text-sm font-medium text-white/70 mb-4 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-violet-400" />
               KI-Vorschläge
             </h3>
             
-            {hasSuggestions ? (
-              <div className="space-y-3">
-                {/* Suggestions would go here */}
-              </div>
-            ) : (
-              <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-6 text-center">
-                <MessageSquare className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
-                <p className="text-sm text-zinc-500 mb-2">
-                  Noch keine Vorschläge
-                </p>
-                <p className="text-xs text-zinc-600">
-                  Sobald ein Projekt aktiv ist oder du eine Frage stellst, erscheinen hier passende Vorschläge.
-                </p>
-              </div>
-            )}
+            <div className="bg-black/50 border border-white/5 rounded-xl p-6 text-center">
+              <MessageSquare className="w-10 h-10 text-white/20 mx-auto mb-4" />
+              <p className="text-sm text-white/50 mb-2">
+                Noch keine Vorschläge
+              </p>
+              <p className="text-xs text-white/30">
+                Sobald ein Projekt aktiv ist oder du eine Frage stellst, erscheinen hier passende nächste Schritte.
+              </p>
+            </div>
           </div>
         </div>
       </div>

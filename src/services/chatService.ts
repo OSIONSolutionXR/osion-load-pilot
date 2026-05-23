@@ -1,94 +1,30 @@
-import type { ChatMessage, ChatResponse, ProjectContext } from '../types/chat'
+/**
+ * OSION Chat Service
+ * Connects to the OpenClaw Bridge for real AI responses
+ */
 
 const CHAT_API_URL = '/api/chat'
 
-interface ChatServiceOptions {
-  onError?: (error: string) => void
-  onStatusChange?: (status: 'idle' | 'loading' | 'error' | 'success') => void
-}
-
-export class ChatService {
-  private abortController: AbortController | null = null
-  private options: ChatServiceOptions
-
-  constructor(options: ChatServiceOptions = {}) {
-    this.options = options
-  }
-
-  async sendMessage(
-    message: string,
-    history: ChatMessage[],
-    projectContext?: ProjectContext
-  ): Promise<ChatResponse | null> {
-    // Cancel any pending request
-    this.abortController?.abort()
-    this.abortController = new AbortController()
-
-    this.options.onStatusChange?.('loading')
-
-    try {
-      const response = await fetch(CHAT_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          message,
-          history: history.slice(-10), // Send only last 10 messages for context
-          projectContext
-        }),
-        signal: this.abortController.signal
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `HTTP ${response.status}`)
-      }
-
-      const data = await response.json()
-      
-      if (!this.isValidChatResponse(data)) {
-        throw new Error('Ungültige KI-Antwort')
-      }
-
-      this.options.onStatusChange?.('success')
-      return data as ChatResponse
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        return null // Request was cancelled
-      }
-
-      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
-      this.options.onError?.(errorMessage)
-      this.options.onStatusChange?.('error')
-      return null
-    }
-  }
-
-  cancel(): void {
-    this.abortController?.abort()
-    this.abortController = null
-  }
-
-  private isValidChatResponse(data: unknown): data is ChatResponse {
-    if (typeof data !== 'object' || data === null) return false
-    const response = data as Record<string, unknown>
-    return typeof response.text === 'string'
-  }
-}
-
-// Simple history item for API calls
-interface ChatHistoryItem {
-  role: 'user' | 'assistant' | 'system'
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
   content: string
   timestamp: string
+  isError?: boolean
 }
 
-// Simple non-class version for direct use
+export interface ChatResponse {
+  text: string
+}
+
+export type ChatStatus = 'idle' | 'loading' | 'error' | 'success'
+
+/**
+ * Send a message to the chat API and get a real AI response
+ */
 export async function sendChatMessage(
   message: string,
-  history: ChatHistoryItem[],
-  projectContext?: ProjectContext
+  history: { role: 'user' | 'assistant'; content: string }[]
 ): Promise<ChatResponse | { error: string }> {
   try {
     const response = await fetch(CHAT_API_URL, {
@@ -98,8 +34,7 @@ export async function sendChatMessage(
       },
       body: JSON.stringify({
         message,
-        history: history.slice(-10),
-        projectContext
+        history: history.slice(-10) // Send last 10 messages for context
       })
     })
 
@@ -108,14 +43,39 @@ export async function sendChatMessage(
       return { error: errorData.error || `HTTP ${response.status}` }
     }
 
-    const data = await response.json()
+    const data = await response.json() as ChatResponse | { error: string }
     
+    if ('error' in data) {
+      return { error: data.error }
+    }
+
     if (!data || typeof data.text !== 'string') {
       return { error: 'Ungültige KI-Antwort' }
     }
 
-    return data as ChatResponse
+    return data
   } catch (error) {
+    console.error('Chat service error:', error)
     return { error: error instanceof Error ? error.message : 'KI-Verbindung nicht erreichbar' }
+  }
+}
+
+/**
+ * Check if the chat API is reachable
+ */
+export async function checkChatConnection(): Promise<{ connected: boolean; error?: string }> {
+  try {
+    const response = await fetch(CHAT_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'ping' })
+    })
+    
+    return { connected: response.ok }
+  } catch (error) {
+    return { 
+      connected: false, 
+      error: error instanceof Error ? error.message : 'Verbindung fehlgeschlagen' 
+    }
   }
 }

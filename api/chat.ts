@@ -3,167 +3,83 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 const MAX_INPUT_LENGTH = 4000
 const REQUEST_TIMEOUT_MS = 180000
 
-const CHAT_PROMPT = `Du bist OSION X ONE, die KI-Assistenz für den OSION Load Pilot Project Twin System.
-
-Deine Aufgaben:
-1. Natürlich, präzise und professionell antworten
-2. Projektsteuerung unterstützen (Maßnahmen, Risiken, Kontakte, Freigaben)
-3. Kontext aus dem Project Twin nutzen (Projekte, Maßnahmen, Risiken, Historie)
-4. Wenn etwas unklar ist: nachfragen statt raten
-5. Wenn Aktionen vorgeschlagen werden: strukturierte Vorschläge zurückgeben
-
-Wichtig:
-- Keine halluzinierten Daten
-- Keine erfundenen Kontakte oder Maßnahmen
-- Bei fehlenden Daten: ehrlich "Ich habe keine Informationen zu..."
-- Strukturierte JSON-Antworten für Aktionen
-
-Antwortformat:
-- text: Natürliche Konversation
-- suggestions: Optionale strukturierte Vorschläge
-- actions: Konkrete ausführbare Aktionen`
-
 const ALLOWED_JOB_TYPE = 'loadpilot_chat'
 const ALLOWED_PROMPT_VERSION = 'loadpilot_chat_v1'
 
 type ChatMessage = {
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'system'
   content: string
-  timestamp: string
+  timestamp?: string
+}
+
+interface ChatResponse {
+  text: string
+  suggestions?: Suggestion[]
 }
 
 type SuggestionType = 'measure' | 'email_draft' | 'checklist' | 'analysis' | 'contact' | 'risk'
 
-type Suggestion = {
+interface Suggestion {
   type: SuggestionType
   title: string
   description: string
   data?: Record<string, unknown>
 }
 
-type ChatAction = {
-  type: 'create_measure' | 'send_email' | 'add_contact' | 'analyze_risk'
-  params: Record<string, unknown>
-}
-
-type ChatResponse = {
-  text: string
-  suggestions?: Suggestion[]
-  actions?: ChatAction[]
-}
-
-type BridgeRequest = {
-  jobType: typeof ALLOWED_JOB_TYPE
-  promptVersion: typeof ALLOWED_PROMPT_VERSION
-  input: string
-  history: ChatMessage[]
-  projectContext?: {
-    projectId?: string
-    projectTitle?: string
-    measuresCount?: number
-    risksCount?: number
-    contactsCount?: number
-  }
-  outputFormat: 'chat_response_json'
-  prompt: string
-}
-
-type BridgeEnvelope = {
-  result?: unknown
-  error?: string
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === 'string'
-}
-
-function isArrayOf<T>(arr: unknown, validator: (item: unknown) => item is T): arr is T[] {
-  return Array.isArray(arr) && arr.every(validator)
-}
-
-function isValidSuggestion(item: unknown): item is Suggestion {
-  if (!isObject(item)) return false
-  const validTypes: SuggestionType[] = ['measure', 'email_draft', 'checklist', 'analysis', 'contact', 'risk']
-  return (
-    isString(item.title) &&
-    isString(item.description) &&
-    (item.type === undefined || (isString(item.type) && validTypes.includes(item.type as SuggestionType)))
-  )
-}
-
-function isValidAction(item: unknown): item is ChatAction {
-  if (!isObject(item)) return false
-  return (
-    isString(item.type) &&
-    ['create_measure', 'send_email', 'add_contact', 'analyze_risk'].includes(item.type) &&
-    isObject(item.params)
-  )
-}
-
-function validateChatResponse(data: unknown): data is ChatResponse {
-  if (!isObject(data)) return false
-  if (!isString(data.text)) return false
-
-  if (data.suggestions !== undefined) {
-    if (!isArrayOf(data.suggestions, isValidSuggestion)) return false
-  }
-
-  if (data.actions !== undefined) {
-    if (!isArrayOf(data.actions, isValidAction)) return false
-  }
-
-  return true
-}
-
-async function callBridge(input: string, history: ChatMessage[], projectContext?: BridgeRequest['projectContext']): Promise<ChatResponse> {
-  const bridgeUrl = process.env.OPENCLAW_BRIDGE_URL
+// Call the OpenClaw Bridge for chat
+async function callBridge(messages: ChatMessage[]): Promise<ChatResponse> {
+  const bridgeUrl = process.env.OPENCLAW_BRIDGE_URL || 'http://187.124.184.137:8788'
   const bridgeSecret = process.env.OPENCLAW_BRIDGE_SECRET
 
-  if (!bridgeUrl || !bridgeSecret) {
-    throw new Error('KI-Verbindung nicht konfiguriert')
+  if (!bridgeSecret) {
+    throw new Error('OPENCLAW_BRIDGE_SECRET nicht konfiguriert')
   }
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
-  const payload: BridgeRequest = {
-    jobType: ALLOWED_JOB_TYPE,
-    promptVersion: ALLOWED_PROMPT_VERSION,
-    input,
-    history,
-    projectContext,
-    outputFormat: 'chat_response_json',
-    prompt: CHAT_PROMPT
-  }
-
   try {
-    const response = await fetch(bridgeUrl, {
+    const response = await fetch(`${bridgeUrl}/bridge/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${bridgeSecret}`
+        'Authorization': `Bearer ${bridgeSecret}`
       },
-      body: JSON.stringify(payload),
-      signal: controller.signal
+      body: JSON.stringify({
+        jobType: ALLOWED_JOB_TYPE,
+        promptVersion: ALLOWED_PROMPT_VERSION,
+        messages: messages.slice(-10), // Last 10 messages for context
+        outputFormat: 'chat_response'
+      }),
+      signal: controller.signal as AbortSignal
     })
 
-    const body = (await response.json().catch(() => ({}))) as BridgeEnvelope
-
     if (!response.ok) {
-      throw new Error(body.error || 'KI-Dienst nicht erreichbar')
+      const errorText = await response.text().catch(() => 'Unknown error')
+      throw new Error(`Bridge HTTP ${response.status}: ${errorText}`)
     }
 
-    const result = isObject(body) && 'result' in body ? body.result : body
-
-    if (!validateChatResponse(result)) {
-      throw new Error('KI-Antwort konnte nicht verarbeitet werden')
+    const data = await response.json() as { result?: unknown; error?: string; text?: string }
+    
+    if (data.error) {
+      throw new Error(data.error)
     }
 
-    return result
+    // Handle different response formats
+    if (typeof data.text === 'string') {
+      return { text: data.text }
+    }
+
+    if (data.result && typeof (data.result as { text?: string }).text === 'string') {
+      return { text: (data.result as { text: string }).text }
+    }
+
+    // Fallback: try to extract any text
+    const text = typeof data.result === 'string' 
+      ? data.result 
+      : JSON.stringify(data.result)
+    
+    return { text }
   } finally {
     clearTimeout(timeout)
   }
@@ -177,26 +93,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Nur POST ist erlaubt.' })
   }
 
-  const { message, history, projectContext } = req.body || {}
-  const input = isString(message) ? message.trim() : ''
-  const chatHistory = Array.isArray(history) ? history : []
+  const { message, history } = req.body || {}
 
-  if (!input) {
+  if (typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ error: 'Nachricht fehlt.' })
   }
 
-  if (input.length > MAX_INPUT_LENGTH) {
-    return res.status(400).json({ error: `Nachricht ist zu lang. Maximal ${MAX_INPUT_LENGTH} Zeichen erlaubt.` })
+  if (message.length > MAX_INPUT_LENGTH) {
+    return res.status(400).json({ 
+      error: `Nachricht ist zu lang. Maximal ${MAX_INPUT_LENGTH} Zeichen erlaubt.` 
+    })
   }
 
+  // Build message history
+  const messages: ChatMessage[] = Array.isArray(history) 
+    ? history.filter((m: ChatMessage) => 
+        typeof m.role === 'string' && 
+        ['user', 'assistant', 'system'].includes(m.role) &&
+        typeof m.content === 'string'
+      ).map((m: ChatMessage) => ({ 
+        role: m.role, 
+        content: m.content 
+      }))
+    : []
+
+  // Add current message
+  messages.push({ role: 'user', content: message.trim() })
+
   try {
-    const response = await callBridge(input, chatHistory, projectContext)
+    const response = await callBridge(messages)
     return res.status(200).json(response)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unbekannter Fehler'
+    console.error('Chat error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
     return res.status(502).json({ 
       error: 'KI-Verbindung nicht erreichbar',
-      details: message
+      details: errorMessage
     })
   }
 }
