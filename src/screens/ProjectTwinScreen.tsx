@@ -16,10 +16,10 @@ import {
   ListTodo,
   GitBranch,
   Download,
-  Share2,
-  Shield
+  Share2
 } from 'lucide-react'
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import RisksPanel from '../components/twin/RisksPanel'
 import { Badge } from '../components/ui/Badge'
 import { ProcessPathPanel } from '../components/twin/ProcessPathPanel'
 import RefineContextModal from '../components/twin/RefineContextModal'
@@ -27,7 +27,7 @@ import ActionDetailView from '../components/twin/ActionDetailView'
 import { FadeIn } from '../components/animations/MicroAnimations'
 import { generateContextQuestions } from '../lib/contextQuestions'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
-import type { ProjectAction, ProjectTwinAnalysis, ProjectActor, ProjectRisk, ProjectScenario } from '../types/projectTwin'
+import type { ProjectAction, ProjectTwinAnalysis, ProjectActor, ProjectScenario } from '../types/projectTwin'
 import { updateProjectTwin } from '../services/projectTwinUpdateApi'
 import { collectValidContextAnswers, buildAdditionalInputFromValidated } from '../lib/collectValidContextAnswers'
 import { normalizeProjectTwinUpdateResponse, buildUpdatedTwinFromResult } from '../services/projectTwinUpdateNormalizer'
@@ -395,7 +395,15 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
                 />
               )}
               {activeModule === 'risks' && (
-                <RisksModule risks={risks} />
+                <RisksPanel 
+                  risks={risks} 
+                  projectId={twin?.id}
+                  projectTitle={twin?.title}
+                  onAddMeasure={(measure) => {
+                    // Handle new measure from risk
+                    console.log('New measure from risk:', measure)
+                  }}
+                />
               )}
               {activeModule === 'actions' && (
                 <ActionsModule
@@ -669,72 +677,6 @@ function ProcessStat({ label, value, color, icon: Icon }: {
 }
 
 // Risks Module
-function RisksModule({ risks }: { risks: ProjectRisk[] }) {
-  const critical = risks.filter(r => r.severity === 'high')
-  const relevant = risks.filter(r => r.severity === 'medium')
-  const observe = risks.filter(r => r.severity === 'low')
-
-  return (
-    <section className="lp-card lp-card--padded">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-violet-400" />
-          <h3 className="text-lg font-semibold text-[var(--lp-text)]">Risk Radar</h3>
-        </div>
-        <Badge variant="neutral">{risks.length} Risiken</Badge>
-      </div>
-
-      {/* Risk Categories */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <RiskCategory title="Kritisch" count={critical.length} color="rose" risks={critical} />
-        <RiskCategory title="Relevant" count={relevant.length} color="amber" risks={relevant} />
-        <RiskCategory title="Beobachten" count={observe.length} color="zinc" risks={observe} />
-      </div>
-
-      {/* Risk Matrix Placeholder */}
-      <div className="p-4 rounded-xl bg-[var(--lp-surface-soft)] border border-[var(--lp-border)]">
-        <h4 className="text-sm font-medium text-[var(--lp-muted)] mb-4">Risikomatrix (Coming Soon)</h4>
-        <div className="aspect-video bg-[var(--lp-surface)] rounded-lg flex items-center justify-center">
-          <div className="text-center text-[var(--lp-muted)]">
-            <Shield className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            <span className="text-sm">Visuelle Risikoanalyse</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function RiskCategory({ title, count, color, risks }: {
-  title: string
-  count: number
-  color: 'rose' | 'amber' | 'zinc'
-  risks: ProjectRisk[]
-}) {
-  const colors = {
-    rose: 'bg-rose-500/10 border-rose-500/20 text-rose-400',
-    amber: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
-    zinc: 'bg-zinc-500/10 border-zinc-500/20 text-zinc-400'
-  }
-
-  return (
-    <div className={`p-4 rounded-xl border ${colors[color]}`}>
-      <div className="flex items-center justify-between mb-3">
-        <span className="font-medium">{title}</span>
-        <span className="text-lg font-bold">{count}</span>
-      </div>
-      <div className="space-y-2">
-        {risks.slice(0, 3).map((risk, i) => (
-          <div key={i} className="text-sm truncate opacity-80">{risk.title}</div>
-        ))}
-        {risks.length > 3 && (
-          <div className="text-xs opacity-60">+{risks.length - 3} weitere</div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // Actions Module
 function ActionsModule({ actions, onActionClick, onAddMeasure, onExecuteMeasure }: {
   actions: ProjectTwinAnalysis['actions']
