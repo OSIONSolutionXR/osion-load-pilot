@@ -79,6 +79,7 @@ export interface AnalysisResult {
 // View State für Navigation (neu mit Sidebar)
 export type ViewState = 
   | 'command'      // Command-Zentrale
+  | 'chat'         // OSION KI-Chat
   | 'twin'         // Project Twin
   | 'projects'     // Projekte-Übersicht
   | 'input'        // Freitext-Eingabe

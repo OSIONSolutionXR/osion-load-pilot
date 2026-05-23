@@ -12,10 +12,11 @@ import {
   Database,
   ChevronLeft,
   ChevronRight,
-  Zap
+  Zap,
+  MessageCircle
 } from 'lucide-react';
 
-type ViewId = 'command' | 'twin' | 'projects' | 'input' | 'measures' | 'deadlines' | 'simulation' | 'agents' | 'memory' | 'settings';
+type ViewId = 'command' | 'chat' | 'twin' | 'projects' | 'input' | 'measures' | 'deadlines' | 'simulation' | 'agents' | 'memory' | 'settings';
 
 interface NavSection {
   label: string;
@@ -27,6 +28,7 @@ const navSections: NavSection[] = [
     label: 'Steuerung',
     items: [
       { id: 'command', label: 'Command', icon: Command },
+      { id: 'chat', label: 'Chat', icon: MessageCircle },
       { id: 'twin', label: 'Twin', icon: LayoutGrid },
       { id: 'projects', label: 'Projekte', icon: FolderKanban },
       { id: 'input', label: 'Input', icon: PlusCircle },

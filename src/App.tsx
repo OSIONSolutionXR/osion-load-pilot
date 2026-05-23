@@ -9,6 +9,7 @@ import CommandScreen from './screens/CommandScreen'
 import ProjectTwinScreen from './screens/ProjectTwinScreen'
 import ProjectsScreen from './screens/ProjectsScreen'
 import InputScreen from './screens/InputScreen'
+import ChatScreen from './screens/ChatScreen'
 import AddMeasurePanel from './components/twin/AddMeasurePanel'
 import {
   createStoredProjectTwin,
@@ -21,6 +22,7 @@ import {
 // View titles for header
 const VIEW_TITLES: Record<ViewState, string> = {
   command: 'Command',
+  chat: 'OSION KI-Chat',
   twin: 'Project Twin',
   projects: 'Projekte',
   input: 'Input',
@@ -150,6 +152,14 @@ function App() {
                 twins={twins}
                 onOpenTwin={handleOpenTwin}
                 onNewInput={() => navigateTo('input')}
+              />
+            )}
+
+            {currentView === 'chat' && (
+              <ChatScreen
+                twins={twins}
+                activeTwinId={activeTwinId}
+                onOpenTwin={handleOpenTwin}
               />
             )}
 
