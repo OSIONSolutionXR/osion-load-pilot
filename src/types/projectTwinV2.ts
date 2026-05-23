@@ -175,6 +175,21 @@ export interface ProjectTwinStorageMeta {
 }
 
 // ============================================================================
+// AI ACTION (KI-generierte Arbeitshilfen)
+// ============================================================================
+
+export type AIActionType = 'email' | 'checklist' | 'script' | 'risk_assessment' | 'next_steps'
+
+export interface AIAction {
+  id: string
+  type: AIActionType
+  title: string
+  content: string
+  createdAt: string
+  used: boolean
+}
+
+// ============================================================================
 // ATTENTION QUEUE ITEM
 // ============================================================================
 
@@ -194,6 +209,7 @@ export interface AttentionQueueItem {
   reason?: string
   nextStep?: string
   notes?: string
+  aiActions?: AIAction[] // KI-generierte Arbeitshilfen
   createdAt: string
   updatedAt: string
   completedAt?: string

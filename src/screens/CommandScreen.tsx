@@ -232,6 +232,18 @@ export default function CommandScreen({ twins, onOpenTwin, onNewInput }: Command
     }
   }, [queueItemsMap, selectedQueueItem])
 
+  const handleQueueItemUpdate = useCallback((updatedItem: AttentionQueueItem) => {
+    // Update local state when AI actions are added/removed
+    const newMap = { ...queueItemsMap }
+    newMap[updatedItem.id] = updatedItem
+    setQueueItemsMap(newMap)
+    
+    // Update selected item if open
+    if (selectedQueueItem?.id === updatedItem.id) {
+      setSelectedQueueItem(updatedItem)
+    }
+  }, [queueItemsMap, selectedQueueItem])
+
   const getStatusBadge = (status: MeasureStatus) => {
     const styles = {
       idea: 'bg-slate-500/10 text-slate-500',
@@ -587,10 +599,12 @@ export default function CommandScreen({ twins, onOpenTwin, onNewInput }: Command
       {/* Attention Queue Detail Modal */}
       <AttentionQueueDetailModal
         item={selectedQueueItem}
+        twinId={selectedQueueItem?.twinId || ''}
         onClose={() => setSelectedQueueItem(null)}
         onOpenTwin={handleOpenTwinFromQueue}
         onStatusChange={handleQueueItemStatusChange}
         onNotesChange={handleQueueItemNotesChange}
+        onItemUpdate={handleQueueItemUpdate}
       />
     </div>
   )

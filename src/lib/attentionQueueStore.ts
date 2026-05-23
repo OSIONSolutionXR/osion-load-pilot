@@ -1,4 +1,4 @@
-import type { AttentionQueueItem } from '../types/projectTwinV2'
+import type { AttentionQueueItem, AIAction } from '../types/projectTwinV2'
 
 const STORAGE_KEY = 'attentionQueue'
 
@@ -114,7 +114,7 @@ export function addOrUpdateAttentionQueueItem(
 
   let updatedItems: AttentionQueueItem[]
   if (existingIndex >= 0) {
-    // Bestehendes Item aktualisieren, aber Notes und Status beibehalten
+    // Bestehendes Item aktualisieren, aber Notes, Status und AIActions beibehalten
     const existingItem = items[existingIndex]
     updatedItems = [...items]
     updatedItems[existingIndex] = {
@@ -122,6 +122,7 @@ export function addOrUpdateAttentionQueueItem(
       notes: existingItem.notes,
       status: existingItem.status,
       completedAt: existingItem.completedAt,
+      aiActions: existingItem.aiActions,
       updatedAt: new Date().toISOString(),
     }
   } else {
@@ -148,7 +149,7 @@ export function deleteAttentionQueueItem(
 
 /**
  * Synchronisiert die generierten Attention Queue Items mit den gespeicherten
- * Beibehaltung von User-Daten (Notes, Status)
+ * Beibehaltung von User-Daten (Notes, Status, AIActions)
  */
 export function syncAttentionQueue(
   twinId: string,
@@ -159,12 +160,13 @@ export function syncAttentionQueue(
   const syncedItems = generatedItems.map((generatedItem) => {
     const storedItem = storedItems.find((s) => s.id === generatedItem.id)
     if (storedItem) {
-      // Bestehendes Item: Behalte Notes, Status und completedAt bei
+      // Bestehendes Item: Behalte Notes, Status, completedAt und AIActions bei
       return {
         ...generatedItem,
         notes: storedItem.notes,
         status: storedItem.status,
         completedAt: storedItem.completedAt,
+        aiActions: storedItem.aiActions,
         updatedAt: storedItem.updatedAt,
       }
     }
@@ -173,4 +175,88 @@ export function syncAttentionQueue(
 
   saveAttentionQueue(twinId, syncedItems)
   return syncedItems
+}
+
+// ============================================================================
+// AI ACTION FUNCTIONS (neu)
+// ============================================================================
+
+/**
+ * Fügt eine AI Action zu einem Attention Queue Item hinzu
+ */
+export function addAIActionToQueueItem(
+  twinId: string,
+  itemId: string,
+  action: AIAction
+): AttentionQueueItem[] {
+  const items = loadAttentionQueue(twinId)
+  const updatedItems = items.map((item) =>
+    item.id === itemId
+      ? {
+          ...item,
+          aiActions: [...(item.aiActions || []), action],
+          updatedAt: new Date().toISOString(),
+        }
+      : item
+  )
+  saveAttentionQueue(twinId, updatedItems)
+  return updatedItems
+}
+
+/**
+ * Markiert eine AI Action als verwendet
+ */
+export function markAIActionAsUsed(
+  twinId: string,
+  itemId: string,
+  actionId: string
+): AttentionQueueItem[] {
+  const items = loadAttentionQueue(twinId)
+  const updatedItems = items.map((item) =>
+    item.id === itemId
+      ? {
+          ...item,
+          aiActions: item.aiActions?.map((action) =>
+            action.id === actionId ? { ...action, used: true } : action
+          ) || [],
+          updatedAt: new Date().toISOString(),
+        }
+      : item
+  )
+  saveAttentionQueue(twinId, updatedItems)
+  return updatedItems
+}
+
+/**
+ * Löscht eine AI Action von einem Attention Queue Item
+ */
+export function deleteAIActionFromQueueItem(
+  twinId: string,
+  itemId: string,
+  actionId: string
+): AttentionQueueItem[] {
+  const items = loadAttentionQueue(twinId)
+  const updatedItems = items.map((item) =>
+    item.id === itemId
+      ? {
+          ...item,
+          aiActions: item.aiActions?.filter((action) => action.id !== actionId) || [],
+          updatedAt: new Date().toISOString(),
+        }
+      : item
+  )
+  saveAttentionQueue(twinId, updatedItems)
+  return updatedItems
+}
+
+/**
+ * Lädt alle AI Actions für ein Attention Queue Item
+ */
+export function loadAIActionsForQueueItem(
+  twinId: string,
+  itemId: string
+): AIAction[] {
+  const items = loadAttentionQueue(twinId)
+  const item = items.find((i) => i.id === itemId)
+  return item?.aiActions || []
 }
