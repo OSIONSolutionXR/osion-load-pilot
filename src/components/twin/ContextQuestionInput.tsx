@@ -56,18 +56,26 @@ export default function ContextQuestionInput({
 
   const renderTextInput = () => (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-zinc-300">Deine Antwort</label>
       <textarea
         value={value}
         onChange={handleTextChange}
         disabled={disabled}
-        placeholder={question.helperText ? "Gib hier Deine Antwort ein..." : "Deine Antwort..."}
+        placeholder="Gib hier Deine Antwort ein..."
         rows={4}
-        className="w-full px-5 py-4 bg-white/[0.08] border-2 border-white/20 rounded-xl text-base text-zinc-100 placeholder-zinc-500 resize-none focus:outline-none focus:border-violet-500 focus:bg-white/[0.12] focus:shadow-lg focus:shadow-violet-500/10 transition-all"
+        className="w-full px-4 py-4 
+          bg-[var(--lp-surface)] 
+          border-2 border-[var(--lp-border)]
+          rounded-xl 
+          text-lg text-[var(--lp-text)]
+          placeholder:text-zinc-500
+          resize-none 
+          focus:outline-none 
+          focus:border-violet-500 
+          focus:ring-2 focus:ring-violet-500/20
+          transition-all duration-200"
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
       />
-      <p className="text-xs text-zinc-500">Drücke Enter für neue Zeile</p>
     </div>
   )
 
@@ -80,9 +88,18 @@ export default function ContextQuestionInput({
         onChange={handleNumberChange}
         disabled={disabled}
         placeholder="0"
-        className="w-full px-4 py-3 pl-4 pr-12 bg-white/5 border border-white/10 rounded-xl text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 transition-all"
+        className="w-full px-4 py-4 pl-4 pr-12 
+          bg-[var(--lp-surface)]
+          border-2 border-[var(--lp-border)]
+          rounded-xl 
+          text-lg text-[var(--lp-text)]
+          placeholder-zinc-500
+          focus:outline-none 
+          focus:border-violet-500
+          focus:ring-2 focus:ring-violet-500/20
+          transition-all duration-200"
       />
-      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">
+      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 text-lg">
         €
       </span>
     </div>
@@ -101,7 +118,10 @@ export default function ContextQuestionInput({
             type="button"
             onClick={() => handleQuickDate(type)}
             disabled={disabled}
-            className="px-3 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-zinc-400 hover:border-violet-500/30 hover:text-violet-300 transition-colors"
+            className="px-3 py-1.5 text-sm rounded-lg 
+              bg-white/5 border border-white/10 
+              text-zinc-400 hover:border-violet-500/30 hover:text-violet-300 
+              transition-colors"
           >
             {label}
           </button>
@@ -114,9 +134,17 @@ export default function ContextQuestionInput({
           value={value}
           onChange={handleDateChange}
           disabled={disabled}
-          className="w-full px-4 py-3 pr-12 bg-white/5 border border-white/10 rounded-xl text-zinc-200 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 transition-all"
+          className="w-full px-4 py-4 pr-12 
+            bg-[var(--lp-surface)]
+            border-2 border-[var(--lp-border)]
+            rounded-xl 
+            text-lg text-[var(--lp-text)]
+            focus:outline-none 
+            focus:border-violet-500
+            focus:ring-2 focus:ring-violet-500/20
+            transition-all duration-200"
         />
-        <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+        <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 pointer-events-none" />
       </div>
     </div>
   )
@@ -134,14 +162,14 @@ export default function ContextQuestionInput({
             type="button"
             onClick={() => onChange(option)}
             disabled={disabled}
-            className={`px-4 py-2.5 text-sm rounded-xl border transition-all duration-200 ${
+            className={`px-4 py-3 text-sm rounded-xl border-2 transition-all duration-200 ${
               value === option
-                ? 'bg-violet-500/20 border-violet-500/50 text-violet-200'
-                : 'bg-white/5 border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-300'
+                ? 'bg-violet-500/20 border-violet-500 text-violet-200'
+                : 'bg-[var(--lp-surface)] border-[var(--lp-border)] text-zinc-400 hover:border-violet-500/50 hover:text-zinc-300'
             }`}
           >
             {value === option && (
-              <Check className="inline w-3.5 h-3.5 mr-1.5" />
+              <Check className="inline w-4 h-4 mr-1.5" />
             )}
             {option}
           </button>
@@ -165,17 +193,17 @@ export default function ContextQuestionInput({
             type="button"
             onClick={() => onChange(label)}
             disabled={disabled}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-xl border transition-all duration-200 ${
+            className={`flex items-center gap-2 px-4 py-3 text-sm rounded-xl border-2 transition-all duration-200 ${
               value === label
                 ? optValue === 'ja'
-                  ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-200'
+                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-200'
                   : optValue === 'nein'
-                  ? 'bg-rose-500/20 border-rose-500/50 text-rose-200'
-                  : 'bg-zinc-500/20 border-zinc-500/50 text-zinc-300'
-                : 'bg-white/5 border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-300'
+                  ? 'bg-rose-500/20 border-rose-500 text-rose-200'
+                  : 'bg-zinc-500/20 border-zinc-500 text-zinc-300'
+                : 'bg-[var(--lp-surface)] border-[var(--lp-border)] text-zinc-400 hover:border-white/30 hover:text-zinc-300'
             }`}
           >
-            <Icon className="w-3.5 h-3.5" />
+            <Icon className="w-4 h-4" />
             {label}
           </button>
         ))}
