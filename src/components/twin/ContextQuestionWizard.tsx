@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, HelpCircle, Loader2, RefreshCw } from 'lucide-react'
 import { Button } from '../ui/Button'
@@ -26,6 +26,16 @@ export default function ContextQuestionWizard({
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [step, setStep] = useState<WizardStep>('question')
   const [direction, setDirection] = useState(0)
+  const [skippedQuestions, setSkippedQuestions] = useState<Set<string>>(new Set())
+
+  // Reset when questions change
+  useEffect(() => {
+    setCurrentIndex(0)
+    setAnswers({})
+    setStep('question')
+    setDirection(0)
+    setSkippedQuestions(new Set())
+  }, [questions.map(q => q.id).join(',')])
 
   const displayQuestions = useMemo(() => questions.slice(0, 5), [questions])
   const totalQuestions = displayQuestions.length
@@ -62,6 +72,13 @@ export default function ContextQuestionWizard({
     }
   }, [step, currentIndex])
 
+  const handleSkip = useCallback(() => {
+    if (currentQuestion) {
+      setSkippedQuestions(prev => new Set([...prev, currentQuestion.id]))
+    }
+    handleNext()
+  }, [currentQuestion, handleNext])
+
   const handleSubmit = useCallback(async () => {
     if (!hasAnyAnswer) return
     
@@ -78,6 +95,7 @@ export default function ContextQuestionWizard({
     setAnswers({})
     setStep('question')
     setDirection(0)
+    setSkippedQuestions(new Set())
   }, [])
 
   const handleRetry = useCallback(() => {
@@ -133,6 +151,27 @@ export default function ContextQuestionWizard({
               Zurück zur Übersicht
             </Button>
           </div>
+        </div>
+      </motion.div>
+    )
+  }
+
+  // Empty State - keine Fragen verfügbar
+  if (totalQuestions === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="p-6"
+      >
+        <div className="text-center py-8">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 border border-emerald-500/30 flex items-center justify-center">
+            <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+          </div>
+          <h4 className="text-lg font-semibold text-zinc-100 mb-2">Keine offenen Kontextfragen</h4>
+          <p className="text-sm text-zinc-400 max-w-md mx-auto mb-6">
+            Alle wichtigen Informationen sind vorhanden. Nutze "Fortschritt melden" oder "Nächsten Schritt ableiten", um den Twin zu aktualisieren.
+          </p>
         </div>
       </motion.div>
     )
@@ -258,17 +297,17 @@ export default function ContextQuestionWizard({
         <Button 
           variant="secondary" 
           onClick={handleBack}
-          disabled={currentIndex === 0}
+          disabled={currentIndex === 0 && step === 'question'}
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
           Zurück
         </Button>
 
-        {/* Skip Button (optional) */}
-        {!hasCurrentAnswer && (
+        {/* Skip Button */}
+        {!hasCurrentAnswer && currentQuestion && (
           <button 
-            onClick={handleNext}
-            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            onClick={handleSkip}
+            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors px-2 py-1 rounded hover:bg-white/5"
           >
             Überspringen
           </button>
@@ -284,11 +323,21 @@ export default function ContextQuestionWizard({
         </Button>
       </div>
 
-      {/* Answered Indicator */}
-      {answeredCount > 0 && (
-        <div className="flex items-center justify-center gap-2 text-xs text-emerald-400">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>{answeredCount} Frage{answeredCount !== 1 ? 'n' : ''} bereits beantwortet</span>
+      {/* Answered/Skipped Indicator */}
+      {(answeredCount > 0 || skippedQuestions.size > 0) && (
+        <div className="flex items-center justify-center gap-4 text-xs">
+          {answeredCount > 0 && (
+            <div className="flex items-center gap-1.5 text-emerald-400">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>{answeredCount} beantwortet</span>
+            </div>
+          )}
+          {skippedQuestions.size > 0 && (
+            <div className="flex items-center gap-1.5 text-zinc-500">
+              <span>•</span>
+              <span>{skippedQuestions.size} übersprungen</span>
+            </div>
+          )}
         </div>
       )}
     </div>

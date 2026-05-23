@@ -18,7 +18,7 @@ import {
   Plus,
   Play
 } from 'lucide-react'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Badge } from '../components/ui/Badge'
 import { ProcessPathPanel } from '../components/twin/ProcessPathPanel'
 import ContextQuestionsCard from '../components/twin/ContextQuestionsCard'
@@ -193,12 +193,23 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
 
   const { project, nextMove, actors, dependencies, risks, scenarios, actions } = analysis
 
-  // Generate context questions
-  const contextQuestions = generateContextQuestions(
-    analysis.quality.missingContext,
-    twin.originalInput || '',
-    analysis.project.type
-  )
+  // Generate context questions - prefer existing questions from twin, fallback to generating from missingContext
+  const contextQuestions = useMemo(() => {
+    // First check if twin has existing context questions
+    if (twin.contextQuestions && twin.contextQuestions.length > 0) {
+      // Filter for open questions only
+      const openQuestions = twin.contextQuestions.filter(q => q.status === 'open')
+      if (openQuestions.length > 0) {
+        return openQuestions
+      }
+    }
+    // Fallback: generate from missingContext
+    return generateContextQuestions(
+      analysis.quality.missingContext,
+      twin.originalInput || '',
+      analysis.project.type
+    )
+  }, [twin.contextQuestions, analysis.quality.missingContext, twin.originalInput, analysis.project.type])
 
   // Next Action
   const nextActionTitle = nextMove?.title || 'Nächsten wirksamsten Schritt ableiten'

@@ -36,6 +36,25 @@ const DOMAIN_QUESTIONS: Record<string, Record<string, QuestionTemplate>> = {
       inputType: 'number',
       priority: 'high'
     },
+    'Budgetobergrenze': {
+      label: 'Welche Budgetobergrenze ist geplant?',
+      reason: 'Die Obergrenze begrenzt die Optionen und bestimmt Verhandlungsspielräume.',
+      inputType: 'number',
+      priority: 'high'
+    },
+    'Budgetgrenze': {
+      label: 'Welche Budgetgrenze soll nicht überschritten werden?',
+      reason: 'Die Budgetgrenze begrenzt die Optionen und bestimmt Verhandlungsspielräume.',
+      inputType: 'number',
+      priority: 'high'
+    },
+    'Budget inklusive Nebenkosten': {
+      label: 'Ist das Budget inklusive oder exklusive Nebenkosten?',
+      reason: 'Nebenkosten wie Versicherung, Steuern und Zulassung können den Gesamtpreis erheblich beeinflussen.',
+      inputType: 'choice',
+      options: ['Inklusive aller Nebenkosten', 'Nur Kaufpreis (Nebenkosten extra)', 'Noch unklar'],
+      priority: 'high'
+    },
     'Nutzungsprofil': {
       label: 'Wofür wird das Auto hauptsächlich genutzt?',
       reason: 'Das Nutzungsprofil beeinflusst Prioritäten und Anforderungen maßgeblich.',
@@ -183,6 +202,51 @@ const DOMAIN_QUESTIONS: Record<string, Record<string, QuestionTemplate>> = {
       inputType: 'number',
       priority: 'high'
     },
+    'Budgetobergrenze': {
+      label: 'Welche Budgetobergrenze ist geplant?',
+      reason: 'Die Budgetobergrenze begrenzt die verfügbaren Optionen.',
+      inputType: 'number',
+      priority: 'high'
+    },
+    'monatliche Belastungsgrenze': {
+      label: 'Wie hoch ist die monatliche Belastungsgrenze?',
+      reason: 'Die monatliche Belastung beeinflusst Finanzierungsentscheidungen.',
+      inputType: 'number',
+      priority: 'high'
+    },
+    'Entscheidung Neuwagen vs. Gebraucht vs. Jahreswagen': {
+      label: 'Soll es ein Neuwagen, Gebrauchtwagen oder Jahreswagen sein?',
+      reason: 'Die Fahrzeugart beeinflusst Preis, Garantie und Verfügbarkeit erheblich.',
+      inputType: 'choice',
+      options: ['Neuwagen', 'Gebrauchtwagen', 'Jahreswagen', 'Noch unentschieden'],
+      priority: 'high'
+    },
+    'Bevorzugte Antriebsart': {
+      label: 'Welche Antriebsart bevorzugst du?',
+      reason: 'Die Antriebsart beeinflusst Betriebskosten und Fahrverhalten.',
+      inputType: 'choice',
+      options: ['Benzin', 'Diesel', 'Elektro', 'Hybrid', 'Noch offen'],
+      priority: 'medium'
+    },
+    'Nutzungsprofil': {
+      label: 'Wie wird das Fahrzeug hauptsächlich genutzt?',
+      reason: 'Das Nutzungsprofil bestimmt die Anforderungen an Größe und Komfort.',
+      inputType: 'text',
+      priority: 'medium'
+    },
+    'Zeithorizont für Kaufabschluss': {
+      label: 'Bis wann soll der Kauf abgeschlossen sein?',
+      reason: 'Der Zeithorizont beeinflusst Verhandlungsspielraum und Dringlichkeit.',
+      inputType: 'date',
+      priority: 'medium'
+    },
+    'Finanzierungsart': {
+      label: 'Welche Finanzierungsart ist vorgesehen?',
+      reason: 'Die Finanzierungsart beeinflusst Verhandlungsspielraum und Gesamtkosten.',
+      inputType: 'choice',
+      options: ['Barzahlung', 'Kredit/Finanzierung', 'Leasing', 'Noch unklar'],
+      priority: 'high'
+    },
     'Zeitrahmen': {
       label: 'Bis wann soll das Ziel erreicht werden?',
       reason: 'Der Zeitrahmen beeinflusst Dringlichkeit und Optionen.',
@@ -267,6 +331,50 @@ export function detectDomain(
 }
 
 /**
+ * Prüft ob ein Kontext-String ein bestimmtes Keyword enthält (case-insensitive)
+ */
+function matchesContext(ctx: string, keyword: string): boolean {
+  const normalizedCtx = ctx.toLowerCase()
+  const normalizedKeyword = keyword.toLowerCase()
+  return normalizedCtx.includes(normalizedKeyword) || normalizedKeyword.includes(normalizedCtx)
+}
+
+/**
+ * Findet das beste Template für einen Kontext-String
+ */
+function findBestTemplate(
+  ctx: string,
+  domainTemplates: Record<string, QuestionTemplate>,
+  generalTemplates: Record<string, QuestionTemplate>
+): QuestionTemplate | null {
+  // 1. Exakte Übereinstimmung in Domain-Templates
+  if (domainTemplates[ctx]) {
+    return domainTemplates[ctx]
+  }
+  
+  // 2. Exakte Übereinstimmung in General-Templates
+  if (generalTemplates[ctx]) {
+    return generalTemplates[ctx]
+  }
+  
+  // 3. Keyword-Matching in Domain-Templates
+  for (const [key, template] of Object.entries(domainTemplates)) {
+    if (matchesContext(ctx, key)) {
+      return template
+    }
+  }
+  
+  // 4. Keyword-Matching in General-Templates
+  for (const [key, template] of Object.entries(generalTemplates)) {
+    if (matchesContext(ctx, key)) {
+      return template
+    }
+  }
+  
+  return null
+}
+
+/**
  * Generiert Fragen aus missingContext mit Domain-spezifischen Formulierungen
  * Verwendet stabile IDs basierend auf dem Kontext, nicht auf Timestamp
  */
@@ -278,6 +386,7 @@ export function generateContextQuestions(
 ): ProjectContextQuestion[] {
   const domain = detectDomain(input, projectType)
   const domainTemplates = DOMAIN_QUESTIONS[domain] || DOMAIN_QUESTIONS.general
+  const generalTemplates = DOMAIN_QUESTIONS.general
   
   const questions: ProjectContextQuestion[] = []
   const usedContexts = new Set<string>()
@@ -287,10 +396,10 @@ export function generateContextQuestions(
     if (usedContexts.size >= maxQuestions) break
     if (usedContexts.has(ctx)) continue
     
-    const template = domainTemplates[ctx] || DOMAIN_QUESTIONS.general[ctx]
+    const template = findBestTemplate(ctx, domainTemplates, generalTemplates)
     
     // Stabile ID basierend auf Kontext (nicht Timestamp!)
-    const stableId = `ctxq-${ctx.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+    const stableId = `ctxq-${ctx.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 30)}`
     
     if (template) {
       questions.push({
@@ -307,22 +416,50 @@ export function generateContextQuestions(
     }
   }
   
-  // 2. Fallback für unbekannte Kontexte
+  // 2. Fallback für unbekannte Kontexte - generiere spezifischere Fragen
   for (const ctx of missingContext) {
     if (usedContexts.size >= maxQuestions) break
     if (usedContexts.has(ctx)) continue
     
     // Stabile ID basierend auf Kontext
-    const stableId = `ctxq-${ctx.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+    const stableId = `ctxq-${ctx.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 30)}`
     
-    // Generische Frage
+    // Intelligente Fallback-Fragen basierend auf Kontext-Inhalt
+    let fallbackLabel = `Details zu: ${ctx}`
+    let fallbackReason = 'Dieser Kontext fehlt für eine vollständige Analyse.'
+    let fallbackInputType: 'text' | 'date' | 'number' | 'choice' | 'yes_no' = 'text'
+    let fallbackPriority: 'high' | 'medium' | 'low' = 'low'
+    
+    const lowerCtx = ctx.toLowerCase()
+    if (lowerCtx.includes('budget') || lowerCtx.includes('euro') || lowerCtx.includes('€')) {
+      fallbackLabel = `Wie hoch ist der geplante Budgetrahmen?`
+      fallbackReason = 'Der Budgetrahmen ist entscheidend für die weitere Planung.'
+      fallbackInputType = 'number'
+      fallbackPriority = 'high'
+    } else if (lowerCtx.includes('datum') || lowerCtx.includes('frist') || lowerCtx.includes('termin') || lowerCtx.includes('zeit')) {
+      fallbackLabel = `Bis wann soll dies geklärt sein?`
+      fallbackReason = 'Der Zeitrahmen beeinflusst Dringlichkeit und Handlungsoptionen.'
+      fallbackInputType = 'date'
+      fallbackPriority = 'medium'
+    } else if (lowerCtx.includes('neuwagen') || lowerCtx.includes('gebraucht') || lowerCtx.includes('wahl') || lowerCtx.includes('entscheidung')) {
+      fallbackLabel = `Was ist hier die bevorzugte Option?`
+      fallbackReason = 'Diese Entscheidung beeinflusst alle weiteren Schritte.'
+      fallbackInputType = 'choice'
+      fallbackPriority = 'high'
+    } else if (lowerCtx.includes('finanzierung') || lowerCtx.includes('leasing') || lowerCtx.includes('bar')) {
+      fallbackLabel = `Wie soll dies finanziert werden?`
+      fallbackReason = 'Die Finanzierungsart beeinflusst Verhandlungsoptionen.'
+      fallbackInputType = 'choice'
+      fallbackPriority = 'high'
+    }
+    
     questions.push({
       id: stableId,
-      label: `Details zu: ${ctx}`,
-      reason: 'Dieser Kontext fehlt für eine vollständige Analyse.',
+      label: fallbackLabel,
+      reason: fallbackReason,
       sourceMissingContext: ctx,
-      suggestedInputType: 'text',
-      priority: 'low',
+      suggestedInputType: fallbackInputType,
+      priority: fallbackPriority,
       status: 'open'
     })
     usedContexts.add(ctx)
