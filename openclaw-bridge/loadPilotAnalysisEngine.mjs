@@ -142,8 +142,30 @@ Schema:
   "risks": [{"title": "string", "severity": "low|medium|high", "explanation": "string"}],
   "scenarios": [{"title": "string", "outcome": "string", "riskLevel": "low|medium|high", "recommendation": "string"}],
   "actions": [{"title": "string", "owner": "string", "priority": "low|medium|high", "messageDraft": "string|null"}],
+  "processSteps": [{"id": "string", "title": "string", "description": "string", "status": "done|active|blocked|next|pending|skipped", "order": 1, "dependsOn": ["string"], "blockerReason": "string", "linkedMeasureIds": ["string"], "updatedAt": "string"}],
   "quality": { "inputQuality": "insufficient|usable|strong", "isActionable": true, "confidence": "low|medium|high", "missingContext": ["string"], "reason": "string" }
 }
+
+WICHTIG: Erzeuge für jedes neue Projekt einen dynamischen Prozesspfad mit echten, projektspezifischen Schritten in processSteps.
+
+Regeln für processSteps:
+- Niemals generische Titel wie "Schritt 1", "Schritt 2", "Schritt 3" verwenden.
+- Jeder Schritt muss fachlich zum Projekt passen (4-12 Schritte).
+- Der erste Schritt darf bereits "done" sein, wenn die Projektbeschreibung ihn erfüllt.
+- Genau ein Schritt soll "active" oder "next" sein.
+- Blockierte Schritte müssen "blockerReason" enthalten.
+- "order" muss logisch sortiert sein (1, 2, 3...).
+- "dependsOn" enthält IDs der Schritte, die vorher erledigt sein müssen.
+
+Beispiel Hauskauf:
+1. "Bedarf und Zielbild definieren"
+2. "Budget und Finanzierungsrahmen prüfen"
+3. "Objektanforderungen festlegen"
+4. "Markt und passende Immobilien sondieren"
+5. "Finanzierung vorbereiten"
+6. "Besichtigung und Prüfung durchführen"
+7. "Kaufentscheidung vorbereiten"
+8. "Notarielle Abwicklung vorbereiten"
 
 Nutzereingang: ${input}
 
@@ -241,11 +263,18 @@ WICHTIGE REGELN:
 5. Reduziere missingContext für geklärte Punkte
 6. Füge neue Akteure/Risiken/Aktionen nur hinzu, wenn sie im neuen Kontext erwähnt werden
 
+PROCESS STEPS VERARBEITUNG:
+- Wenn processSteps vorhanden sind: Prüfe, welche Schritte erledigt sind und aktualisiere deren Status
+- Setze den aktuell relevanten Schritt auf "active" oder "next"
+- Markiere blockierte Schritte mit "blocked" und blockerReason
+- Entferne keine Schritte, füge neue hinzu wenn der Kontext neue Phasen erfordert
+- Stelle sicher, dass order logisch sortiert bleibt
+
 VERHALTEN BEI CONFIDENCE:
 - "low" → "medium" oder "high", wenn wichtige Lücken geschlossen
 - Nur "low" behalten, wenn noch kritische Informationen fehlen
 
-Antworte NUR mit validem JSON im ProjectTwinAnalysis-Schema. Keine Markdown-Fences.`
+Antworte NUR mit validem JSON im ProjectTwinAnalysis-Schema (inkl. processSteps). Keine Markdown-Fences.`
 
 async function callOpenClawGatewayForUpdate(compactTwinContext, additionalInput) {
   // Prüfe auf zu schwachen Update-Input

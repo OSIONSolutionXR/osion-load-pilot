@@ -9,7 +9,8 @@ import type { ProjectTwinAnalysis, ChangedField } from '../types/projectTwin'
 import type { 
   StoredProjectTwinV2,
   ProjectTwinProgress,
-  ProjectTwinStorageMeta 
+  ProjectTwinStorageMeta,
+  ProcessStep 
 } from '../types/projectTwinV2'
 import { 
   normalizeAllStoredTwins
@@ -113,6 +114,19 @@ export function createStoredProjectTwin(
     analysis.quality.missingContext || []
   )
 
+  // Initialisiere processSteps aus twin.analysis.dependencies oder leer
+  const processSteps: ProcessStep[] = analysis.dependencies?.map((dep, index) => ({
+    id: `dep-${index}`,
+    title: dep.from,
+    description: dep.explanation,
+    status: dep.isBlocker ? 'blocked' : dep.status === 'done' ? 'done' : dep.status === 'required' ? 'next' : 'pending',
+    order: index + 1,
+    dependsOn: [],
+    blockerReason: dep.isBlocker ? dep.explanation : '',
+    linkedMeasureIds: [],
+    updatedAt: timestamp
+  })) || []
+
   return {
     id: `twin-${timestamp}-${Math.random().toString(36).slice(2, 8)}`,
     schemaVersion: 2,
@@ -123,6 +137,7 @@ export function createStoredProjectTwin(
     originalInput: trimmedInput,
     latestInput: trimmedInput,
     analysis,
+    processSteps,
     contextQuestions,
     updates: [],
     progress,

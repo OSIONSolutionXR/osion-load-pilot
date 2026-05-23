@@ -4,20 +4,9 @@ import { useMemo } from 'react'
 import { Badge } from '../ui/Badge'
 import type { StoredProjectTwin } from '../../lib/projectTwinStore'
 import type { ProjectTwinAnalysis } from '../../types/projectTwin'
+import type { ProcessStep } from '../../types/projectTwinV2'
 
 export type ProcessStepStatus = 'done' | 'active' | 'blocked' | 'next' | 'pending' | 'skipped'
-
-export interface ProcessStep {
-  id: string
-  title: string
-  description?: string
-  status: ProcessStepStatus
-  order: number
-  reason?: string
-  blockerReason?: string
-  dependsOn?: string[]
-  updatedAt?: string
-}
 
 interface ProcessPathPanelProps {
   variant?: 'full' | 'compact'
@@ -77,6 +66,65 @@ function getStatusBadgeClasses(status: ProcessStepStatus): string {
 }
 
 /**
+ * Prüft ob ein Schritt-Titel generisch ist (z.B. "Schritt 1", "Schritt 2")
+ */
+function isGenericStepTitle(title: string): boolean {
+  return /^schritt\s*\d+$/i.test(String(title || "").trim())
+}
+
+/**
+ * Ableitet Prozess-Schritte aus dem Twin-Projektdaten als Fallback
+ */
+function deriveProcessStepsFromTwin(twin: StoredProjectTwin | null): ProcessStep[] {
+  if (!twin) return []
+  
+  const title = String(twin?.analysis?.project?.title || twin?.title || "").toLowerCase()
+  const desc = String(twin?.analysis?.project?.description || twin?.description || "").toLowerCase()
+  const combined = `${title} ${desc}`
+  const timestamp = new Date().toISOString()
+  
+  // Hauskauf / Immobilien
+  if (combined.includes("haus") || combined.includes("wohnung") || combined.includes("immobilie") || 
+      combined.includes("kaufen") || combined.includes("kauf") || combined.includes("eigen")) {
+    return [
+      { id: "bedarf-zielbild", title: "Bedarf und Zielbild definieren", description: "Projektziel, Anforderungen, Einschränkungen und Entscheidungskriterien erfassen.", status: "pending", order: 1, dependsOn: [], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "budget-pruefen", title: "Budget und Finanzierungsrahmen prüfen", description: "Finanzielle Möglichkeiten und Kreditrahmen klären.", status: "pending", order: 2, dependsOn: [], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "anforderungen", title: "Objektanforderungen festlegen", description: "Must-haves und Nice-to-haves für die Immobilie definieren.", status: "pending", order: 3, dependsOn: ["bedarf-zielbild"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "markt-sondieren", title: "Markt und passende Immobilien sondieren", description: "Markt recherchieren und passende Objekte identifizieren.", status: "pending", order: 4, dependsOn: ["anforderungen", "budget-pruefen"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "finanzierung", title: "Finanzierung vorbereiten", description: "Kreditangebote einholen und Finanzierung absichern.", status: "pending", order: 5, dependsOn: ["budget-pruefen"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "besichtigung", title: "Besichtigung und Prüfung durchführen", description: "Objekte besichtigen und technisch/juristisch prüfen.", status: "pending", order: 6, dependsOn: ["markt-sondieren"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "kaufentscheidung", title: "Kaufentscheidung vorbereiten", description: "Vergleich und Entscheidungsgrundlage erstellen.", status: "pending", order: 7, dependsOn: ["besichtigung", "finanzierung"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "notar", title: "Notarielle Abwicklung vorbereiten", description: "Kaufvertrag vorbereiten und notarielle Schritte einleiten.", status: "pending", order: 8, dependsOn: ["kaufentscheidung"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+    ]
+  }
+  
+  // Auto / Fahrzeug
+  if (combined.includes("auto") || combined.includes("pkw") || combined.includes("fahrzeug") || 
+      combined.includes("wagen") || combined.includes("kauf")) {
+    return [
+      { id: "bedarf-pkw", title: "Bedarf und Nutzungsprofil definieren", description: "Verwendungszweck, Kilometerleistung, Passagiere definieren.", status: "pending", order: 1, dependsOn: [], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "budget-pkw", title: "Budgetverfügbarkeit prüfen", description: "Finanzierung oder Barkauf klären.", status: "pending", order: 2, dependsOn: [], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "kriterien-pkw", title: "Fahrzeugkriterien festlegen", description: "Marke, Modell, Ausstattung, Alter definieren.", status: "pending", order: 3, dependsOn: ["bedarf-pkw"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "markt-pkw", title: "Markt screenen", description: "Angebote recherchieren und vergleichen.", status: "pending", order: 4, dependsOn: ["kriterien-pkw", "budget-pkw"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "vergleich-pkw", title: "Fahrzeuge vergleichen", description: "Kandidaten gegenüberstellen und bewerten.", status: "pending", order: 5, dependsOn: ["markt-pkw"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "probefahrt", title: "Besichtigung und Probefahrt durchführen", description: "Fahrzeug prüfen und Testfahrt machen.", status: "pending", order: 6, dependsOn: ["vergleich-pkw"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "entscheidung-pkw", title: "Kaufentscheidung treffen", description: "Finalen Kandidaten auswählen.", status: "pending", order: 7, dependsOn: ["probefahrt"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+      { id: "abwicklung-pkw", title: "Kaufabwicklung durchführen", description: "Vertrag, Zahlung, Übergabe organisieren.", status: "pending", order: 8, dependsOn: ["entscheidung-pkw"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+    ]
+  }
+  
+  // Default Fallback
+  return [
+    { id: "projektziel", title: "Projektziel definieren", description: "Klares Ziel und Erfolgskriterien festlegen.", status: "pending", order: 1, dependsOn: [], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+    { id: "anforderungen-allg", title: "Anforderungen und Einschränkungen sammeln", description: "Rahmenbedingungen und Anforderungen erfassen.", status: "pending", order: 2, dependsOn: [], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+    { id: "loesungsweg", title: "Lösungsweg festlegen", description: "Vorgehen und Methode definieren.", status: "pending", order: 3, dependsOn: ["anforderungen-allg"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+    { id: "umsetzung", title: "Umsetzung starten", description: "Projekt aktiv bearbeiten.", status: "pending", order: 4, dependsOn: ["loesungsweg"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+    { id: "ergebnis", title: "Ergebnis prüfen", description: "Qualität und Zielerreichung verifizieren.", status: "pending", order: 5, dependsOn: ["umsetzung"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+    { id: "abschluss", title: "Abschluss oder nächste Iteration planen", description: "Projekt finalisieren oder nächste Phase planen.", status: "pending", order: 6, dependsOn: ["ergebnis"], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
+  ]
+}
+
+/**
  * Normalisiert Prozessschritte aus verschiedenen Quellen im Twin
  */
 function normalizeProcessSteps(twin: StoredProjectTwin | null): ProcessStep[] {
@@ -90,90 +138,84 @@ function normalizeProcessSteps(twin: StoredProjectTwin | null): ProcessStep[] {
     twinAny?.processPath ||
     twinAny?.workflow ||
     twinAny?.criticalPath ||
-    twin.analysis?.dependencies ||
     []
 
   const list = Array.isArray(raw) ? raw : []
 
-  // Wenn keine Prozessschritte vorhanden, aus Abhängigkeiten ableiten
-  if (list.length === 0 && twin.analysis?.dependencies) {
-    const deps = twin.analysis.dependencies
-    return deps.map((dep, index) => ({
-      id: `dep-${index}`,
-      title: dep.from,
-      description: dep.explanation,
-      status: dep.isBlocker ? 'blocked' : dep.status === 'done' ? 'done' : dep.status === 'required' ? 'next' : 'pending',
-      order: index + 1,
-      blockerReason: dep.isBlocker ? dep.explanation : undefined,
-      dependsOn: [],
-      updatedAt: twin.updatedAt
-    }))
-  }
-
-  // Wenn immer noch keine Schritte, aus Aktionen ableiten
-  if (list.length === 0 && twin.analysis?.actions) {
-    return twin.analysis.actions.slice(0, 5).map((action, index) => ({
-      id: `action-${index}`,
-      title: action.title,
-      description: `Verantwortlich: ${action.owner}`,
-      status: index === 0 ? 'next' : index === 1 ? 'active' : 'pending',
-      order: index + 1,
-      dependsOn: [],
-      updatedAt: twin.updatedAt
-    }))
-  }
-
+  // Map zu validen ProcessStep-Objekten
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const steps = (list as any[])
+  const mapped = (list as any[])
     .map((step: Record<string, unknown>, index: number) => {
+      const rawTitle =
+        step.title ||
+        step.name ||
+        step.label ||
+        step.step ||
+        step.phase ||
+        ""
+
+      const title = String(rawTitle).trim()
+
+      // Filtere generische Schritte raus
+      if (!title || isGenericStepTitle(title)) {
+        return null
+      }
+
       const statusRaw = String(
         step.status ||
         step.state ||
-        step.phase ||
+        step.phaseStatus ||
         step.progress ||
-        ''
+        ""
       ).toLowerCase()
 
-      let status: ProcessStepStatus = 'pending'
+      let status: ProcessStepStatus = "pending"
 
-      if (['done', 'completed', 'complete', 'erledigt', 'abgeschlossen'].includes(statusRaw)) {
-        status = 'done'
-      } else if (['active', 'current', 'aktuell', 'in_progress', 'running'].includes(statusRaw)) {
-        status = 'active'
-      } else if (['blocked', 'blocker', 'kritisch', 'critical', 'gesperrt'].includes(statusRaw)) {
-        status = 'blocked'
-      } else if (['next', 'next_step', 'nächster schritt', 'naechster schritt'].includes(statusRaw)) {
-        status = 'next'
-      } else if (['skipped', 'irrelevant', 'übersprungen', 'uebersprungen'].includes(statusRaw)) {
-        status = 'skipped'
+      if (["done", "completed", "complete", "erledigt", "abgeschlossen"].includes(statusRaw)) {
+        status = "done"
+      } else if (["active", "current", "aktuell", "in_progress", "running"].includes(statusRaw)) {
+        status = "active"
+      } else if (["blocked", "blocker", "kritisch", "critical", "gesperrt"].includes(statusRaw)) {
+        status = "blocked"
+      } else if (["next", "next_step", "nächster schritt", "naechster schritt"].includes(statusRaw)) {
+        status = "next"
+      } else if (["skipped", "irrelevant", "übersprungen", "uebersprungen"].includes(statusRaw)) {
+        status = "skipped"
       }
 
       return {
         id: String(step.id || step.key || `process-step-${index + 1}`),
-        title: String(step.title || step.name || step.label || step.step || `Schritt ${index + 1}`),
-        description: String(step.description || step.reason || step.details || step.summary || ''),
+        title,
+        description: String(step.description || step.reason || step.details || step.summary || ""),
         status,
         order: Number.isFinite(Number(step.order)) ? Number(step.order) : index + 1,
-        blockerReason: step.blockerReason ? String(step.blockerReason) : undefined,
+        blockerReason: String(step.blockerReason || step.blocker || ""),
         dependsOn: Array.isArray(step.dependsOn) ? step.dependsOn.map(String) : [],
-        updatedAt: step.updatedAt ? String(step.updatedAt) : twin.updatedAt
+        linkedMeasureIds: Array.isArray(step.linkedMeasureIds) ? step.linkedMeasureIds.map(String) : [],
+        updatedAt: String(step.updatedAt || twin?.updatedAt || "")
       }
     })
+    .filter((s): s is ProcessStep => s !== null)
     .sort((a, b) => a.order - b.order)
 
   // Debug-Log
-  console.log('[ProcessPath] normalized', {
-    source: list.length > 0 ? 'twin.processSteps/processPath' : twin.analysis?.dependencies ? 'twin.analysis.dependencies' : twin.analysis?.actions ? 'twin.analysis.actions' : 'empty',
-    stepCount: steps.length,
-    statuses: steps.map(s => s.status),
-    titles: steps.map(s => s.title).slice(0, 10)
+  console.log("[ProcessPath] normalized", {
+    source: "twin.processSteps/processPath",
+    stepCount: mapped.length,
+    statuses: mapped.map((s) => s.status),
+    titles: mapped.map((s) => s.title).slice(0, 10)
   })
 
-  return steps
+  return mapped
 }
 
 export function ProcessPathPanel({ variant = 'full', twin, analysis }: ProcessPathPanelProps) {
-  const steps = useMemo(() => normalizeProcessSteps(twin ?? null), [twin])
+  const processSteps = useMemo(() => {
+    const normalized = normalizeProcessSteps(twin ?? null)
+    if (normalized.length > 0) return normalized
+    return deriveProcessStepsFromTwin(twin ?? null)
+  }, [twin])
+  
   const isCompact = variant === 'compact'
   const hasAnalysis = Boolean(analysis)
   const projectTitle = twin?.analysis?.project.title ?? analysis?.project.title
@@ -227,13 +269,13 @@ export function ProcessPathPanel({ variant = 'full', twin, analysis }: ProcessPa
             <p className="text-sm text-[var(--lp-muted)]">{projectTitle ?? 'Aktueller Ablauf des Project Twins'}</p>
           </div>
         </div>
-        <Badge variant="neutral">{steps.length} Schritte</Badge>
+        <Badge variant="neutral">{processSteps.length} Schritte</Badge>
       </div>
 
       {/* Desktop: Horizontal Scroll */}
       <div className="hidden lg:block">
         <div className="process-path">
-          {steps.map((step, index) => (
+          {processSteps.map((step, index) => (
             <div
               key={step.id}
               className={`process-step ${getStatusColorClasses(step.status)}`}
@@ -255,7 +297,7 @@ export function ProcessPathPanel({ variant = 'full', twin, analysis }: ProcessPa
               </div>
 
               {/* Connector to next step */}
-              {index < steps.length - 1 && (
+              {index < processSteps.length - 1 && (
                 <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-0.5 bg-gradient-to-r from-violet-500/50 to-blue-500/50 z-10"></div>
               )}
             </div>
@@ -265,7 +307,7 @@ export function ProcessPathPanel({ variant = 'full', twin, analysis }: ProcessPa
 
       {/* Mobile: Vertical Timeline */}
       <div className="lg:hidden space-y-4">
-        {steps.map((step, index) => (
+        {processSteps.map((step, index) => (
           <div key={step.id} className="relative">
             <div className={`lp-card lp-card--padded ${getStatusColorClasses(step.status)}`}>
               <div className="flex items-start gap-4">
@@ -279,7 +321,7 @@ export function ProcessPathPanel({ variant = 'full', twin, analysis }: ProcessPa
                   }`}>
                     {step.order}
                   </div>
-                  {index < steps.length - 1 && (
+                  {index < processSteps.length - 1 && (
                     <div className="w-0.5 h-8 bg-gradient-to-b from-violet-500/50 to-blue-500/50 mt-2"></div>
                   )}
                 </div>

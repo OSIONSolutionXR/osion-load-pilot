@@ -8,7 +8,8 @@
 import type {
   StoredProjectTwinV2,
   ProjectTwinUpdate,
-  ProjectTwinChangedField
+  ProjectTwinChangedField,
+  ProcessStep
 } from '../types/projectTwinV2'
 import type { ProjectTwinAnalysis } from '../types/projectTwin'
 import {
@@ -114,6 +115,20 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
     throw new Error('StoredProjectTwinV2 requires analysis')
   }
 
+  // ProcessSteps: Falls vorhanden nutzen, sonst aus dependencies ableiten
+  const processSteps: ProcessStep[] = twin.processSteps || 
+    twin.analysis.dependencies?.map((dep, index) => ({
+      id: `dep-${index}`,
+      title: dep.from,
+      description: dep.explanation,
+      status: dep.isBlocker ? 'blocked' : dep.status === 'done' ? 'done' : dep.status === 'required' ? 'next' : 'pending',
+      order: index + 1,
+      dependsOn: [],
+      blockerReason: dep.isBlocker ? dep.explanation : '',
+      linkedMeasureIds: [],
+      updatedAt: updatedAt
+    })) || []
+
   // Neue Arrays (mit Fallback auf V1-Updates)
   const contextQuestions = twin.contextQuestions || 
     generateContextQuestionsFromMissing(
@@ -141,6 +156,7 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
     originalInput,
     latestInput,
     analysis: twin.analysis,
+    processSteps,
     contextQuestions,
     updates,
     progress,
@@ -182,6 +198,19 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     v1.analysis?.quality?.missingContext || []
   )
 
+  // ProcessSteps aus dependencies ableiten für V1 Migration
+  const processSteps: ProcessStep[] = v1.analysis?.dependencies?.map((dep, index) => ({
+    id: `dep-${index}`,
+    title: dep.from,
+    description: dep.explanation,
+    status: dep.isBlocker ? 'blocked' : dep.status === 'done' ? 'done' : dep.status === 'required' ? 'next' : 'pending',
+    order: index + 1,
+    dependsOn: [],
+    blockerReason: dep.isBlocker ? dep.explanation : '',
+    linkedMeasureIds: [],
+    updatedAt: v1.updatedAt || now
+  })) || []
+
   return {
     id: v1.id || `twin-${now}-${Math.random().toString(36).slice(2, 8)}`,
     schemaVersion: 2,
@@ -192,6 +221,7 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     originalInput,
     latestInput: originalInput,
     analysis: v1.analysis,
+    processSteps,
     contextQuestions,
     updates,
     progress,

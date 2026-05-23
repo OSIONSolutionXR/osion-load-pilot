@@ -173,6 +173,24 @@ export interface ProjectTwinStorageMeta {
 }
 
 // ============================================================================
+// PROCESS STEP (Prozesspfad)
+// ============================================================================
+
+export type ProcessStepStatus = 'done' | 'active' | 'blocked' | 'next' | 'pending' | 'skipped'
+
+export interface ProcessStep {
+  id: string
+  title: string
+  description: string
+  status: ProcessStepStatus
+  order: number
+  dependsOn: string[] // IDs der vorherigen Schritte
+  blockerReason: string
+  linkedMeasureIds: string[] // IDs verknüpfter Maßnahmen
+  updatedAt: string
+}
+
+// ============================================================================
 // STORED PROJECT TWIN V2
 // ============================================================================
 
@@ -193,6 +211,9 @@ export interface StoredProjectTwinV2 {
   
   // Analysis (bestehende Struktur)
   analysis: ProjectTwinAnalysis
+
+  // Prozesspfad (dynamische Prozessschritte)
+  processSteps: ProcessStep[]
   
   // Neue V2 Features
   contextQuestions: ProjectContextQuestion[]
