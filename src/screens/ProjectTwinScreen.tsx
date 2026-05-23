@@ -1,9 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react'
 import {
   ArrowLeft,
-  Route,
-  Shield,
-  ListTodo,
   GitCommit,
   Brain,
   Clock,
@@ -11,12 +8,14 @@ import {
   ChevronDown,
   AlertTriangle,
   Users,
-  GitBranch,
   Target,
   Layers,
   AlertCircle,
   Plus,
-  Play
+  Play,
+  ListTodo,
+  GitBranch,
+  Shield
 } from 'lucide-react'
 import { useState, useCallback, useMemo } from 'react'
 import { Badge } from '../components/ui/Badge'
@@ -34,10 +33,8 @@ import { normalizeProjectTwinUpdateResponse, buildUpdatedTwinFromResult } from '
 import AddMeasurePanel from '../components/twin/AddMeasurePanel'
 import MeasureExecutionPanel from '../components/twin/MeasureExecutionPanel'
 import SimulatorModule from '../components/twin/SimulatorModule'
+import { TwinSectionNav, type TwinModule } from '../components/twin/TwinSectionNav'
 import type { Measure } from '../types/measures'
-
-// Twin Module Types
-type TwinModule = 'process' | 'risks' | 'actions' | 'decisions' | 'memory' | 'timeline' | 'simulation'
 
 interface ProjectTwinScreenProps {
   onBack: () => void
@@ -306,45 +303,13 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
             </div>
           </section>
 
-          {/* 4. Twin Module Bar */}
-          <div className="flex flex-wrap gap-2">
-            <ModuleButton
-              active={activeModule === 'process'}
-              onClick={() => setActiveModule('process')}
-              icon={Route}
-              label="Prozess"
-            />
-            <ModuleButton
-              active={activeModule === 'risks'}
-              onClick={() => setActiveModule('risks')}
-              icon={Shield}
-              label={`Risiken (${risks.length})`}
-            />
-            <ModuleButton
-              active={activeModule === 'actions'}
-              onClick={() => setActiveModule('actions')}
-              icon={ListTodo}
-              label={`Aktionen (${actions.length})`}
-            />
-            <ModuleButton
-              active={activeModule === 'decisions'}
-              onClick={() => setActiveModule('decisions')}
-              icon={GitBranch}
-              label={`Optionen (${scenarios.length})`}
-            />
-            <ModuleButton
-              active={activeModule === 'memory'}
-              onClick={() => setActiveModule('memory')}
-              icon={Brain}
-              label="Memory"
-            />
-            <ModuleButton
-              active={activeModule === 'simulation'}
-              onClick={() => setActiveModule('simulation')}
-              icon={Brain}
-              label="Simulation"
-            />
-          </div>
+          {/* 4. Twin Section Navigation - Neue große Bereichsbuttons */}
+          <TwinSectionNav
+            activeSection={activeModule}
+            onSectionChange={setActiveModule}
+            analysis={analysis}
+            twin={twin}
+          />
 
           {/* 5. Active Module Panel */}
           <AnimatePresence mode="wait">
@@ -396,9 +361,6 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
               )}
               {activeModule === 'memory' && (
                 <MemoryModule twin={twin} />
-              )}
-              {activeModule === 'timeline' && (
-                <TimelineModule twin={twin} />
               )}
               {activeModule === 'simulation' && (
                 <SimulatorModule 
@@ -500,28 +462,6 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
         onTwinUpdate={onTwinUpdate}
       />
     </div>
-  )
-}
-
-// Module Button Component
-function ModuleButton({ active, onClick, icon: Icon, label }: {
-  active: boolean
-  onClick: () => void
-  icon: typeof Route
-  label: string
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-        active
-          ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/20'
-          : 'bg-[var(--lp-surface-soft)] text-[var(--lp-muted)] hover:text-[var(--lp-text)] hover:bg-[var(--lp-surface-hover)]'
-      }`}
-    >
-      <Icon className="w-4 h-4" />
-      {label}
-    </button>
   )
 }
 
@@ -837,64 +777,6 @@ function MemoryModule({ twin }: { twin: StoredProjectTwin }) {
           <h4 className="text-sm font-medium text-[var(--lp-muted)] mb-2">Update-Verlauf</h4>
           <p className="text-sm text-[var(--lp-text)]">{twin.updates?.length || 0} Updates seit Erstellung</p>
         </div>
-      </div>
-    </section>
-  )
-}
-
-// Timeline Module
-function TimelineModule({ twin }: { twin: StoredProjectTwin }) {
-  const updates = twin.updates || []
-
-  return (
-    <section className="lp-card lp-card--padded">
-      <div className="flex items-center gap-2 mb-6">
-        <Clock className="w-5 h-5 text-violet-400" />
-        <h3 className="text-lg font-semibold text-[var(--lp-text)]">Projektverlauf</h3>
-      </div>
-
-      <div className="space-y-4">
-        {/* Erstellung */}
-        <div className="flex gap-4">
-          <div className="flex flex-col items-center">
-            <div className="w-3 h-3 rounded-full bg-violet-500"></div>
-            <div className="w-0.5 h-full bg-[var(--lp-border)]"></div>
-          </div>
-          <div className="flex-1 pb-4">
-            <div className="text-sm font-medium text-[var(--lp-text)]">Project Twin erstellt</div>
-            <div className="text-xs text-[var(--lp-muted)]">
-              {new Date(twin.createdAt).toLocaleString('de-DE')}
-            </div>
-            <div className="mt-2 text-sm text-[var(--lp-muted)] line-clamp-2">
-              {twin.originalInput}
-            </div>
-          </div>
-        </div>
-
-        {/* Updates */}
-        {updates.map((update, i) => (
-          <div key={i} className="flex gap-4">
-            <div className="flex flex-col items-center">
-              <div className="w-3 h-3 rounded-full bg-[var(--lp-border)]"></div>
-              {i < updates.length - 1 && <div className="w-0.5 h-full bg-[var(--lp-border)]"></div>}
-            </div>
-            <div className="flex-1 pb-4">
-              <div className="text-sm font-medium text-[var(--lp-text)]">{update.summary}</div>
-              <div className="text-xs text-[var(--lp-muted)]">
-                {new Date(update.createdAt).toLocaleString('de-DE')}
-              </div>
-              {update.changedFields?.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {update.changedFields.map((field, j) => (
-                    <span key={j} className="text-xs px-2 py-0.5 rounded bg-violet-500/10 text-violet-400">
-                      {field.field}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
       </div>
     </section>
   )
