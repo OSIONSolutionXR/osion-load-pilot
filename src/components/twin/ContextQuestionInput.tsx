@@ -55,16 +55,20 @@ export default function ContextQuestionInput({
   }, [onChange])
 
   const renderTextInput = () => (
-    <textarea
-      value={value}
-      onChange={handleTextChange}
-      disabled={disabled}
-      placeholder="Deine Antwort..."
-      rows={3}
-      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-zinc-200 placeholder-zinc-500 resize-none focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 transition-all"
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-    />
+    <div className="space-y-2">
+      <label className="text-sm font-medium text-zinc-300">Deine Antwort</label>
+      <textarea
+        value={value}
+        onChange={handleTextChange}
+        disabled={disabled}
+        placeholder={question.helperText ? "Gib hier Deine Antwort ein..." : "Deine Antwort..."}
+        rows={4}
+        className="w-full px-5 py-4 bg-white/[0.08] border-2 border-white/20 rounded-xl text-base text-zinc-100 placeholder-zinc-500 resize-none focus:outline-none focus:border-violet-500 focus:bg-white/[0.12] focus:shadow-lg focus:shadow-violet-500/10 transition-all"
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+      />
+      <p className="text-xs text-zinc-500">Drücke Enter für neue Zeile</p>
+    </div>
   )
 
   const renderNumberInput = () => (

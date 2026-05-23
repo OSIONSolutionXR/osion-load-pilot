@@ -273,14 +273,17 @@ export default function ContextQuestionWizard({
                 <span className="text-lg font-semibold text-violet-300">{currentIndex + 1}</span>
               </div>
             </div>
-            <div className="flex-1 min-w-0 space-y-3">
+            <div className="flex-1 min-w-0 space-y-4">
               <div>
-                <p className="text-sm text-zinc-500 mb-1">{currentQuestion.label}</p>
-                <p className="text-lg font-medium text-zinc-100 mb-2">{currentQuestion.question}</p>
+                {/* Themenbereich - kleiner, dezent */}
+                <p className="text-sm font-medium text-violet-400 mb-2 uppercase tracking-wide">{currentQuestion.label}</p>
+                {/* Eigentliche Frage - groß und lesbar */}
+                <h3 className="text-xl md:text-2xl font-semibold text-white leading-tight mb-4">{currentQuestion.question}</h3>
+                {/* Helper-Text - deutlich als Erklärung */}
                 {currentQuestion.helperText && (
-                  <div className="flex items-start gap-2">
-                    <HelpCircle className="w-4 h-4 text-zinc-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-zinc-400">{currentQuestion.helperText}</p>
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.05] border border-white/10">
+                    <HelpCircle className="w-5 h-5 text-violet-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-base text-zinc-300 leading-relaxed">{currentQuestion.helperText}</p>
                   </div>
                 )}
               </div>
