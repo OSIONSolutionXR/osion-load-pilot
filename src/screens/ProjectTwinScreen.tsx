@@ -32,7 +32,7 @@ import { collectValidContextAnswers, buildAdditionalInputFromValidated } from '.
 import { normalizeProjectTwinUpdateResponse, buildUpdatedTwinFromResult } from '../services/projectTwinUpdateNormalizer'
 import AddMeasurePanel from '../components/twin/AddMeasurePanel'
 import MeasureExecutionPanel from '../components/twin/MeasureExecutionPanel'
-import SimulatorModule from '../components/twin/SimulatorModule'
+import SimulationPanel from '../components/twin/SimulationPanel'
 import { TwinSectionNav, type TwinModule } from '../components/twin/TwinSectionNav'
 import type { Measure } from '../types/measures'
 
@@ -385,7 +385,7 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
                 <MemoryModule twin={twin} />
               )}
               {activeModule === 'simulation' && (
-                <SimulatorModule 
+                <SimulationPanel 
                   twin={twin}
                   onTwinUpdate={onTwinUpdate}
                 />

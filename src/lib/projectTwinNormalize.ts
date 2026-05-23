@@ -171,6 +171,12 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
     meta
   } as StoredProjectTwinV2)
 
+  // Simulations normalisieren
+  const simulations = twin.simulations || {
+    scenarios: [],
+    results: []
+  }
+
   return {
     id,
     schemaVersion: 2,
@@ -190,6 +196,7 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
     futureSimulation: twin.futureSimulation,
     attentionQueue: twin.attentionQueue || [],
     measures,
+    simulations,
     meta: {
       ...meta,
       source: meta.source || 'analysis',
@@ -280,6 +287,7 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     futureSimulation: undefined,
     attentionQueue: [],
     measures,
+    simulations: { scenarios: [], results: [] },
     meta
   }
 }

@@ -7,6 +7,38 @@ import type { ProjectTwinAnalysis } from './projectTwin'
 import type { SimulationRun } from './simulation'
 
 // ============================================================================
+// SCENARIO SIMULATION (Baustein 6)
+// ============================================================================
+
+export type ScenarioStatus = 'running' | 'completed' | 'failed'
+
+export interface Scenario {
+  id: string
+  name: string
+  description: string
+  assumptions: Record<string, string>  // "budget": "+20%"
+  createdAt: string
+  status: ScenarioStatus
+}
+
+export interface ScenarioResult {
+  scenarioId: string
+  outcome: 'positive' | 'neutral' | 'negative'
+  confidence: number  // 0-1
+  summary: string
+  risks: string[]
+  opportunities: string[]
+  recommendedAction?: string
+  completedAt: string
+}
+
+export interface SimulationsContainer {
+  scenarios: Scenario[]
+  results: ScenarioResult[]
+  activeScenarioId?: string
+}
+
+// ============================================================================
 // ENUMS
 // ============================================================================
 
@@ -272,6 +304,9 @@ export interface StoredProjectTwinV2 {
   
   // Measures - Verknüpfung Command ↔ Twin
   measures: import('../types/measures').Measure[]
+  
+  // Scenario Simulations (Baustein 6)
+  simulations?: SimulationsContainer
   
   // Meta
   meta: ProjectTwinStorageMeta
