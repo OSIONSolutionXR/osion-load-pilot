@@ -22,6 +22,7 @@ import {
   generateContextQuestionsFromMissing
 } from '../types/projectTwinV2'
 import { extractMeasuresFromTwin } from './measuresNormalize'
+import { rebuildAttentionQueueFromMeasures } from './attentionQueueStore'
 import { 
   logProjectCreated,
   logContextAnswered,
@@ -422,7 +423,7 @@ export function updateTwinMeta(
 // ============================================================================
 
 /**
- * Fügt eine neue Maßnahme zum Twin hinzu (mit Logging)
+ * Fügt eine neue Maßnahme zum Twin hinzu (mit Logging und Queue-Rebuild)
  */
 export function addMeasureToTwin(
   twin: StoredProjectTwinV2,
@@ -433,11 +434,17 @@ export function addMeasureToTwin(
     updatedAt: new Date().toISOString(),
     measures: [...(twin.measures || []), measure]
   }
-  return logMeasureAdded(updatedTwin, measure.id, measure.title)
+  
+  const loggedTwin = logMeasureAdded(updatedTwin, measure.id, measure.title)
+  
+  // Rebuild attention queue
+  rebuildAttentionQueueFromMeasures(loggedTwin)
+  
+  return loggedTwin
 }
 
 /**
- * Aktualisiert eine bestehende Maßnahme im Twin (mit Logging)
+ * Aktualisiert eine bestehende Maßnahme im Twin (mit Logging und Queue-Rebuild)
  */
 export function updateTwinMeasure(
   twin: StoredProjectTwinV2,
@@ -458,14 +465,21 @@ export function updateTwinMeasure(
   }
 
   // Logge das Update
+  let loggedTwin: StoredProjectTwinV2
   if (wasCompleted) {
-    return logMeasureCompleted(updatedTwin, measureId, existingMeasure.title)
+    loggedTwin = logMeasureCompleted(updatedTwin, measureId, existingMeasure.title)
+  } else {
+    loggedTwin = logMeasureUpdated(updatedTwin, measureId, existingMeasure.title, updates)
   }
-  return logMeasureUpdated(updatedTwin, measureId, existingMeasure.title, updates)
+  
+  // Rebuild attention queue
+  rebuildAttentionQueueFromMeasures(loggedTwin)
+  
+  return loggedTwin
 }
 
 /**
- * Löscht eine Maßnahme aus dem Twin (mit Logging)
+ * Löscht eine Maßnahme aus dem Twin (mit Logging und Queue-Rebuild)
  */
 export function deleteTwinMeasure(
   twin: StoredProjectTwinV2,
@@ -480,7 +494,12 @@ export function deleteTwinMeasure(
     measures: twin.measures?.filter(m => m.id !== measureId) || []
   }
 
-  return logMeasureDeleted(updatedTwin, measureId, measure.title)
+  const loggedTwin = logMeasureDeleted(updatedTwin, measureId, measure.title)
+  
+  // Rebuild attention queue
+  rebuildAttentionQueueFromMeasures(loggedTwin)
+  
+  return loggedTwin
 }
 
 /**

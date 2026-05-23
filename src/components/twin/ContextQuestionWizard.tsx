@@ -286,7 +286,7 @@ export default function ContextQuestionWizard({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-zinc-400">Frage</span>
+            <span className="text-sm font-medium text-violet-400">Frage</span>
             <span className="text-lg font-bold text-white">{currentIndex + 1}</span>
             <span className="text-sm text-zinc-500">von</span>
             <span className="text-lg font-bold text-white">{totalQuestions}</span>
@@ -304,7 +304,7 @@ export default function ContextQuestionWizard({
         </div>
       </div>
 
-      {/* Question Card - überarbeitet */}
+      {/* Question Card - überarbeitet mit dunklem Hintergrund */}
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={currentQuestion.id}
@@ -317,22 +317,22 @@ export default function ContextQuestionWizard({
           {/* Frage-Nummer-Indikator */}
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-[#ff006e]/20 border border-violet-500/30 flex items-center justify-center">
-              <span className="text-xl font-bold text-violet-300">{currentIndex + 1}</span>
+              <span className="text-xl font-bold text-violet-400">{currentIndex + 1}</span>
             </div>
             <div className="flex-1">
               <p className="text-xs font-medium text-violet-400 uppercase tracking-wider">{currentQuestion.label}</p>
             </div>
           </div>
 
-          {/* Hauptfrage - GROSS, FETT, SCHWARZ */}
-          <div className="space-y-4">
+          {/* Hauptfrage - GROSS, FETT, WEISS auf dunklem Hintergrund */}
+          <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-700/50 space-y-4">
             <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight">
               {currentQuestion.question}
             </h3>
             
             {/* Helper-Text als Erklärungsbox */}
             {currentQuestion.helperText && (
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-violet-500/10 border border-violet-500/20">
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-violet-500/10 border border-violet-500/30">
                 <HelpCircle className="w-5 h-5 text-violet-400 flex-shrink-0 mt-0.5" />
                 <p className="text-base text-zinc-300 leading-relaxed">
                   {currentQuestion.helperText}

@@ -20,6 +20,7 @@ import type { StoredProjectTwinV2 } from '../../types/projectTwinV2'
 import type { Measure, MeasureStatus, MeasurePriority } from '../../types/measures'
 import { useState, useMemo } from 'react'
 import { logMeasureUpdated, logMeasureCompleted } from '../../services/activityLogService'
+import { rebuildAttentionQueueFromMeasures } from '../../lib/attentionQueueStore'
 
 interface MeasuresPanelProps {
   twin: StoredProjectTwinV2
@@ -144,6 +145,10 @@ export default function MeasuresPanel({
     }
 
     onTwinUpdate(updatedTwin)
+    
+    // Rebuild attention queue after measure update
+    rebuildAttentionQueueFromMeasures(updatedTwin)
+    
     setEditingMeasureId(null)
     setEditForm({})
   }
@@ -166,6 +171,9 @@ export default function MeasuresPanel({
     updatedTwin = logMeasureCompleted(updatedTwin, measure.id, measure.title)
 
     onTwinUpdate(updatedTwin)
+    
+    // Rebuild attention queue after marking as done
+    rebuildAttentionQueueFromMeasures(updatedTwin)
   }
 
   const deleteMeasure = (measureId: string) => {
@@ -181,6 +189,10 @@ export default function MeasuresPanel({
     }
 
     onTwinUpdate(updatedTwin)
+    
+    // Rebuild attention queue after deletion
+    rebuildAttentionQueueFromMeasures(updatedTwin)
+    
     setExpandedMeasureId(null)
   }
 

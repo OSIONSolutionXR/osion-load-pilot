@@ -128,55 +128,90 @@ const statusConfig: Record<SectionStatus, {
   badgeText: string
   badgeActive: string
   iconBg: string
+  iconBgActive: string
+  iconColor: string
+  iconColorActive: string
+  labelColor: string
+  labelColorActive: string
+  subtitleColor: string
+  subtitleColorActive: string
   gradient: string
   shadow: string
 }> = {
   neutral: {
-    border: 'border-[var(--lp-border)]',
-    borderActive: 'border-[var(--lp-accent)]',
-    bg: 'bg-[var(--lp-surface)]',
-    bgActive: 'bg-gradient-to-br from-[var(--lp-accent)] to-[var(--lp-info)]',
-    badge: 'bg-[var(--lp-surface-soft)]',
-    badgeText: 'text-[var(--lp-muted)]',
-    badgeActive: 'bg-white/25 text-white',
-    iconBg: 'bg-[var(--lp-accent)]',
-    gradient: 'from-[var(--lp-accent)] to-[var(--lp-info)]',
-    shadow: 'shadow-[0_12px_32px_-8px_rgba(37,99,235,0.35)]'
+    border: 'border-zinc-700',
+    borderActive: 'border-violet-500',
+    bg: 'bg-zinc-900/50',
+    bgActive: 'bg-violet-600',
+    badge: 'bg-zinc-800',
+    badgeText: 'text-zinc-400',
+    badgeActive: 'bg-violet-500 text-white',
+    iconBg: 'bg-zinc-800',
+    iconBgActive: 'bg-violet-500',
+    iconColor: 'text-zinc-400',
+    iconColorActive: 'text-white',
+    labelColor: 'text-zinc-300',
+    labelColorActive: 'text-white',
+    subtitleColor: 'text-zinc-500',
+    subtitleColorActive: 'text-violet-200',
+    gradient: 'from-violet-600 to-violet-700',
+    shadow: 'shadow-[0_12px_32px_-8px_rgba(139,92,246,0.35)]'
   },
   info: {
-    border: 'border-[var(--lp-border)]',
-    borderActive: 'border-[var(--lp-accent)]',
-    bg: 'bg-[var(--lp-surface)]',
-    bgActive: 'bg-gradient-to-br from-[var(--lp-accent)] to-[var(--lp-info)]',
-    badge: 'bg-[var(--lp-accent)]/15',
-    badgeText: 'text-[var(--lp-accent)]',
-    badgeActive: 'bg-white/25 text-white',
-    iconBg: 'bg-[var(--lp-accent)]',
-    gradient: 'from-[var(--lp-accent)] to-[var(--lp-info)]',
-    shadow: 'shadow-[0_12px_32px_-8px_rgba(37,99,235,0.35)]'
+    border: 'border-zinc-700',
+    borderActive: 'border-violet-500',
+    bg: 'bg-zinc-900/50',
+    bgActive: 'bg-violet-600',
+    badge: 'bg-violet-500/15',
+    badgeText: 'text-violet-400',
+    badgeActive: 'bg-violet-500 text-white',
+    iconBg: 'bg-violet-500/20',
+    iconBgActive: 'bg-violet-500',
+    iconColor: 'text-violet-400',
+    iconColorActive: 'text-white',
+    labelColor: 'text-zinc-300',
+    labelColorActive: 'text-white',
+    subtitleColor: 'text-zinc-500',
+    subtitleColorActive: 'text-violet-200',
+    gradient: 'from-violet-600 to-violet-700',
+    shadow: 'shadow-[0_12px_32px_-8px_rgba(139,92,246,0.35)]'
   },
   warning: {
-    border: 'border-[var(--lp-border)]',
+    border: 'border-zinc-700',
     borderActive: 'border-amber-500',
-    bg: 'bg-amber-50/30',
-    bgActive: 'bg-gradient-to-br from-amber-500 to-orange-500',
+    bg: 'bg-zinc-900/50',
+    bgActive: 'bg-amber-600',
     badge: 'bg-amber-500/15',
-    badgeText: 'text-amber-600',
-    badgeActive: 'bg-white/25 text-white',
-    iconBg: 'bg-amber-500',
-    gradient: 'from-amber-500 to-orange-500',
+    badgeText: 'text-amber-500',
+    badgeActive: 'bg-amber-500 text-white',
+    iconBg: 'bg-amber-500/20',
+    iconBgActive: 'bg-amber-400',
+    iconColor: 'text-amber-500',
+    iconColorActive: 'text-amber-950',
+    labelColor: 'text-zinc-300',
+    labelColorActive: 'text-white',
+    subtitleColor: 'text-zinc-500',
+    subtitleColorActive: 'text-amber-100',
+    gradient: 'from-amber-600 to-amber-700',
     shadow: 'shadow-[0_12px_32px_-8px_rgba(245,158,11,0.4)]'
   },
   critical: {
-    border: 'border-[var(--lp-border)]',
+    border: 'border-zinc-700',
     borderActive: 'border-rose-500',
-    bg: 'bg-rose-50/30',
-    bgActive: 'bg-gradient-to-br from-rose-500 to-red-600',
+    bg: 'bg-zinc-900/50',
+    bgActive: 'bg-rose-600',
     badge: 'bg-rose-500/15',
-    badgeText: 'text-rose-600',
-    badgeActive: 'bg-white/25 text-white',
-    iconBg: 'bg-rose-500',
-    gradient: 'from-rose-500 to-red-600',
+    badgeText: 'text-rose-500',
+    badgeActive: 'bg-rose-500 text-white',
+    iconBg: 'bg-rose-500/20',
+    iconBgActive: 'bg-rose-400',
+    iconColor: 'text-rose-500',
+    iconColorActive: 'text-rose-950',
+    labelColor: 'text-zinc-300',
+    labelColorActive: 'text-white',
+    subtitleColor: 'text-zinc-500',
+    subtitleColorActive: 'text-rose-100',
+    gradient: 'from-rose-600 to-rose-700',
     shadow: 'shadow-[0_12px_32px_-8px_rgba(244,63,94,0.4)]'
   }
 }
@@ -215,8 +250,9 @@ export function TwinSectionNav({
               twin-section-button
               ${isActive ? 'is-active' : ''}
               ${isActive ? statusStyles.borderActive : statusStyles.border}
-              ${isActive ? statusStyles.bgActive : statusStyles.bg}
+              ${isActive ? statusStyles.bgActive : statusStyles.bg + ' hover:bg-zinc-800'}
               ${isActive ? statusStyles.shadow : ''}
+              transition-all duration-200
             `}
           >
             {/* Icon Container */}
@@ -226,8 +262,8 @@ export function TwinSectionNav({
             `}>
               <div className={`
                 twin-section-button__icon
-                ${isActive ? statusStyles.iconBg : 'bg-[var(--lp-surface-soft)]'}
-                ${isActive ? 'text-white' : 'text-[var(--lp-muted)]'}
+                ${isActive ? statusStyles.iconBgActive : statusStyles.iconBg}
+                ${isActive ? statusStyles.iconColorActive : statusStyles.iconColor}
               `}>
                 <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
               </div>
@@ -236,7 +272,7 @@ export function TwinSectionNav({
               {count > 0 && (
                 <span className={`
                   twin-section-button__badge
-                  ${isActive ? 'bg-white text-[var(--lp-accent)]' : `${statusStyles.badge} ${statusStyles.badgeText}`}
+                  ${isActive ? statusStyles.badgeActive : `${statusStyles.badge} ${statusStyles.badgeText}`}
                 `}>
                   {count}
                 </span>
@@ -247,13 +283,13 @@ export function TwinSectionNav({
             <div className="twin-section-button__content">
               <span className={`
                 twin-section-button__label
-                ${isActive ? 'text-white' : 'text-[var(--lp-text-strong)]'}
+                ${isActive ? statusStyles.labelColorActive : statusStyles.labelColor}
               `}>
                 {section.label}
               </span>
               <span className={`
                 twin-section-button__subtitle
-                ${isActive ? 'text-white/80' : 'text-[var(--lp-muted)]'}
+                ${isActive ? statusStyles.subtitleColorActive : statusStyles.subtitleColor}
               `}>
                 {section.subtitle}
               </span>
