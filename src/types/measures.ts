@@ -31,7 +31,7 @@ export interface Measure {
   linkedProcessStepId?: string
   
   tags?: string[]
-  source: 'manual' | 'twin_action' | 'twin_recommended' | 'twin_nextStep' | 'generated'
+  source: 'manual' | 'ai_structured' | 'twin_action' | 'twin_recommended' | 'twin_nextStep' | 'generated'
 }
 
 export interface MeasureFilter {

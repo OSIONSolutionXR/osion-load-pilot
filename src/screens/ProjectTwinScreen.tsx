@@ -488,7 +488,6 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
           // Maßnahme wurde erstellt
           console.log('Measure created:', measure)
         }}
-        onTwinUpdate={onTwinUpdate}
       />
 
       <MeasureExecutionPanel

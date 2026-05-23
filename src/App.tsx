@@ -239,7 +239,6 @@ function App() {
               // Handle measure creation - could navigate to measures view
               console.log('Measure created:', measure)
             }}
-            onTwinUpdate={handleUpdateTwin}
           />
         </main>
       </div>
