@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { MotionConfig } from 'motion/react'
 import SidebarNavigation from './components/layout/SidebarNavigation'
 import type { ViewState } from './types'
+import type { TwinOpenContext } from './screens/ProjectTwinScreen'
 
 import CommandScreen from './screens/CommandScreen'
 import ProjectTwinScreen from './screens/ProjectTwinScreen'
@@ -36,6 +37,7 @@ function App() {
   })
   const [twins, setTwins] = useState<StoredProjectTwin[]>([])
   const [activeTwinId, setActiveTwinId] = useState<string | null>(null)
+  const [twinOpenContext, setTwinOpenContext] = useState<TwinOpenContext | undefined>(undefined)
   const [hasHydrated, setHasHydrated] = useState(false)
 
   useEffect(() => {
@@ -72,11 +74,17 @@ function App() {
     const twin = createStoredProjectTwin(sourceInput, analysis)
     setTwins((current) => [twin, ...current])
     setActiveTwinId(twin.id)
+    setTwinOpenContext(undefined)
     navigateTo('twin')
   }
 
-  const handleOpenTwin = (id: string) => {
+  const handleOpenTwin = (id: string, context?: { focus?: 'actions'; highlightMeasureId?: string }) => {
     setActiveTwinId(id)
+    // Setze Context für Twin-Öffnung (Command → Twin)
+    setTwinOpenContext(context ? {
+      focus: context.focus,
+      highlightMeasureId: context.highlightMeasureId
+    } : undefined)
     navigateTo('twin')
   }
 
@@ -146,6 +154,7 @@ function App() {
                 onNewInput={() => navigateTo('input')}
                 twin={activeTwin}
                 onTwinUpdate={handleUpdateTwin}
+                openContext={twinOpenContext}
               />
             )}
 

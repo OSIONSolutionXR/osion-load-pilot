@@ -7,7 +7,7 @@ import { FadeIn } from '../components/animations/MicroAnimations'
 
 interface ProjectsScreenProps {
   twins: StoredProjectTwin[]
-  onOpenTwin: (id: string) => void
+  onOpenTwin: (id: string, context?: { focus?: 'actions' }) => void
   onNewProject: () => void
 }
 

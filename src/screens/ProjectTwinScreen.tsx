@@ -17,7 +17,7 @@ import {
   GitBranch,
   Shield
 } from 'lucide-react'
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Badge } from '../components/ui/Badge'
 import { ProcessPathPanel } from '../components/twin/ProcessPathPanel'
 import ContextQuestionsCard from '../components/twin/ContextQuestionsCard'
@@ -36,14 +36,22 @@ import SimulatorModule from '../components/twin/SimulatorModule'
 import { TwinSectionNav, type TwinModule } from '../components/twin/TwinSectionNav'
 import type { Measure } from '../types/measures'
 
+// Neue Interface für Twin-Öffnungs-Context
+export interface TwinOpenContext {
+  focus?: TwinModule
+  highlightMeasureId?: string
+  highlightActionId?: string
+}
+
 interface ProjectTwinScreenProps {
   onBack: () => void
   onNewInput?: () => void
   twin: StoredProjectTwin | null
   onTwinUpdate?: (updatedTwin: StoredProjectTwin) => void
+  openContext?: TwinOpenContext  // Neue Prop für Command → Twin Verknüpfung
 }
 
-export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpdate }: ProjectTwinScreenProps) {
+export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpdate, openContext }: ProjectTwinScreenProps) {
   const [activeModule, setActiveModule] = useState<TwinModule>('process')
   const [showRefineModal, setShowRefineModal] = useState(false)
   const [showAddMeasure, setShowAddMeasure] = useState(false)
@@ -55,6 +63,20 @@ export default function ProjectTwinScreen({ onBack, onNewInput, twin, onTwinUpda
   const [showActionDetail, setShowActionDetail] = useState(false)
 
   const analysis = twin?.analysis ?? null
+
+  // Apply openContext when provided (Command → Twin)
+  useEffect(() => {
+    if (openContext?.focus) {
+      setActiveModule(openContext.focus)
+    }
+    if (openContext?.highlightMeasureId && twin?.measures) {
+      const measure = twin.measures.find(m => m.id === openContext.highlightMeasureId)
+      if (measure) {
+        setSelectedMeasure(measure)
+        setShowExecutionPanel(true)
+      }
+    }
+  }, [openContext, twin])
 
   // Handler für Kontextfragen
   const handleUpdateWithAnswers = useCallback(async (answers: Record<string, string>) => {

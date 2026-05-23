@@ -270,6 +270,9 @@ export interface StoredProjectTwinV2 {
   // Attention Queue (dynamisch generiert + persistent gespeicherte Änderungen)
   attentionQueue: AttentionQueueItem[]
   
+  // Measures - Verknüpfung Command ↔ Twin
+  measures: import('../types/measures').Measure[]
+  
   // Meta
   meta: ProjectTwinStorageMeta
 }

@@ -147,6 +147,7 @@ export function extractMeasuresFromTwin(twin: StoredProjectTwinV2): Measure[] {
 
 /**
  * Normalisiert Measures aus allen Projekten
+ * Bevorzugt twin.measures falls vorhanden, sonst wird aus twin.analysis.actions abgeleitet
  */
 export function normalizeMeasures(projects: StoredProjectTwinV2[]): Measure[] {
   if (!projects || projects.length === 0) {
@@ -156,8 +157,14 @@ export function normalizeMeasures(projects: StoredProjectTwinV2[]): Measure[] {
   const allMeasures: Measure[] = []
 
   for (const project of projects) {
-    const projectMeasures = extractMeasuresFromTwin(project)
-    allMeasures.push(...projectMeasures)
+    // Bevorzuge twin.measures (persistente Maßnahmen) falls vorhanden
+    if (project.measures && project.measures.length > 0) {
+      allMeasures.push(...project.measures)
+    } else {
+      // Fallback: leite aus twin.analysis.actions ab
+      const projectMeasures = extractMeasuresFromTwin(project)
+      allMeasures.push(...projectMeasures)
+    }
   }
 
   // Deduplizieren basierend auf Titel + Projekt

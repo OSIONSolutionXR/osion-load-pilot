@@ -12,11 +12,13 @@ import type {
   ProcessStep
 } from '../types/projectTwinV2'
 import type { ProjectTwinAnalysis } from '../types/projectTwin'
+import type { Measure } from '../types/measures'
 import {
   createDefaultProgress,
   createDefaultMeta,
   generateContextQuestionsFromMissing
 } from '../types/projectTwinV2'
+import { extractMeasuresFromTwin } from './measuresNormalize'
 
 // Legacy Typ für V1 Twins
 type StoredProjectTwinV1 = {
@@ -146,6 +148,29 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
   // Meta
   const meta = twin.meta || createDefaultMeta(twin.analysis)
 
+  // Measures normalisieren
+  const measures: Measure[] = twin.measures || extractMeasuresFromTwin({
+    id,
+    schemaVersion: 2,
+    title,
+    description,
+    createdAt,
+    updatedAt,
+    originalInput,
+    latestInput,
+    analysis: twin.analysis,
+    processSteps,
+    contextQuestions,
+    updates,
+    progress,
+    generatedSolutions,
+    chatHistory,
+    futureSimulation: twin.futureSimulation,
+    attentionQueue: twin.attentionQueue || [],
+    measures: [],
+    meta
+  } as StoredProjectTwinV2)
+
   return {
     id,
     schemaVersion: 2,
@@ -164,6 +189,7 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
     chatHistory,
     futureSimulation: twin.futureSimulation,
     attentionQueue: twin.attentionQueue || [],
+    measures,
     meta: {
       ...meta,
       source: meta.source || 'analysis',
@@ -212,6 +238,29 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     updatedAt: v1.updatedAt || now
   })) || []
 
+  // Measures aus V1 Analyse ableiten
+  const measures: Measure[] = extractMeasuresFromTwin({
+    id: v1.id || `twin-${now}-${Math.random().toString(36).slice(2, 8)}`,
+    schemaVersion: 2,
+    title,
+    description,
+    createdAt: v1.createdAt || now,
+    updatedAt: v1.updatedAt || now,
+    originalInput,
+    latestInput: originalInput,
+    analysis: v1.analysis,
+    processSteps,
+    contextQuestions,
+    updates,
+    progress,
+    generatedSolutions: [],
+    chatHistory: [],
+    futureSimulation: undefined,
+    attentionQueue: [],
+    measures: [],
+    meta
+  } as StoredProjectTwinV2)
+
   return {
     id: v1.id || `twin-${now}-${Math.random().toString(36).slice(2, 8)}`,
     schemaVersion: 2,
@@ -230,6 +279,7 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     chatHistory: [],
     futureSimulation: undefined,
     attentionQueue: [],
+    measures,
     meta
   }
 }

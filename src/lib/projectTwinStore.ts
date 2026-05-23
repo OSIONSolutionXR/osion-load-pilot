@@ -6,6 +6,7 @@
  */
 
 import type { ProjectTwinAnalysis, ChangedField } from '../types/projectTwin'
+import type { Measure } from '../types/measures'
 import type { 
   StoredProjectTwinV2,
   ProjectTwinProgress,
@@ -20,6 +21,7 @@ import {
   createDefaultMeta,
   generateContextQuestionsFromMissing
 } from '../types/projectTwinV2'
+import { extractMeasuresFromTwin } from './measuresNormalize'
 
 // Re-export V2 als primären Typ (backward compatibility)
 export type StoredProjectTwin = StoredProjectTwinV2
@@ -127,7 +129,8 @@ export function createStoredProjectTwin(
     updatedAt: timestamp
   })) || []
 
-  return {
+  // Initialisiere measures aus Actions
+  const measures: Measure[] = extractMeasuresFromTwin({
     id: `twin-${timestamp}-${Math.random().toString(36).slice(2, 8)}`,
     schemaVersion: 2,
     title: analysis.project.title || 'Neues Projekt',
@@ -145,6 +148,35 @@ export function createStoredProjectTwin(
     chatHistory: [],
     futureSimulation: undefined,
     attentionQueue: [],
+    measures: [],
+    meta: {
+      ...meta,
+      source: 'analysis',
+      localOnly: true
+    }
+  } as StoredProjectTwinV2)
+
+  const twinId = `twin-${timestamp}-${Math.random().toString(36).slice(2, 8)}`
+
+  return {
+    id: twinId,
+    schemaVersion: 2,
+    title: analysis.project.title || 'Neues Projekt',
+    description: analysis.project.description,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    originalInput: trimmedInput,
+    latestInput: trimmedInput,
+    analysis,
+    processSteps,
+    contextQuestions,
+    updates: [],
+    progress,
+    generatedSolutions: [],
+    chatHistory: [],
+    futureSimulation: undefined,
+    attentionQueue: [],
+    measures,
     meta: {
       ...meta,
       source: 'analysis',
@@ -224,6 +256,7 @@ function generateUpdateSummary(
 
 /**
  * Aktualisiert einen bestehenden Twin (backward compatible)
+ * Regeneriert Measures aus aktualisierter Analyse, behält aber bestehende User-Daten bei
  */
 export function updateStoredProjectTwin(
   existingTwin: StoredProjectTwinV2,
@@ -251,6 +284,31 @@ export function updateStoredProjectTwin(
     newNextMoveTitle: updatedAnalysis.nextMove.title
   }
 
+  // Neue Measures aus aktualisierter Analyse generieren
+  const newMeasures = extractMeasuresFromTwin({
+    ...existingTwin,
+    analysis: updatedAnalysis
+  })
+
+  // Bestehende Measures mit neuen synchronisieren (behalte Status/Notes bei)
+  const existingMeasuresMap = new Map(existingTwin.measures?.map(m => [m.id, m]) || [])
+  const syncedMeasures = newMeasures.map(newMeasure => {
+    const existing = existingMeasuresMap.get(newMeasure.id)
+    if (existing) {
+      // Behalte User-Daten bei, aktualisiere aber Titel/Beschreibung
+      return {
+        ...newMeasure,
+        status: existing.status,
+        notes: existing.notes,
+        dueDate: existing.dueDate,
+        owner: existing.owner,
+        completedAt: existing.completedAt,
+        tags: existing.tags
+      }
+    }
+    return newMeasure
+  })
+
   return {
     ...existingTwin,
     updatedAt: timestamp,
@@ -263,7 +321,9 @@ export function updateStoredProjectTwin(
       ? generateContextQuestionsFromMissing(
           updatedAnalysis.quality.missingContext
         )
-      : existingTwin.contextQuestions
+      : existingTwin.contextQuestions,
+    // Synchronisierte Measures
+    measures: syncedMeasures
   }
 }
 
@@ -335,4 +395,83 @@ export function updateTwinMeta(
       ...metaUpdate
     }
   }
+}
+
+// ============================================================================
+// MEASURES FUNCTIONS (neu - Command ↔ Twin Verknüpfung)
+// ============================================================================
+
+/**
+ * Fügt eine neue Maßnahme zum Twin hinzu
+ */
+export function addMeasureToTwin(
+  twin: StoredProjectTwinV2,
+  measure: Measure
+): StoredProjectTwinV2 {
+  return {
+    ...twin,
+    updatedAt: new Date().toISOString(),
+    measures: [...(twin.measures || []), measure]
+  }
+}
+
+/**
+ * Aktualisiert eine bestehende Maßnahme im Twin
+ */
+export function updateTwinMeasure(
+  twin: StoredProjectTwinV2,
+  measureId: string,
+  updates: Partial<Measure>
+): StoredProjectTwinV2 {
+  return {
+    ...twin,
+    updatedAt: new Date().toISOString(),
+    measures: twin.measures?.map(m =>
+      m.id === measureId ? { ...m, ...updates } : m
+    ) || []
+  }
+}
+
+/**
+ * Löscht eine Maßnahme aus dem Twin
+ */
+export function deleteTwinMeasure(
+  twin: StoredProjectTwinV2,
+  measureId: string
+): StoredProjectTwinV2 {
+  return {
+    ...twin,
+    updatedAt: new Date().toISOString(),
+    measures: twin.measures?.filter(m => m.id !== measureId) || []
+  }
+}
+
+/**
+ * Synchronisiert Measures zwischen Command und Twin
+ * Wird aufgerufen wenn sich der Twin-Status ändert
+ */
+export function syncMeasuresFromActions(
+  twin: StoredProjectTwinV2
+): Measure[] {
+  const newMeasures = extractMeasuresFromTwin(twin)
+  
+  // Bestehende Measures mit neuen synchronisieren
+  const existingMeasuresMap = new Map(twin.measures?.map(m => [m.id, m]) || [])
+  const syncedMeasures = newMeasures.map(newMeasure => {
+    const existing = existingMeasuresMap.get(newMeasure.id)
+    if (existing) {
+      return {
+        ...newMeasure,
+        status: existing.status,
+        notes: existing.notes,
+        dueDate: existing.dueDate,
+        owner: existing.owner,
+        completedAt: existing.completedAt,
+        tags: existing.tags
+      }
+    }
+    return newMeasure
+  })
+  
+  return syncedMeasures
 }

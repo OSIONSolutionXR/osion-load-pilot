@@ -29,7 +29,7 @@ type FilterType = 'all' | 'critical' | 'deadlines' | 'blocked' | 'update-needed'
 
 interface CommandScreenProps {
   twins: StoredProjectTwin[]
-  onOpenTwin: (id: string) => void
+  onOpenTwin: (id: string, context?: { focus?: 'actions'; highlightMeasureId?: string }) => void
   onNewInput: () => void
 }
 
@@ -177,12 +177,19 @@ export default function CommandScreen({ twins, onOpenTwin, onNewInput }: Command
   }
 
   const handleOpenTwin = (measure: Measure) => {
-    onOpenTwin(measure.projectId)
+    // Öffne Twin mit Maßnahmen-Context (focus auf actions, highlight spezifische Maßnahme)
+    onOpenTwin(measure.projectId, {
+      focus: 'actions',
+      highlightMeasureId: measure.id
+    })
   }
 
   const handleOpenTwinFromQueue = () => {
     if (selectedQueueItem) {
-      onOpenTwin(selectedQueueItem.twinId)
+      onOpenTwin(selectedQueueItem.twinId, {
+        focus: 'actions',
+        highlightMeasureId: selectedQueueItem.id
+      })
     }
   }
 
