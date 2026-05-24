@@ -80,6 +80,54 @@ const chatTheme = {
   success: "#22C55E"
 }
 
+// ============================================================================
+// INLINE SUGGESTION BUTTONS COMPONENT
+// ============================================================================
+
+interface InlineSuggestionButtonsProps {
+  suggestions: ChatSuggestion[]
+  onAction: (suggestion: ChatSuggestion, action: 'accept' | 'reject' | 'edit') => void
+  executingId: string | null
+}
+
+function InlineSuggestionButtons({ suggestions, onAction, executingId }: InlineSuggestionButtonsProps) {
+  if (!suggestions || suggestions.length === 0) return null
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {suggestions.map((suggestion) => (
+        <motion.div
+          key={suggestion.id}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="inline-flex"
+        >
+          {executingId === suggestion.id ? (
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-xs font-medium py-2 px-3">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Wird ausgeführt...
+            </span>
+          ) : (
+            <button
+              onClick={() => onAction(suggestion, 'accept')}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 text-violet-300 text-xs font-medium py-2 px-3 transition-colors"
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              {suggestion.type === 'create_project' && 'Projekt erstellen'}
+              {suggestion.type === 'create_measure' && 'Maßnahme erstellen'}
+              {suggestion.type === 'project_update' && 'Speichern'}
+              {suggestion.type === 'update_measure' && 'Aktualisieren'}
+              {suggestion.type === 'open_project' && 'Öffnen'}
+              {suggestion.type === 'show_twin' && 'Twin anzeigen'}
+              {!['create_project', 'create_measure', 'project_update', 'update_measure', 'open_project', 'show_twin'].includes(suggestion.type) && suggestion.title}
+            </button>
+          )}
+        </motion.div>
+      ))}
+    </div>
+  )
+}
+
 export default function ChatScreen({
   twins,
   activeTwinId,
@@ -546,21 +594,32 @@ export default function ChatScreen({
                 )}
 
                 {message.role !== 'system' && (
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-5 py-4 ${
-                      message.role === 'user'
-                        ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
-                        : message.isError
-                          ? 'border border-rose-500/30 bg-rose-500/10 text-rose-200'
-                          : 'border border-slate-700/50 bg-slate-800/80 text-slate-100'
-                    }`}
-                  >
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
-                    <div className={`mt-2 text-[10px] ${
-                      message.role === 'user' ? 'text-blue-200' : 'text-slate-500'
-                    }`}>
-                      {formatTime(message.timestamp)}
+                  <div className="max-w-[80%]">
+                    <div
+                      className={`rounded-2xl px-5 py-4 ${
+                        message.role === 'user'
+                          ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
+                          : message.isError
+                            ? 'border border-rose-500/30 bg-rose-500/10 text-rose-200'
+                            : 'border border-slate-700/50 bg-slate-800/80 text-slate-100'
+                      }`}
+                    >
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
+                      <div className={`mt-2 text-[10px] ${
+                        message.role === 'user' ? 'text-blue-200' : 'text-slate-500'
+                      }`}>
+                        {formatTime(message.timestamp)}
+                      </div>
                     </div>
+                    
+                    {/* Inline Suggestion Buttons */}
+                    {message.role === 'assistant' && message.suggestions && message.suggestions.length > 0 && (
+                      <InlineSuggestionButtons 
+                        suggestions={message.suggestions}
+                        onAction={handleSuggestionAction}
+                        executingId={executingSuggestionId}
+                      />
+                    )}
                   </div>
                 )}
 
