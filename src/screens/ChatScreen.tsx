@@ -251,6 +251,10 @@ export default function ChatScreen({
         throw new Error(response.error)
       }
 
+      // Debug logging
+      console.log('[Chat] API Response:', response)
+      console.log('[Chat] Suggestions:', response.suggestions)
+
       const assistantMessage: ChatMessage = {
         id: generateMessageId(),
         role: 'assistant',
@@ -265,7 +269,12 @@ export default function ChatScreen({
         updatedAt: new Date().toISOString()
       }))
 
-      setPendingSuggestions(response.suggestions || [])
+      // Ensure suggestions are properly typed and have required fields
+      const validSuggestions = (response.suggestions || []).filter((s): s is ChatSuggestion => 
+        s && typeof s.id === 'string' && typeof s.type === 'string'
+      )
+      console.log('[Chat] Valid suggestions:', validSuggestions)
+      setPendingSuggestions(validSuggestions)
       setConnectionStatus('connected')
     } catch (error) {
       const errorMsg: ChatMessage = {
