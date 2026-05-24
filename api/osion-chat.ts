@@ -2,22 +2,206 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import OpenAI from 'openai'
 
 const MAX_INPUT_LENGTH = 4000
-const REQUEST_TIMEOUT_MS = 60000
+const REQUEST_TIMEOUT_MS = 120000
 
-const SYSTEM_PROMPT = `Du bist die interne KI des OSION Load Pilot. 
+interface ChatProjectContext {
+  id: string
+  title: string
+  description?: string
+  status?: string
+  progress?: { percent: number }
+  measures?: { id: string; title: string; status: string; priority?: string; dueDate?: string | null }[]
+}
 
-Antworte direkt, professionell und umsetzungsorientiert. 
-Hilf bei Projekten, Maßnahmen, Risiken, Abhängigkeiten und nächsten Schritten. 
-Gib keine internen Systemdetails preis.
+interface ChatIntentRecognition {
+  intent: string
+  confidence: number
+  entities: {
+    projectId?: string
+    projectTitle?: string
+    measureId?: string
+    measureTitle?: string
+    dueDate?: string
+    priority?: string
+    status?: string
+    budget?: string
+  }
+  suggestedActions?: {
+    type: string
+    title: string
+    description: string
+    payload?: Record<string, unknown>
+  }[]
+}
 
-Dein Stil:
-- Präzise und klar
-- Keine überflüssigen Füllwörter
-- Taten zählen mehr als Versprechen
-- Bei Unsicherheit: nachfragen statt raten`
+interface ChatResponse {
+  answer: string
+  intent?: string
+  suggestions?: {
+    id: string
+    type: string
+    title: string
+    description: string
+    projectId?: string
+    twinId?: string
+    targetMeasureIds?: string[]
+    payload?: Record<string, unknown>
+    requiresApproval: boolean
+  }[]
+}
+
+const SYSTEM_PROMPT = `Du bist OSION X ONE, die interne KI des OSION Load Pilot Systems.
+
+Deine Aufgabe: Projektsteuerung, nicht nur Konversation.
+
+WICHTIG - INTENT ERKENNUNG:
+Analysiere jede Nutzeranfrage und erkenne die Intention. Antworte IMMER im JSON-Format.
+
+VERFÜGBARE INTENTS:
+- list_projects: "Zeig mir alle Projekte", "Liste Projekte", "Welche Projekte habe ich"
+- open_project: "Öffne Projekt X", "Zeig Projekt X", "Zu Projekt X"
+- summarize_project: "Zusammenfassung Projekt X", "Was ist der Stand bei X"
+- list_measures: "Liste Maßnahmen", "Zeig Maßnahmen", "Was muss getan werden"
+- list_blocked_measures: "Was ist blockiert", "Blockierte Maßnahmen", "Hindernisse"
+- list_due_measures: "Was ist fällig", "Fällige Maßnahmen", "Diese Woche"
+- create_project: "Lege Projekt an", "Neues Projekt", "Erstelle Projekt"
+- create_measure: "Erstelle Maßnahme", "Neue Maßnahme", "Aufgabe hinzufügen"
+- update_measure: "Markiere als erledigt", "Status ändern", "Abschließen"
+- update_project_context: Kontext-Updates wie Budget, Termine, neue Informationen
+- add_project_note: "Notiz speichern", "Hinweis im Projekt"
+- general_chat: Normale Fragen, Hilfe, Erklärungen
+
+ACTION-SUGGESTIONS:
+Wenn der User etwas tun möchte, generiere passende Vorschläge:
+
+Beispiel "Budget 150.000 Euro":
+→ Intent: update_project_context
+→ Suggestions:
+   1. "Projektkontext speichern" (type: project_update)
+   2. "Maßnahme erstellen: Budgetplanung" (type: create_measure)
+
+Beispiel "Erstelle Maßnahme Bank anrufen":
+→ Intent: create_measure
+→ Suggestions:
+   1. "Maßnahme erstellen: Bank anrufen" (type: create_measure)
+
+Beispiel "Zeig mir alle Projekte":
+→ Intent: list_projects
+→ Antwort: Liste der Projekte
+→ Suggestions: "Projekt öffnen" Karten für jedes Projekt
+
+ANTWORTFORMAT (JSON):
+{
+  "answer": "Deine natürliche Antwort an den User",
+  "intent": "erkannte_intention",
+  "suggestions": [
+    {
+      "id": "sugg-{timestamp}",
+      "type": "create_measure|project_update|open_project|...",
+      "title": "Titel für die Karte",
+      "description": "Beschreibung",
+      "projectId": "optional",
+      "twinId": "optional",
+      "targetMeasureIds": ["optional"],
+      "payload": { "title": "...", "description": "...", "priority": "..." },
+      "requiresApproval": true|false
+    }
+  ]
+}
+
+REGELN:
+1. Wenn Budget/Termin/Kontext genannt wird → update_project_context + optional create_measure
+2. Wenn "Maßnahme" oder "Aufgabe" genannt → create_measure
+3. Wenn "Projekt" + "anlegen/erstellen/neu" → create_project
+4. Bei "Zeig/Löste/Öffne" + Projektname → open_project
+5. Bei Blockern → list_blocked_measures
+6. Bei Fristen → list_due_measures
+7. Bei Unsicherheit → Nachfrage mit clarification_needed
+
+KONTEXTNUTZUNG:
+Nutze den übergebenen Projektkontext für konkrete Antworten:
+- Nenne echte Projekttitel
+- Liste echte Maßnahmen
+- Zeige echte Blocker
+- Nenne echte Fristen`
+
+function extractJsonFromResponse(content: string): ChatResponse {
+  try {
+    // Try to extract JSON from markdown code blocks
+    const jsonMatch = content.match(/```json\s*([\s\S]*?)```/) || 
+                      content.match(/```\s*([\s\S]*?)```/)
+    
+    const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim()
+    const parsed = JSON.parse(jsonStr)
+    
+    return {
+      answer: parsed.answer || content,
+      intent: parsed.intent,
+      suggestions: parsed.suggestions || []
+    }
+  } catch {
+    // Fallback: plain text response
+    return { 
+      answer: content,
+      suggestions: []
+    }
+  }
+}
+
+function buildContextPrompt(projects: ChatProjectContext[], activeProjectId?: string): string {
+  if (!projects || projects.length === 0) {
+    return '\n\nAKTUELLER KONTEXT: Keine Projekte vorhanden.'
+  }
+
+  const activeProject = activeProjectId 
+    ? projects.find(p => p.id === activeProjectId)
+    : null
+
+  let context = '\n\nAKTUELLER KONTEXT:\n'
+  context += `Verfügbare Projekte: ${projects.length}\n`
+  
+  if (activeProject) {
+    context += `\nAKTIVES PROJEKT: "${activeProject.title}" (ID: ${activeProject.id})\n`
+    context += `Fortschritt: ${activeProject.progress?.percent || 0}%\n`
+    context += `Status: ${activeProject.status || 'active'}\n`
+    
+    if (activeProject.description) {
+      context += `Beschreibung: ${activeProject.description.slice(0, 200)}\n`
+    }
+    
+    if (activeProject.measures?.length) {
+      context += `\nMASSNAHMEN (${activeProject.measures.length}):\n`
+      
+      // Blockierte Maßnahmen
+      const blocked = activeProject.measures.filter(m => m.status === 'blocked')
+      if (blocked.length) {
+        context += `  BLOCKIERT (${blocked.length}):\n`
+        blocked.forEach(m => context += `    - ${m.title}\n`)
+      }
+      
+      // Offene Maßnahmen
+      const open = activeProject.measures.filter(m => 
+        ['idea', 'open', 'in_progress', 'waiting'].includes(m.status)
+      )
+      if (open.length) {
+        context += `  OFFEN (${open.length}):\n`
+        open.slice(0, 10).forEach(m => {
+          const due = m.dueDate ? ` (fällig: ${m.dueDate})` : ''
+          context += `    - ${m.title} [${m.status}, ${m.priority || 'medium'}]${due}\n`
+        })
+      }
+    }
+  } else {
+    context += '\nProjektliste:\n'
+    projects.forEach(p => {
+      context += `  - "${p.title}" (${p.measures?.length || 0} Maßnahmen, ${p.progress?.percent || 0}% Fortschritt)\n`
+    })
+  }
+
+  return context
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -37,7 +221,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'OPENAI_API_KEY nicht konfiguriert' })
   }
 
-  const { message, history } = req.body || {}
+  const { message, history, projects, activeProjectId } = req.body || {}
 
   if (typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ error: 'Nachricht fehlt.' })
@@ -52,9 +236,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const openai = new OpenAI({ apiKey })
   const model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
 
+  // Build context from projects
+  const contextPrompt = buildContextPrompt(projects || [], activeProjectId)
+
   // Build messages array
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    { role: 'system', content: SYSTEM_PROMPT }
+    { role: 'system', content: SYSTEM_PROMPT + contextPrompt }
   ]
 
   // Add history if provided
@@ -89,13 +276,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     clearTimeout(timeout)
 
-    const answer = completion.choices[0]?.message?.content?.trim()
+    const rawAnswer = completion.choices[0]?.message?.content?.trim()
     
-    if (!answer) {
+    if (!rawAnswer) {
       throw new Error('Keine Antwort von OpenAI erhalten')
     }
 
-    return res.status(200).json({ answer })
+    const parsed = extractJsonFromResponse(rawAnswer)
+
+    return res.status(200).json(parsed)
   } catch (error) {
     console.error('OpenAI error:', error)
     

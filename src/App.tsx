@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { MotionConfig } from 'motion/react'
 import SidebarNavigation from './components/layout/SidebarNavigation'
 import { FloatingActionButton } from './components/ui/FloatingActionButton'
+import type { Measure } from './types/measures'
 import type { ViewState } from './types'
 import type { TwinOpenContext } from './screens/ProjectTwinScreen'
 
@@ -16,6 +17,8 @@ import {
   loadStoredProjectTwins,
   saveStoredProjectTwins,
   saveUpdatedProjectTwin,
+  addMeasureToTwin,
+  updateTwinMeasure,
   type StoredProjectTwin
 } from './lib/projectTwinStore'
 
@@ -99,6 +102,59 @@ function App() {
     setTwins((current) => saveUpdatedProjectTwin(current, updatedTwin))
   }
 
+  const handleCreateTwinFromChat = async (_input: string, _title?: string): Promise<StoredProjectTwin | null> => {
+    navigateTo('input')
+    return null
+  }
+
+  const handleAddMeasureFromChat = async (twinId: string, measure: { title: string; description?: string; dueDate?: string }): Promise<boolean> => {
+    const twin = twins.find(t => t.id === twinId)
+    if (!twin) return false
+
+    const newMeasure = {
+      id: `measure-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      projectId: twinId,
+      projectTitle: twin.title,
+      parentId: null,
+      title: measure.title,
+      description: measure.description || '',
+      status: 'open' as const,
+      priority: 'medium' as const,
+      dueDate: measure.dueDate || null,
+      createdAt: new Date().toISOString(),
+      source: 'manual' as const
+    }
+
+    const updatedTwin = addMeasureToTwin(twin, newMeasure)
+    setTwins(current => saveUpdatedProjectTwin(current, updatedTwin))
+    return true
+  }
+
+  const handleUpdateMeasureFromChat = async (twinId: string, measureId: string, updates: { status?: string }): Promise<boolean> => {
+    const twin = twins.find(t => t.id === twinId)
+    if (!twin) return false
+
+    const updatedTwin = updateTwinMeasure(twin, measureId, updates as Partial<Measure>)
+    setTwins(current => saveUpdatedProjectTwin(current, updatedTwin))
+    return true
+  }
+
+  const handleUpdateTwinFromChat = async (twinId: string, updates: { latestInput?: string; memory?: string[] }): Promise<boolean> => {
+    const twin = twins.find(t => t.id === twinId)
+    if (!twin) return false
+
+    const updatedTwin = {
+      ...twin,
+      latestInput: updates.latestInput || twin.latestInput,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      memory: [...((twin as any).memory || []), ...(updates.memory || [])],
+      updatedAt: new Date().toISOString()
+    }
+
+    handleUpdateTwin(updatedTwin)
+    return true
+  }
+
   // Module placeholder for views not yet implemented
   const ModulePlaceholder = ({ title, description }: { title: string; description: string }) => (
     <div className="lp-card lp-card--padded" style={{ maxWidth: '800px' }}>
@@ -160,6 +216,10 @@ function App() {
                 twins={twins}
                 activeTwinId={activeTwinId}
                 onOpenTwin={handleOpenTwin}
+                onCreateTwin={handleCreateTwinFromChat}
+                onAddMeasure={handleAddMeasureFromChat}
+                onUpdateMeasure={handleUpdateMeasureFromChat}
+                onUpdateTwin={handleUpdateTwinFromChat}
               />
             )}
 
