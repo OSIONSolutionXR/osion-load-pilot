@@ -102,9 +102,72 @@ function App() {
     setTwins((current) => saveUpdatedProjectTwin(current, updatedTwin))
   }
 
-  const handleCreateTwinFromChat = async (_input: string, _title?: string): Promise<StoredProjectTwin | null> => {
-    navigateTo('input')
-    return null
+  const handleCreateTwinFromChat = async (input: string, title?: string): Promise<StoredProjectTwin | null> => {
+    // Create minimal project directly from chat, without full analysis
+    const timestamp = new Date().toISOString()
+    const projectTitle = title || input.slice(0, 50)
+    
+    const newTwin: StoredProjectTwin = {
+      id: `twin-${timestamp}-${Math.random().toString(36).slice(2, 8)}`,
+      schemaVersion: 2,
+      title: projectTitle,
+      description: input,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      originalInput: input,
+      latestInput: input,
+      analysis: {
+        project: {
+          title: projectTitle,
+          description: input,
+          type: 'project',
+          status: 'active',
+          complexity: 'medium',
+          timeline: { urgency: 'medium' }
+        },
+        quality: {
+          inputQuality: 'usable',
+          confidence: 'medium',
+          isActionable: true,
+          missingContext: []
+        },
+        actions: [],
+        risks: [],
+        dependencies: []
+      },
+      processSteps: [],
+      contextQuestions: [],
+      updates: [],
+      progress: {
+        percent: 10,
+        level: 1,
+        stage: 'created',
+        completedActions: [],
+        openActions: [],
+        lastProgressReason: 'Aus Chat erstellt',
+        updatedAt: timestamp
+      },
+      generatedSolutions: [],
+      chatHistory: [],
+      attentionQueue: [],
+      measures: [],
+      activityLog: [{
+        id: `log-${timestamp}`,
+        timestamp,
+        type: 'project_created',
+        actor: 'user',
+        description: `Projekt "${projectTitle}" aus Chat erstellt`
+      }],
+      meta: {
+        source: 'manual',
+        localOnly: true
+      }
+    }
+    
+    setTwins((current) => [newTwin, ...current])
+    setActiveTwinId(newTwin.id)
+    navigateTo('twin')
+    return newTwin
   }
 
   const handleAddMeasureFromChat = async (twinId: string, measure: { title: string; description?: string; dueDate?: string }): Promise<boolean> => {
