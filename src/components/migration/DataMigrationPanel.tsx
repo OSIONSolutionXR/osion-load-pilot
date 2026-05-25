@@ -69,7 +69,6 @@ export default function DataMigrationPanel() {
   const checkLocalStorage = () => {
     try {
       const twinsRaw = localStorage.getItem('osion-load-pilot.project-twins.v2');
-      const chatRaw = localStorage.getItem('osion-chat-session.v1');
       const migrationCompleted = localStorage.getItem('osion-load-pilot.migration.completed');
       
       let projectCount = 0;

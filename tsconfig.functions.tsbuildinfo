@@ -1,1 +1,1 @@
-{"root":["./api/analyze-project.ts","./api/chat.ts","./api/osion-chat.ts","./api/projects.ts","./api/update-project-twin.ts","./api/_lib/db.ts","./api/_lib/schema.ts","./api/migration/import.ts","./api/projects/[id]/context-pack.ts","./api/projects/[id]/index.ts"],"version":"6.0.3"}
+{"root":["./api/analyze-project.ts","./api/chat.ts","./api/osion-chat.ts","./api/update-project-twin.ts"],"version":"6.0.3"}
