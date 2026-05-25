@@ -5,12 +5,6 @@
   "installCommand": "npm install",
   "framework": "vite",
   "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/api/projects", "destination": "/api/projects.ts" },
-    { "source": "/api/projects/:id", "destination": "/api/projects/[id]/index.ts" },
-    { "source": "/api/projects/:id/context-pack", "destination": "/api/projects/[id]/context-pack.ts" },
-    { "source": "/api/migration/:path*", "destination": "/api/migration/:path*" }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
