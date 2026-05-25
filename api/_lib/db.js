@@ -1,9 +1,8 @@
 /**
- * LoadPilot Database Client - JavaScript
- * Neon Postgres - Serverless Connection
+ * LoadPilot Database Client - CommonJS
  */
 
-import { neon } from '@neondatabase/serverless';
+const { neon } = require('@neondatabase/serverless');
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const DATABASE_URL_UNPOOLED = process.env.DATABASE_URL_UNPOOLED;
@@ -12,10 +11,10 @@ if (!DATABASE_URL) {
   console.error('[DB] ERROR: DATABASE_URL is not set');
 }
 
-export const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
-export const sqlUnpooled = DATABASE_URL_UNPOOLED ? neon(DATABASE_URL_UNPOOLED) : null;
+const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
+const sqlUnpooled = DATABASE_URL_UNPOOLED ? neon(DATABASE_URL_UNPOOLED) : null;
 
-export async function query(queryStr, values) {
+async function query(queryStr, values) {
   if (!sql) {
     throw new Error('Database not configured. DATABASE_URL is missing.');
   }
@@ -43,35 +42,4 @@ export async function query(queryStr, values) {
   return sql([finalQuery], []);
 }
 
-export async function checkConnection() {
-  if (!sql) {
-    return { connected: false, error: 'DATABASE_URL not configured' };
-  }
-  
-  try {
-    await sql`SELECT NOW() as now`;
-    return { connected: true };
-  } catch (error) {
-    return { 
-      connected: false, 
-      error: error instanceof Error ? error.message : 'Unknown database error'
-    };
-  }
-}
-
-export async function isSchemaInitialized() {
-  if (!sql) return false;
-  
-  try {
-    const result = await sql`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'projects'
-      ) as exists
-    `;
-    return result[0]?.exists === true;
-  } catch {
-    return false;
-  }
-}
+module.exports = { sql, sqlUnpooled, query };

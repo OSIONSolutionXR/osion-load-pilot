@@ -1,15 +1,12 @@
 /**
- * LoadPilot Database Schema - JavaScript
- * Idempotent schema initialization for Neon Postgres
+ * LoadPilot Database Schema - CommonJS
  */
 
-import { sql, sqlUnpooled } from './db.js';
+const { sql, sqlUnpooled } = require('./db.js');
 
 const SCHEMA_SQL = `
--- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. PROJECTS
 CREATE TABLE IF NOT EXISTS projects (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     legacy_twin_id VARCHAR(255),
@@ -26,11 +23,6 @@ CREATE TABLE IF NOT EXISTS projects (
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE INDEX IF NOT EXISTS idx_projects_legacy ON projects(legacy_twin_id) WHERE legacy_twin_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_projects_updated ON projects(updated_at DESC);
-
--- 2. MEASURES
 CREATE TABLE IF NOT EXISTS measures (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -53,10 +45,6 @@ CREATE TABLE IF NOT EXISTS measures (
     CONSTRAINT valid_measure_priority CHECK (priority IN ('critical', 'high', 'medium', 'low'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_measures_project ON measures(project_id) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_measures_status ON measures(status);
-
--- 3. PROCESS_STEPS
 CREATE TABLE IF NOT EXISTS process_steps (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -74,10 +62,6 @@ CREATE TABLE IF NOT EXISTS process_steps (
     CONSTRAINT valid_step_status CHECK (status IN ('done', 'active', 'blocked', 'next', 'pending', 'skipped'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_steps_project ON process_steps(project_id) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_steps_order ON process_steps(project_id, step_order);
-
--- 4. PROJECT_EVENTS
 CREATE TABLE IF NOT EXISTS project_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -90,10 +74,6 @@ CREATE TABLE IF NOT EXISTS project_events (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_events_project ON project_events(project_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_events_type ON project_events(event_type);
-
--- 5. PENDING_ACTIONS
 CREATE TABLE IF NOT EXISTS pending_actions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
@@ -110,9 +90,6 @@ CREATE TABLE IF NOT EXISTS pending_actions (
     CONSTRAINT valid_pending_status CHECK (status IN ('pending', 'executing', 'completed', 'failed', 'rejected'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_pending_project ON pending_actions(project_id, status) WHERE status = 'pending';
-
--- 6. OPENCLAW_JOBS
 CREATE TABLE IF NOT EXISTS openclaw_jobs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -129,39 +106,18 @@ CREATE TABLE IF NOT EXISTS openclaw_jobs (
     CONSTRAINT valid_job_status CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_jobs_project ON openclaw_jobs(project_id, created_at DESC);
-
--- Updated_at trigger
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_projects_updated_at') THEN
-        CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_measures_updated_at') THEN
-        CREATE TRIGGER update_measures_updated_at BEFORE UPDATE ON measures FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_steps_updated_at') THEN
-        CREATE TRIGGER update_steps_updated_at BEFORE UPDATE ON process_steps FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-END $$;
+CREATE INDEX IF NOT EXISTS idx_projects_legacy ON projects(legacy_twin_id) WHERE legacy_twin_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_measures_project ON measures(project_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_steps_project ON process_steps(project_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_events_project ON project_events(project_id, created_at DESC);
 `;
 
-export async function ensureDatabaseSchema() {
+async function ensureDatabaseSchema() {
   const client = sqlUnpooled || sql;
   
   if (!client) {
-    return { 
-      success: false, 
-      error: 'Database not configured. DATABASE_URL is missing.' 
-    };
+    return { success: false, error: 'Database not configured. DATABASE_URL is missing.' };
   }
 
   try {
@@ -183,24 +139,8 @@ export async function ensureDatabaseSchema() {
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Schema] Failed:', message);
     return { success: false, error: message };
   }
 }
 
-export async function isSchemaInitialized() {
-  if (!sql) return false;
-  
-  try {
-    const result = await sql`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'projects'
-      ) as exists
-    `;
-    return result[0]?.exists === true;
-  } catch {
-    return false;
-  }
-}
+module.exports = { ensureDatabaseSchema, SCHEMA_SQL };

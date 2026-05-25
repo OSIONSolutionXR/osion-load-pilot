@@ -1,10 +1,10 @@
 /**
- * LoadPilot Single Project API - JavaScript
- * GET /api/projects/:id - Get single project
+ * LoadPilot Single Project API - CommonJS
+ * GET /api/projects/:id
  */
 
-import { sql, query } from '../../_lib/db.js';
-import { ensureDatabaseSchema } from '../../_lib/schema.js';
+const { sql, query } = require('../../_lib/db.js');
+const { ensureDatabaseSchema } = require('../../_lib/schema.js');
 
 const setCors = (res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,7 +12,7 @@ const setCors = (res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   setCors(res);
 
   if (req.method === 'OPTIONS') {
@@ -51,4 +51,4 @@ export default async function handler(req, res) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return res.status(500).json({ error: 'Internal server error', details: message });
   }
-}
+};

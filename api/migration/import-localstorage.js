@@ -1,10 +1,10 @@
 /**
- * LoadPilot Migration API - JavaScript
+ * LoadPilot Migration API - CommonJS
  * POST /api/migration/import-localstorage
  */
 
-import { sql, query } from '../_lib/db.js';
-import { ensureDatabaseSchema } from '../_lib/schema.js';
+const { sql, query } = require('../_lib/db.js');
+const { ensureDatabaseSchema } = require('../_lib/schema.js');
 
 const setCors = (res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -34,7 +34,7 @@ function generateMemoryMarkdown(twin) {
   return lines.join('\n');
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   setCors(res);
 
   if (req.method === 'OPTIONS') {
@@ -168,4 +168,4 @@ export default async function handler(req, res) {
       partialReport: report
     });
   }
-}
+};

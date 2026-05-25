@@ -1,8 +1,8 @@
 /**
- * Health check endpoint for Sprint 1 verification
+ * LoadPilot Health Check - CommonJS for Vercel
  */
 
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   
@@ -17,4 +17,4 @@ export default function handler(req, res) {
     environment: process.env.VERCEL_ENV || 'unknown',
     hasDatabaseUrl: !!process.env.DATABASE_URL
   });
-}
+};
