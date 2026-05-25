@@ -121,19 +121,33 @@ function App() {
           title: projectTitle,
           description: input,
           type: 'project',
-          status: 'active',
-          complexity: 'medium',
-          timeline: { urgency: 'medium' }
+          status: 'active'
         },
+        nextMove: {
+          title: 'Erste Details erfassen',
+          reason: 'Projekt aus Chat erstellt – nächste Schritte definieren',
+          effort: 'low',
+          impact: 'high',
+          deadline: null
+        },
+        actors: [],
+        dependencies: [],
+        risks: [],
+        scenarios: [],
+        actions: [],
         quality: {
           inputQuality: 'usable',
           confidence: 'medium',
           isActionable: true,
-          missingContext: []
+          missingContext: [],
+          reason: 'Aus Chat-Analyse übernommen'
         },
-        actions: [],
-        risks: [],
-        dependencies: []
+        meta: {
+          domain: 'general',
+          analysisMode: 'openclaw-kimi',
+          promptVersion: 'loadpilot_v2',
+          generatedAt: timestamp
+        }
       },
       processSteps: [],
       contextQuestions: [],
