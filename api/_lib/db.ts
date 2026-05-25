@@ -22,7 +22,7 @@ export const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
 export const sqlUnpooled = DATABASE_URL_UNPOOLED ? neon(DATABASE_URL_UNPOOLED) : null;
 
 // Query helper that constructs proper template literals
-export async function query<T = any>(queryStr: string, values?: any[]): Promise<T[]> {
+export async function query(queryStr: string, values?: any[]): Promise<any[]> {
   if (!sql) {
     throw new Error('Database not configured. DATABASE_URL is missing.');
   }
