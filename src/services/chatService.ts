@@ -429,7 +429,7 @@ function generateSuggestions(
 
 export async function checkChatConnection(): Promise<{ connected: boolean; error?: string }> {
   try {
-    const response = await fetch(getChatUrl(), {
+    await fetch(getChatUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
