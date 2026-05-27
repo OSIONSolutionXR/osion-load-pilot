@@ -3,7 +3,7 @@ import { Sparkles, X, Loader2, AlertTriangle, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
-import { analyzeProjectInput, ProjectAnalysisError, type AnalyzeProjectResponse } from '../services/projectAnalysisApi'
+import { analyzeProjectInput, ProjectAnalysisError } from '../services/projectAnalysisApi'
 import type { ProjectTwinAnalysis } from '../types/projectTwin'
 import { FadeIn } from '../components/animations/MicroAnimations'
 
