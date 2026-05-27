@@ -12,13 +12,42 @@ export class ProjectAnalysisError extends Error {
 }
 
 /**
+ * Response-Struktur vom Backend (Phase 5)
+ */
+export interface AnalyzeProjectResponse {
+  ok: boolean
+  projectId: string
+  createdProject: boolean
+  project?: {
+    id: string
+    name: string
+    description?: string
+    status: string
+    created_at?: string
+    updated_at?: string
+  }
+  analysis: ProjectTwinAnalysis
+  meta?: {
+    source?: string
+    mode?: string
+    elapsed?: number
+  }
+  processedAt?: string
+}
+
+/**
  * Analysiere Projekt-Input über externe Hostinger API
- * Verwendet explizit window.fetch für Browser-Kompatibilität
+ * 
+ * Phase 5: Backend erstellt automatisch neues Projekt wenn keine projectId
+ * 
+ * @param input - Der Projekt-Input vom Nutzer
+ * @param existingProjectId - Optional: ID eines bestehenden Projekts (für Update)
+ * @returns Vollständige Response mit projectId, analysis und createdProject-Flag
  */
 export async function analyzeProjectInput(
   input: string,
-  projectId?: string
-): Promise<ProjectTwinAnalysis> {
+  existingProjectId?: string
+): Promise<AnalyzeProjectResponse> {
   const trimmed = input.trim()
 
   if (!trimmed) {
@@ -27,17 +56,20 @@ export async function analyzeProjectInput(
 
   const url = getAnalyzeUrl()
   console.log('[analyzeProjectInput] URL:', url)
-  console.log('[analyzeProjectInput] ProjectId:', projectId || 'keine')
+  console.log('[analyzeProjectInput] existingProjectId:', existingProjectId || 'keine (neues Projekt wird erstellt)')
 
-  const requestBody = {
-    input: trimmed,
-    ...(projectId && { projectId })
+  const requestBody: { input: string; projectId?: string } = {
+    input: trimmed
+  }
+
+  // Nur projectId mitsenden wenn explizit vorhanden (Update-Modus)
+  if (existingProjectId) {
+    requestBody.projectId = existingProjectId
   }
 
   console.log('[analyzeProjectInput] Request body:', JSON.stringify(requestBody))
 
   try {
-    // EXPLIZIT window.fetch verwenden (nicht importierter fetch)
     const response = await window.fetch(url, {
       method: 'POST',
       headers: {
@@ -66,31 +98,41 @@ export async function analyzeProjectInput(
       throw new ProjectAnalysisError(message, response.status)
     }
 
-    // Phase 5: New API returns { ok, analysis, meta, projectId }
-    const data = payload as { ok: boolean; analysis?: ProjectTwinAnalysis; error?: string; meta?: unknown }
+    // Phase 5: Neue Response-Struktur
+    const data = payload as AnalyzeProjectResponse
 
     if (!data.ok || !data.analysis) {
-      throw new ProjectAnalysisError(data.error || 'Analyse fehlgeschlagen', response.status)
+      throw new ProjectAnalysisError('Analyse fehlgeschlagen', response.status)
     }
 
-    console.log('[analyzeProjectInput] Success, returning analysis')
-    return data.analysis
+    // WICHTIG: projectId muss vorhanden sein
+    if (!data.projectId) {
+      console.error('[analyzeProjectInput] Backend returned no projectId:', data)
+      throw new ProjectAnalysisError('Backend hat keine projectId zurückgegeben', response.status)
+    }
+
+    console.log('[analyzeProjectInput] Success:', {
+      projectId: data.projectId,
+      createdProject: data.createdProject,
+      projectName: data.project?.name
+    })
+
+    return data
 
   } catch (error) {
     console.error('[analyzeProjectInput] Fetch error:', error)
-    
-    // Detaillierte Fehlermeldung
+
     if (error instanceof ProjectAnalysisError) {
       throw error
     }
-    
+
     if (error instanceof Error) {
-      if (error.message.includes('fetch')) {
+      if (error.message.includes('fetch') || error.message.includes('Network')) {
         throw new ProjectAnalysisError(`Netzwerkfehler: ${error.message}. Bitte prüfe deine Internetverbindung.`, 0)
       }
       throw new ProjectAnalysisError(`Fehler: ${error.message}`, 0)
     }
-    
+
     throw new ProjectAnalysisError('Unbekannter Fehler bei der Analyse', 0)
   }
 }

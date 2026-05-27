@@ -3,12 +3,12 @@ import { Sparkles, X, Loader2, AlertTriangle, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
-import { analyzeProjectInput, ProjectAnalysisError } from '../services/projectAnalysisApi'
+import { analyzeProjectInput, ProjectAnalysisError, type AnalyzeProjectResponse } from '../services/projectAnalysisApi'
 import type { ProjectTwinAnalysis } from '../types/projectTwin'
 import { FadeIn } from '../components/animations/MicroAnimations'
 
 interface InputScreenProps {
-  onCreateTwin: (sourceInput: string, analysis: ProjectTwinAnalysis) => void
+  onCreateTwin: (sourceInput: string, analysis: ProjectTwinAnalysis, projectId: string) => void
   onCancel: () => void
 }
 
@@ -16,6 +16,7 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
   const [text, setText] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysis, setAnalysis] = useState<ProjectTwinAnalysis | null>(null)
+  const [projectId, setProjectId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const isActionable = analysis?.quality.isActionable ?? false
 
@@ -28,10 +29,12 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
     setIsAnalyzing(true)
     setError(null)
     setAnalysis(null)
+    setProjectId(null)
 
     try {
       const result = await analyzeProjectInput(text)
-      setAnalysis(result)
+      setAnalysis(result.analysis)
+      setProjectId(result.projectId)
     } catch (err) {
       const message = err instanceof ProjectAnalysisError ? err.message : 'Die Analyse konnte nicht durchgeführt werden.'
       setError(message)
@@ -135,7 +138,7 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
                         : 'Die Analyse ist noch nicht speicherfähig. Ergänze den Input, bevor ein Twin angelegt wird.'}
                     </p>
                   </div>
-                  <Button disabled={!isActionable} onClick={() => onCreateTwin(text, analysis)}>
+                  <Button disabled={!isActionable} onClick={() => analysis && projectId && onCreateTwin(text, analysis, projectId)}>
                     <ArrowRight className="w-4 h-4" />
                     {isActionable ? 'Project Twin öffnen' : 'Input ergänzen'}
                   </Button>

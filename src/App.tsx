@@ -76,14 +76,15 @@ function App() {
 
   const activeTwin = twins.find((twin) => twin.id === activeTwinId) ?? twins[0] ?? null
 
-  const handleCreateTwin = (sourceInput: string, analysis: StoredProjectTwin['analysis']) => {
+  const handleCreateTwin = (sourceInput: string, analysis: StoredProjectTwin['analysis'], projectId?: string) => {
     if (!analysis.quality.isActionable) {
       navigateTo('input')
       return
     }
-    const twin = createStoredProjectTwin(sourceInput, analysis)
+    // Phase 5: projectId vom Backend verwenden, falls vorhanden
+    const twin = createStoredProjectTwin(sourceInput, analysis, projectId)
     setTwins((current) => [twin, ...current])
-    setActiveTwinId(twin.id)
+    setActiveTwinId(projectId || twin.id)
     setTwinOpenContext(undefined)
     navigateTo('twin')
   }
