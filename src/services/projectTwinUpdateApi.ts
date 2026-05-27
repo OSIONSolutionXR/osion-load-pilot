@@ -194,7 +194,8 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
 
   let response: Response
   try {
-    response = await fetch(getUpdateTwinUrl(), {
+    // EXPLIZIT window.fetch verwenden
+    response = await window.fetch(getUpdateTwinUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)

@@ -318,7 +318,7 @@ export async function sendChatMessageEnhanced(
     const intentMatch = detectIntent(message)
 
     // Call API with enhanced context
-    const response = await fetch(getChatUrl(), {
+    const response = await window.fetch(getChatUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

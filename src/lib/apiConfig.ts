@@ -1,51 +1,41 @@
 /**
  * OSION Load Pilot - API Configuration
  * Phase 5: External Hostinger API
+ * 
+ * WICHTIG: Verwendet immer window.fetch für Browser-Kompatibilität
  */
 
 // API Base URL from environment or fallback
-export const API_BASE_URL = import.meta.env.VITE_LOADPILOT_API_BASE_URL || 'http://localhost:8789'
+// In Vite müssen ENV-Variablen mit VITE_ beginnen
+const RAW_API_URL = import.meta.env.VITE_LOADPILOT_API_BASE_URL || 'http://localhost:8789'
 
-// API Endpoints
-export const API_ENDPOINTS = {
+// Sicherstellen: keine doppelten Slashes, korrektes Format
+export const API_BASE_URL = RAW_API_URL.replace(/\/$/, '')
+
+// API Endpoints (nur Pfade, keine vollständigen URLs)
+const ENDPOINTS = {
   health: '/health',
-  projects: '/api/projects',
-  project: (id: string) => `/api/projects/${id}`,
-  contextPack: (id: string) => `/api/projects/${id}/context-pack`,
   analyzeProject: '/api/analyze-project',
   updateProjectTwin: '/api/update-project-twin',
   chat: '/api/osion-chat'
 } as const
 
-// Full URL builders
+/**
+ * Baue vollständige API-URL
+ * @param endpoint API-Endpunkt-Pfad
+ * @returns Vollständige HTTPS-URL
+ */
 export function getApiUrl(endpoint: string): string {
-  return `${API_BASE_URL}${endpoint}`
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  return `${API_BASE_URL}${cleanEndpoint}`
 }
 
-export function getHealthUrl(): string {
-  return getApiUrl(API_ENDPOINTS.health)
-}
+// Spezifische URL-Builder
+export const getHealthUrl = (): string => getApiUrl(ENDPOINTS.health)
+export const getAnalyzeUrl = (): string => getApiUrl(ENDPOINTS.analyzeProject)
+export const getUpdateTwinUrl = (): string => getApiUrl(ENDPOINTS.updateProjectTwin)
+export const getChatUrl = (): string => getApiUrl(ENDPOINTS.chat)
 
-export function getProjectsUrl(): string {
-  return getApiUrl(API_ENDPOINTS.projects)
-}
+// Für Debugging: URL im Console-Log ausgeben
+console.log('[API Config] Base URL:', API_BASE_URL)
 
-export function getProjectUrl(id: string): string {
-  return getApiUrl(API_ENDPOINTS.project(id))
-}
-
-export function getContextPackUrl(id: string): string {
-  return getApiUrl(API_ENDPOINTS.contextPack(id))
-}
-
-export function getAnalyzeUrl(): string {
-  return getApiUrl(API_ENDPOINTS.analyzeProject)
-}
-
-export function getUpdateTwinUrl(): string {
-  return getApiUrl(API_ENDPOINTS.updateProjectTwin)
-}
-
-export function getChatUrl(): string {
-  return getApiUrl(API_ENDPOINTS.chat)
-}
