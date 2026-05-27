@@ -1,6 +1,6 @@
 /**
  * OSION Load Pilot - Enhanced Chat Service
- * Echte Projektsteuerung mit Intents und Suggestions
+ * Phase 5: External Hostinger API
  */
 
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
@@ -11,9 +11,9 @@ import type {
   ChatSession
 } from '../types/chat'
 import { buildChatProjectContext, formatContextForAI } from './chatContextBuilder'
+import { getChatUrl } from '../lib/apiConfig'
 
-const CHAT_API_URL = '/api/osion-chat'
-export const CHAT_STORAGE_KEY = 'osion-load-pilot.chat-session.v1'
+export const CHAT_STORAGE_KEY = 'osion-load-pilot-chat-session.v1'
 
 export type { ChatMessage, ChatSuggestion }
 
@@ -63,7 +63,17 @@ function createWelcomeMessage(): ChatMessage {
   return {
     id: `msg-${Date.now()}-welcome`,
     role: 'assistant',
-    content: `Willkommen im **OSION KI-Chat**.\n\nIch bin OSION X ONE, deine KI-Assistenz für Projektsteuerung. Ich kann:\n\n• **Projekte auflisten** → "Zeig mir alle Projekte"\n• **Maßnahmen anzeigen** → "Liste alle Maßnahmen"\n• **Maßnahmen erstellen** → "Erstelle Maßnahme XY"\n• **Projektkontext speichern** → "Budget ist 150.000 Euro"\n• **Twin öffnen** → "Öffne Projekt XY"\n\nWähle ein Projekt aus dem Dropdown oder frag mich projektübergreifend.`,
+    content: `Willkommen im **OSION KI-Chat**.
+
+Ich bin OSION X ONE, deine KI-Assistenz für Projektsteuerung. Ich kann:
+
+• **Projekte auflisten** → "Zeig mir alle Projekte"
+• **Maßnahmen anzeigen** → "Liste alle Maßnahmen"
+• **Maßnahmen erstellen** → "Erstelle Maßnahme XY"
+• **Projektkontext speichern** → "Budget ist 150.000 Euro"
+• **Twin öffnen** → "Öffne Projekt XY"
+
+Wähle ein Projekt aus dem Dropdown oder frag mich projektübergreifend.`,
     timestamp: new Date().toISOString()
   }
 }
@@ -308,7 +318,7 @@ export async function sendChatMessageEnhanced(
     const intentMatch = detectIntent(message)
 
     // Call API with enhanced context
-    const response = await fetch(CHAT_API_URL, {
+    const response = await fetch(getChatUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -419,204 +429,23 @@ function generateSuggestions(
 
 export async function checkChatConnection(): Promise<{ connected: boolean; error?: string }> {
   try {
-    const response = await fetch(CHAT_API_URL, {
+    const response = await fetch(getChatUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'ping', projects: [] })
+      body: JSON.stringify({
+        message: 'ping',
+        history: [],
+        projects: [],
+        activeProjectId: null
+      })
     })
-    return { connected: response.ok }
+
+    // Even if we get an error response, the connection works
+    return { connected: true }
   } catch (error) {
     return {
       connected: false,
-      error: error instanceof Error ? error.message : 'Verbindung fehlgeschlagen'
+      error: error instanceof Error ? error.message : 'Unknown error'
     }
-  }
-}
-
-// ============================================================================
-// LEGACY ACTION HANDLERS (für Rückwärtskompatibilität)
-// ============================================================================
-
-export interface ChatAction {
-  type: 'create_project' | 'add_measure' | 'update_measure' | 'show_twin' | 'none'
-  projectId?: string
-  payload?: Record<string, unknown>
-  confirmation?: string
-}
-
-export interface ActionResult {
-  success: boolean
-  message: string
-  twin?: StoredProjectTwin
-  measure?: Measure
-}
-
-export async function executeChatAction(
-  action: ChatAction,
-  twins: StoredProjectTwin[],
-  activeTwinId: string | null,
-  callbacks: {
-    createTwin: (input: string, title?: string) => Promise<StoredProjectTwin | null>
-    addMeasure: (twinId: string, measure: Partial<Measure>) => Promise<Measure | null>
-    updateMeasure: (twinId: string, measureId: string, updates: Partial<Measure>) => Promise<boolean>
-    showTwin: (twinId: string) => void
-  }
-): Promise<ActionResult> {
-  switch (action.type) {
-    case 'create_project':
-      return handleCreateProject(action, callbacks.createTwin)
-
-    case 'add_measure':
-      return handleAddMeasure(action, twins, activeTwinId, callbacks.addMeasure)
-
-    case 'update_measure':
-      return handleUpdateMeasure(action, twins, callbacks.updateMeasure)
-
-    case 'show_twin':
-      return handleShowTwin(action, twins, callbacks.showTwin)
-
-    default:
-      return Promise.resolve({ success: false, message: 'Unbekannte Aktion' })
-  }
-}
-
-async function handleCreateProject(
-  action: ChatAction,
-  createTwin: (input: string, title?: string) => Promise<StoredProjectTwin | null>
-): Promise<ActionResult> {
-  const title = action.payload?.title as string || 'Neues Projekt'
-  const description = action.payload?.description as string || ''
-  const input = `${title}${description ? ': ' + description : ''}`
-
-  const twin = await createTwin(input, title)
-
-  if (twin) {
-    return {
-      success: true,
-      message: `Projekt "${title}" wurde erstellt.`,
-      twin
-    }
-  }
-
-  return {
-    success: false,
-    message: 'Projekt konnte nicht erstellt werden.'
-  }
-}
-
-async function handleAddMeasure(
-  action: ChatAction,
-  twins: StoredProjectTwin[],
-  activeTwinId: string | null,
-  addMeasure: (twinId: string, measure: Partial<Measure>) => Promise<Measure | null>
-): Promise<ActionResult> {
-  const projectId = action.projectId || activeTwinId
-
-  if (!projectId) {
-    return {
-      success: false,
-      message: 'Kein Projekt ausgewählt. Bitte wähle zuerst ein Projekt aus.'
-    }
-  }
-
-  const twin = twins.find(t => t.id === projectId)
-  if (!twin) {
-    return {
-      success: false,
-      message: 'Projekt nicht gefunden.'
-    }
-  }
-
-  const measureData = {
-    title: (action.payload?.title as string) || 'Neue Maßnahme',
-    description: action.payload?.description as string,
-    dueDate: action.payload?.dueDate as string
-  }
-
-  const measure = await addMeasure(projectId, measureData)
-
-  if (measure) {
-    return {
-      success: true,
-      message: `Maßnahme "${measure.title}" wurde zu "${twin.title}" hinzugefügt.`,
-      measure
-    }
-  }
-
-  return {
-    success: false,
-    message: 'Maßnahme konnte nicht hinzugefügt werden.'
-  }
-}
-
-async function handleUpdateMeasure(
-  action: ChatAction,
-  twins: StoredProjectTwin[],
-  updateMeasure: (twinId: string, measureId: string, updates: Partial<Measure>) => Promise<boolean>
-): Promise<ActionResult> {
-  const projectId = action.projectId
-  const measureId = action.payload?.measureId as string
-
-  if (!projectId || !measureId) {
-    const title = action.payload?.title as string
-    if (title) {
-      for (const twin of twins) {
-        const measure = twin.measures?.find(m =>
-          m.title.toLowerCase().includes(title.toLowerCase())
-        )
-        if (measure) {
-          const success = await updateMeasure(twin.id, measure.id, action.payload || {})
-          return {
-            success,
-            message: success ? `Maßnahme "${measure.title}" aktualisiert.` : 'Aktualisierung fehlgeschlagen.'
-          }
-        }
-      }
-    }
-
-    return {
-      success: false,
-      message: 'Maßnahme nicht gefunden. Bitte gib den Titel oder die ID an.'
-    }
-  }
-
-  const success = await updateMeasure(projectId, measureId, action.payload || {})
-
-  return {
-    success,
-    message: success ? 'Maßnahme aktualisiert.' : 'Aktualisierung fehlgeschlagen.'
-  }
-}
-
-async function handleShowTwin(
-  action: ChatAction,
-  twins: StoredProjectTwin[],
-  showTwin: (twinId: string) => void
-): Promise<ActionResult> {
-  let projectId = action.projectId
-
-  if (!projectId && action.payload?.title) {
-    const title = action.payload.title as string
-    const twin = twins.find(t =>
-      t.title.toLowerCase().includes(title.toLowerCase())
-    )
-    if (twin) {
-      projectId = twin.id
-    }
-  }
-
-  if (!projectId) {
-    return {
-      success: false,
-      message: 'Projekt nicht gefunden.'
-    }
-  }
-
-  showTwin(projectId)
-
-  const twin = twins.find(t => t.id === projectId)
-  return {
-    success: true,
-    message: twin ? `Projekt "${twin.title}" wird angezeigt.` : 'Projekt wird angezeigt.'
   }
 }

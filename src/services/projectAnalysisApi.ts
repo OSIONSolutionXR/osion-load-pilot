@@ -1,4 +1,5 @@
 import type { ProjectTwinAnalysis } from '../types/projectTwin'
+import { getAnalyzeUrl } from '../lib/apiConfig'
 
 export class ProjectAnalysisError extends Error {
   status?: number
@@ -10,19 +11,25 @@ export class ProjectAnalysisError extends Error {
   }
 }
 
-export async function analyzeProjectInput(input: string): Promise<ProjectTwinAnalysis> {
+export async function analyzeProjectInput(
+  input: string,
+  projectId?: string
+): Promise<ProjectTwinAnalysis> {
   const trimmed = input.trim()
 
   if (!trimmed) {
     throw new ProjectAnalysisError('Bitte gib zuerst eine Projektlage ein.')
   }
 
-  const response = await fetch('/api/analyze-project', {
+  const response = await fetch(getAnalyzeUrl(), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ input: trimmed })
+    body: JSON.stringify({
+      input: trimmed,
+      ...(projectId && { projectId })
+    })
   })
 
   let payload: unknown
@@ -41,5 +48,12 @@ export async function analyzeProjectInput(input: string): Promise<ProjectTwinAna
     throw new ProjectAnalysisError(message, response.status)
   }
 
-  return payload as ProjectTwinAnalysis
+  // Phase 5: New API returns { ok, analysis, meta, projectId }
+  const data = payload as { ok: boolean; analysis?: ProjectTwinAnalysis; error?: string }
+
+  if (!data.ok || !data.analysis) {
+    throw new ProjectAnalysisError(data.error || 'Analyse fehlgeschlagen', response.status)
+  }
+
+  return data.analysis
 }

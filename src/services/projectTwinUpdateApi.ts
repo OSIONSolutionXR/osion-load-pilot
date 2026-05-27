@@ -1,5 +1,6 @@
 import type { ProjectTwinAnalysis } from '../types/projectTwin'
 import type { ProjectContextQuestion } from '../types/projectTwinV2'
+import { getUpdateTwinUrl } from '../lib/apiConfig'
 
 export interface ContextAnswer {
   questionId: string
@@ -88,8 +89,8 @@ function getAnalysisCandidate(responseData: unknown): ProjectTwinAnalysis | null
   }
 
   // Format C: result mit project/nextMove/quality
-  if (isPlainObject(responseData.result) && 
-      isPlainObject(responseData.result.project) && 
+  if (isPlainObject(responseData.result) &&
+      isPlainObject(responseData.result.project) &&
       isPlainObject(responseData.result.nextMove) &&
       isPlainObject(responseData.result.quality)) {
     return responseData.result as unknown as ProjectTwinAnalysis
@@ -152,11 +153,11 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
   }
 
   // Fallback für originalInput
-  const effectiveOriginalInput = originalInput?.trim() || 
-    (existingTwin as unknown as { meta?: { sourceInput?: string } })?.meta?.sourceInput || 
-    existingTwin.project?.description?.substring(0, 200) || 
+  const effectiveOriginalInput = originalInput?.trim() ||
+    (existingTwin as unknown as { meta?: { sourceInput?: string } })?.meta?.sourceInput ||
+    existingTwin.project?.description?.substring(0, 200) ||
     ''
-  
+
   if (!effectiveOriginalInput) {
     console.warn('[TwinUpdate] No originalInput found, using empty string')
   }
@@ -193,7 +194,7 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
 
   let response: Response
   try {
-    response = await fetch('/api/update-project-twin', {
+    response = await fetch(getUpdateTwinUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)
@@ -234,7 +235,7 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
 
     const message = serverMessage || errorCode || 'Das Update konnte nicht durchgeführt werden.'
     const enrichedMessage = serverStage ? `${message} (Stage: ${serverStage})` : message
-    
+
     if (message.toLowerCase().includes('timeout') || message.includes('zu lange')) {
       throw new TwinUpdateError(
         'Die Aktualisierung hat zu lange gedauert. Deine Eingaben wurden nicht gelöscht. Bitte versuche es mit weniger Text oder konkreteren Angaben erneut.',
@@ -242,7 +243,7 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
         'timeout'
       )
     }
-    
+
     if (message.toLowerCase().includes('insufficient') || message.includes('zu allgemein')) {
       throw new TwinUpdateError(
         'Diese Ergänzung ist noch zu allgemein. Ergänze bitte eine konkrete neue Information.',
@@ -250,7 +251,7 @@ export async function updateProjectTwin(payload: TwinUpdatePayload): Promise<Twi
         'insufficient_input'
       )
     }
-    
+
     throw new TwinUpdateError(enrichedMessage, response.status, 'unknown')
   }
 
