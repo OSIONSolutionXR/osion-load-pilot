@@ -10,11 +10,7 @@ import {
   Bot,
   Database,
   AlertCircle,
-  ArrowRight,
-  Zap,
-  Activity,
-  TrendingUp,
-  ShieldAlert,
+  ArrowRight
 } from 'lucide-react'
 
 interface StartScreenProps {
@@ -34,297 +30,219 @@ export default function StartScreen({
   onOpenChat,
   onOpenProjects 
 }: StartScreenProps) {
-  // System-Statistiken
-  const projectCount = twins.length
-  const measureCount = twins.reduce((acc, t) => acc + (t.measures?.length || 0), 0)
-  const riskCount = twins.reduce((acc, t) => acc + (t.analysis?.risks?.length || 0), 0)
-  
-  // Aufmerksamkeitsliste
+  // Attention Queue Berechnung
   const criticalItems = twins.filter(t => 
     t.analysis?.risks?.some(r => r.severity === 'high') ||
     t.progress?.stage === 'blocked'
-  )
-  
-  const attentionCount = criticalItems.length
-  const hasTwins = projectCount > 0
+  ).length
 
-  // Formatierung für Zahlen
-  const formatNumber = (n: number) => n.toString()
+  const hasTwins = twins.length > 0
 
   return (
-    <div className="start-cockpit">
-      {/* HERO-BEREICH: Tagescockpit */}
-      <section className="cockpit-hero">
-        <div className="cockpit-hero__main">
-          <div className="cockpit-hero__greeting">
-            <Zap className="cockpit-hero__icon" />
-            <h1 className="cockpit-hero__title">
-              Was möchtest Du heute steuern?
-            </h1>
-          </div>
-          <p className="cockpit-hero__subtitle">
-            Dein OSION Load Pilot hat {projectCount} {projectCount === 1 ? 'Projekt' : 'Projekte'}, {measureCount} Maßnahmen
-            {attentionCount > 0 && (
-              <span> und <strong>{attentionCount} {attentionCount === 1 ? 'Punkt' : 'Punkte'}</strong>, die Deine Aufmerksamkeit brauchen</span>
-            )}
-            {attentionCount === 0 && ' und keine dringenden Punkte'}
-          </p>
-        </div>
+    <div className="start-screen">
+      {/* Header */}
+      <div className="start-screen__header">
+        <h1 className="start-screen__title">Was möchtest Du heute tun?</h1>
+        <p className="start-screen__subtitle">
+          Wähle Deinen nächsten Schritt im OSION Load Pilot
+        </p>
+      </div>
 
-        {/* System-Status-Chips */}
-        <div className="cockpit-hero__status">
-          <div className="status-chip status-chip--active">
-            <Activity className="w-3 h-3" />
-            <span>OpenClaw aktiv</span>
-          </div>
-          <div className="status-chip">
-            <FolderKanban className="w-3 h-3" />
-            <span>{projectCount} Projekte</span>
-          </div>
-          {attentionCount > 0 ? (
-            <div className="status-chip status-chip--alert">
-              <AlertCircle className="w-3 h-3" />
-              <span>{attentionCount} offen</span>
+      {/* Zone 1: Hauptentscheidung - Loslegen */}
+      <section className="start-screen__section start-screen__section--primary">
+        <div className="start-screen__grid start-screen__grid--4">
+          {/* Karte 1: Projekte weiterbearbeiten */}
+          <button 
+            className="start-card start-card--primary"
+            onClick={onOpenProjects}
+          >
+            <div className="start-card__icon-wrapper start-card__icon--projects">
+              <FolderKanban className="w-6 h-6" />
+            </div>
+            <div className="start-card__content">
+              <h3 className="start-card__title">Projekte weiterbearbeiten</h3>
+              <p className="start-card__description">
+                Öffne Deine Projekte und arbeite direkt im jeweiligen Project Twin weiter.
+              </p>
+            </div>
+            <ArrowRight className="start-card__arrow" />
+          </button>
+
+          {/* Karte 2: Neues Projekt starten */}
+          <button 
+            className="start-card start-card--primary"
+            onClick={onNewInput}
+          >
+            <div className="start-card__icon-wrapper start-card__icon--new">
+              <PlusCircle className="w-6 h-6" />
+            </div>
+            <div className="start-card__content">
+              <h3 className="start-card__title">Neues Projekt starten</h3>
+              <p className="start-card__description">
+                Starte eine neue Analyse oder erstelle einen neuen Project Twin.
+              </p>
+            </div>
+            <ArrowRight className="start-card__arrow" />
+          </button>
+
+          {/* Karte 3: Command prüfen */}
+          <button 
+            className="start-card start-card--primary"
+            onClick={onOpenCommand}
+          >
+            <div className="start-card__icon-wrapper start-card__icon--command">
+              <Command className="w-6 h-6" />
+            </div>
+            <div className="start-card__content">
+              <h3 className="start-card__title">Command prüfen</h3>
+              <p className="start-card__description">
+                Prüfe projektübergreifend kritische Maßnahmen, Blocker und Fristen.
+              </p>
+            </div>
+            <ArrowRight className="start-card__arrow" />
+          </button>
+
+          {/* Karte 4: Mit OSION sprechen */}
+          <button 
+            className="start-card start-card--primary"
+            onClick={onOpenChat}
+          >
+            <div className="start-card__icon-wrapper start-card__icon--chat">
+              <MessageCircle className="w-6 h-6" />
+            </div>
+            <div className="start-card__content">
+              <h3 className="start-card__title">Mit OSION sprechen</h3>
+              <p className="start-card__description">
+                Öffne den Chat für Fragen, Planung und projektübergreifende Steuerung.
+              </p>
+            </div>
+            <ArrowRight className="start-card__arrow" />
+          </button>
+        </div>
+      </section>
+
+      {/* Zone 2: Heute wichtig - Aufmerksamkeitsliste */}
+      <section className="start-screen__section">
+        <div className="start-screen__section-header">
+          <AlertCircle className="w-5 h-5 start-screen__section-icon" />
+          <h2 className="start-screen__section-title">Aufmerksamkeitsliste</h2>
+          <span className="start-screen__section-badge">
+            {criticalItems > 0 ? `${criticalItems} Punkte` : 'Keine'}
+          </span>
+        </div>
+        <p className="start-screen__section-subtitle">
+          Diese Punkte brauchen als Nächstes Deine Aufmerksamkeit
+        </p>
+        
+        <div className="attention-list">
+          {criticalItems > 0 ? (
+            <div className="attention-list__content">
+              {twins
+                .filter(t => t.analysis?.risks?.some(r => r.severity === 'high') || t.progress?.stage === 'blocked')
+                .slice(0, 3)
+                .map(twin => (
+                  <div 
+                    key={twin.id} 
+                    className="attention-item"
+                    onClick={() => onOpenTwin(twin.id)}
+                  >
+                    <div className="attention-item__indicator attention-item__indicator--critical" />
+                    <div className="attention-item__content">
+                      <span className="attention-item__project">{twin.title}</span>
+                      <span className="attention-item__issue">
+                        {twin.analysis?.risks?.find(r => r.severity === 'high')?.title || 'Projekt blockiert'}
+                      </span>
+                    </div>
+                    <ArrowRight className="attention-item__arrow" />
+                  </div>
+                ))}
+              {criticalItems > 3 && (
+                <button 
+                  className="attention-list__more"
+                  onClick={onOpenCommand}
+                >
+                  + {criticalItems - 3} weitere Punkte in Command anzeigen
+                </button>
+              )}
             </div>
           ) : (
-            <div className="status-chip status-chip--success">
-              <TrendingUp className="w-3 h-3" />
-              <span>Heute fokussieren</span>
+            <div className="attention-list__empty">
+              <span className="attention-list__empty-icon">✓</span>
+              <p>Aktuell braucht kein Punkt Deine direkte Aufmerksamkeit.</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* ASYMMETRISCHE HAUPTAKTIONEN */}
-      <section className="cockpit-actions">
-        {/* Große Hauptkarte: Projekt weiterbearbeiten */}
-        <button 
-          className="action-card action-card--hero"
-          onClick={onOpenProjects}
-        >
-          <div className="action-card__hero-content">
-            <div className="action-card__hero-badge">
-              <FolderKanban className="w-5 h-5" />
-              <span>Hauptweg</span>
-            </div>
-            <h2 className="action-card__hero-title">
-              Projekt weiterbearbeiten
-            </h2>
-            <p className="action-card__hero-desc">
-              {hasTwins 
-                ? `${projectCount} ${projectCount === 1 ? 'Projekt bereit' : 'Projekte bereit'} – öffne Deinen Project Twin und setze den nächsten Schritt`
-                : 'Noch keine Projekte – starte mit einem neuen Input'
-              }
-            </p>
-            <div className="action-card__hero-cta">
-              <span>{hasTwins ? 'Projekte öffnen' : 'Erstes Projekt starten'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="action-card__hero-visual">
-            <div className="hero-visual__glow hero-visual__glow--blue" />
-          </div>
-        </button>
-
-        {/* Sekundäre Aktionen als Stack */}
-        <div className="action-card-stack">
+      {/* Zone 3: Direkt weiterarbeiten - Schnellzugriffe */}
+      <section className="start-screen__section start-screen__section--quick">
+        <h2 className="start-screen__section-title start-screen__section-title--small">
+          Direkt weiterarbeiten
+        </h2>
+        <div className="start-screen__grid start-screen__grid--5">
           <button 
-            className="action-card action-card--secondary"
-            onClick={onNewInput}
+            className="quick-card"
+            onClick={() => { /* TODO: Navigate to measures */ }}
           >
-            <div className="action-card__secondary-icon action-card__secondary-icon--green">
-              <PlusCircle className="w-5 h-5" />
-            </div>
-            <div className="action-card__secondary-content">
-              <h3>Neues Projekt starten</h3>
-              <p>Neue Analyse oder Project Twin erstellen</p>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
+            <CheckSquare className="quick-card__icon" />
+            <span className="quick-card__label">Maßnahmen</span>
           </button>
-
+          
           <button 
-            className="action-card action-card--secondary"
-            onClick={onOpenCommand}
+            className="quick-card"
+            onClick={() => { /* TODO: Navigate to deadlines */ }}
           >
-            <div className="action-card__secondary-icon action-card__secondary-icon--amber">
-              <Command className="w-5 h-5" />
-            </div>
-            <div className="action-card__secondary-content">
-              <h3>Command prüfen</h3>
-              <p>Projektübergreifende Steuerzentrale</p>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
+            <CalendarDays className="quick-card__icon" />
+            <span className="quick-card__label">Fristen</span>
           </button>
-
+          
           <button 
-            className="action-card action-card--secondary"
-            onClick={onOpenChat}
+            className="quick-card"
+            onClick={() => { /* TODO: Navigate to simulation */ }}
           >
-            <div className="action-card__secondary-icon action-card__secondary-icon--purple">
-              <MessageCircle className="w-5 h-5" />
-            </div>
-            <div className="action-card__secondary-content">
-              <h3>Mit OSION sprechen</h3>
-              <p>Chat für Fragen und Steuerung</p>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
+            <BrainCircuit className="quick-card__icon" />
+            <span className="quick-card__label">Simulation</span>
+          </button>
+          
+          <button 
+            className="quick-card"
+            onClick={() => { /* TODO: Navigate to agents */ }}
+          >
+            <Bot className="quick-card__icon" />
+            <span className="quick-card__label">Agenten</span>
+          </button>
+          
+          <button 
+            className="quick-card"
+            onClick={() => { /* TODO: Navigate to memory */ }}
+          >
+            <Database className="quick-card__icon" />
+            <span className="quick-card__label">Memory</span>
           </button>
         </div>
       </section>
 
-      {/* HEUTE WICHTIG: Hochwertige Aufmerksamkeitsliste */}
-      {attentionCount > 0 && (
-        <section className="cockpit-attention">
-          <div className="cockpit-section-header">
-            <div className="cockpit-section-header__title-group">
-              <ShieldAlert className="w-5 h-5 text-rose-500" />
-              <h2 className="cockpit-section-header__title">Heute wichtig</h2>
-            </div>
-            <span className="cockpit-badge cockpit-badge--alert">
-              {attentionCount} {attentionCount === 1 ? 'Punkt' : 'Punkte'}
-            </span>
+      {/* Quick Stats */}
+      {hasTwins && (
+        <section className="start-screen__stats">
+          <div className="stat-card">
+            <span className="stat-card__value">{twins.length}</span>
+            <span className="stat-card__label">Projekte</span>
           </div>
-          
-          <div className="attention-cards">
-            {criticalItems.slice(0, 2).map(twin => {
-              const criticalRisk = twin.analysis?.risks?.find(r => r.severity === 'high')
-              const isBlocked = twin.progress?.stage === 'blocked'
-              
-              return (
-                <div 
-                  key={twin.id} 
-                  className="attention-card"
-                  onClick={() => onOpenTwin(twin.id)}
-                >
-                  <div className="attention-card__header">
-                    <span className="attention-card__project">{twin.title}</span>
-                    <span className={`attention-card__priority attention-card__priority--${isBlocked ? 'critical' : 'high'}`}>
-                      {isBlocked ? 'Blockiert' : 'Kritisch'}
-                    </span>
-                  </div>
-                  
-                  <p className="attention-card__issue">
-                    {isBlocked 
-                      ? 'Projektfortschritt blockiert – sofortige Klärung nötig'
-                      : criticalRisk?.title || 'Hohes Risiko identifiziert'
-                    }
-                  </p>
-                  
-                  <div className="attention-card__footer">
-                    <span className="attention-card__type">
-                      {isBlocked ? 'Blocker' : 'Risiko'}
-                    </span>
-                    <div className="attention-card__actions">
-                      <button className="attention-card__btn attention-card__btn--secondary">
-                        Mit KI prüfen
-                      </button>
-                      <button className="attention-card__btn attention-card__btn--primary">
-                        Öffnen
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-            
-            {attentionCount > 2 && (
-              <button 
-                className="attention-card attention-card--more"
-                onClick={onOpenCommand}
-              >
-                <span>+ {attentionCount - 2} weitere Punkte in Command</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            )}
+          <div className="stat-card">
+            <span className="stat-card__value">
+              {twins.reduce((acc, t) => acc + (t.measures?.length || 0), 0)}
+            </span>
+            <span className="stat-card__label">Maßnahmen</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-card__value">
+              {twins.reduce((acc, t) => acc + (t.analysis?.risks?.length || 0), 0)}
+            </span>
+            <span className="stat-card__label">Risiken</span>
           </div>
         </section>
       )}
-
-      {/* DIREKT WEITERARBEITEN: Module mit Zahlen */}
-      <section className="cockpit-modules">
-        <h2 className="cockpit-modules__title">Direkt weiterarbeiten</h2>
-        
-        <div className="module-grid">
-          <button className="module-card">
-            <div className="module-card__icon module-card__icon--blue">
-              <CheckSquare className="w-5 h-5" />
-            </div>
-            <div className="module-card__content">
-              <span className="module-card__label">Maßnahmen</span>
-              <span className="module-card__count">{formatNumber(measureCount)}</span>
-            </div>
-          </button>
-          
-          <button className="module-card">
-            <div className="module-card__icon module-card__icon--amber">
-              <CalendarDays className="w-5 h-5" />
-            </div>
-            <div className="module-card__content">
-              <span className="module-card__label">Fristen</span>
-              <span className="module-card__count module-card__count--soon">3</span>
-            </div>
-          </button>
-          
-          <button className="module-card">
-            <div className="module-card__icon module-card__icon--purple">
-              <BrainCircuit className="w-5 h-5" />
-            </div>
-            <div className="module-card__content">
-              <span className="module-card__label">Simulation</span>
-              <span className="module-card__status">Bereit</span>
-            </div>
-          </button>
-          
-          <button className="module-card">
-            <div className="module-card__icon module-card__icon--green">
-              <Bot className="w-5 h-5" />
-            </div>
-            <div className="module-card__content">
-              <span className="module-card__label">Agenten</span>
-              <span className="module-card__count">0</span>
-            </div>
-          </button>
-          
-          <button className="module-card">
-            <div className="module-card__icon module-card__icon--slate">
-              <Database className="w-5 h-5" />
-            </div>
-            <div className="module-card__content">
-              <span className="module-card__label">Memory</span>
-              <span className="module-card__status">Aktuell</span>
-            </div>
-          </button>
-        </div>
-      </section>
-
-      {/* SYSTEM-STATUS-LEISTE */}
-      <footer className="cockpit-footer">
-        <div className="system-status">
-          <div className="system-status__item">
-            <FolderKanban className="w-4 h-4" />
-            <span>{projectCount} {projectCount === 1 ? 'Projekt' : 'Projekte'}</span>
-          </div>
-          <span className="system-status__dot">·</span>
-          <div className="system-status__item">
-            <CheckSquare className="w-4 h-4" />
-            <span>{measureCount} Maßnahmen</span>
-          </div>
-          <span className="system-status__dot">·</span>
-          <div className="system-status__item">
-            <ShieldAlert className="w-4 h-4" />
-            <span>{riskCount} Risiken</span>
-          </div>
-          {attentionCount > 0 && (
-            <>
-              <span className="system-status__dot">·</span>
-              <div className="system-status__item system-status__item--alert">
-                <AlertCircle className="w-4 h-4" />
-                <span>{attentionCount} {attentionCount === 1 ? 'Punkt' : 'Punkte'} Aufmerksamkeit</span>
-              </div>
-            </>
-          )}
-        </div>
-      </footer>
     </div>
   )
 }
