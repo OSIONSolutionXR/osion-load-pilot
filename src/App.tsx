@@ -7,6 +7,7 @@ import type { ViewState } from './types'
 import type { TwinOpenContext } from './screens/ProjectTwinScreen'
 
 import CommandScreen from './screens/CommandScreen'
+import StartScreen from './screens/StartScreen'
 import ProjectTwinScreen from './screens/ProjectTwinScreen'
 import ProjectsScreen from './screens/ProjectsScreen'
 import InputScreen from './screens/InputScreen'
@@ -24,9 +25,9 @@ import {
 
 // View titles for header
 const VIEW_TITLES: Record<ViewState, string> = {
+  start: 'Start',
   command: 'Command',
   chat: 'OSION KI-Chat',
-  twin: 'Project Twin',
   projects: 'Projekte',
   input: 'Input',
   measures: 'Maßnahmen',
@@ -34,11 +35,12 @@ const VIEW_TITLES: Record<ViewState, string> = {
   simulation: 'Simulation',
   agents: 'Agenten',
   memory: 'Memory',
-  settings: 'Einstellungen'
+  settings: 'Einstellungen',
+  twin: 'Project Twin'
 }
 
 function App() {
-  const [currentView, setCurrentView] = useState<ViewState>('command')
+  const [currentView, setCurrentView] = useState<ViewState>('start')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem('lp-sidebar-collapsed') === 'true'
   })
@@ -281,6 +283,17 @@ function App() {
           </header>
 
           <div className="lp-main-content">
+            {currentView === 'start' && (
+              <StartScreen
+                twins={twins}
+                onOpenTwin={handleOpenTwin}
+                onNewInput={() => navigateTo('input')}
+                onOpenCommand={() => navigateTo('command')}
+                onOpenChat={() => navigateTo('chat')}
+                onOpenProjects={() => navigateTo('projects')}
+              />
+            )}
+
             {currentView === 'command' && (
               <CommandScreen
                 twins={twins}

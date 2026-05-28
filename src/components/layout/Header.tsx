@@ -1,4 +1,4 @@
-import { Zap, Home, Network, Layers, Plus } from 'lucide-react'
+import { Zap, Home, Layers, Plus } from 'lucide-react'
 import type { ViewState } from '../../types'
 
 interface HeaderProps {
@@ -7,8 +7,8 @@ interface HeaderProps {
 }
 
 const navItems: { id: ViewState; label: string; icon: typeof Home }[] = [
+  { id: 'start', label: 'Start', icon: Home },
   { id: 'command', label: 'Command', icon: Home },
-  { id: 'twin', label: 'Twin', icon: Network },
   { id: 'projects', label: 'Projekte', icon: Layers },
   { id: 'input', label: 'Input', icon: Plus }
 ]

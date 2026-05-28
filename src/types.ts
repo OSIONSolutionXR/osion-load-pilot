@@ -78,9 +78,9 @@ export interface AnalysisResult {
 
 // View State für Navigation (neu mit Sidebar)
 export type ViewState = 
+  | 'start'        // Startscreen - Einstieg
   | 'command'      // Command-Zentrale
   | 'chat'         // OSION KI-Chat
-  | 'twin'         // Project Twin
   | 'projects'     // Projekte-Übersicht
   | 'input'        // Freitext-Eingabe
   | 'measures'     // Maßnahmen-Übersicht
@@ -88,7 +88,8 @@ export type ViewState =
   | 'simulation'   // Project Simulator
   | 'agents'       // Agenten-Übersicht
   | 'memory'       // Memory/System
-  | 'settings';    // Einstellungen
+  | 'settings'     // Einstellungen
+  | 'twin';        // Project Twin - nur intern, nicht in Sidebar
 
 // Simulation Result
 export interface SimulationResult {

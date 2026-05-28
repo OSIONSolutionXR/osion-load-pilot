@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Command,
-  LayoutGrid,
+  Home,
   FolderKanban,
   PlusCircle,
   CheckSquare,
@@ -16,7 +16,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 
-type ViewId = 'command' | 'chat' | 'twin' | 'projects' | 'input' | 'measures' | 'deadlines' | 'simulation' | 'agents' | 'memory' | 'settings';
+type ViewId = 'start' | 'command' | 'chat' | 'projects' | 'input' | 'measures' | 'deadlines' | 'simulation' | 'agents' | 'memory' | 'settings' | 'twin';
 
 interface NavSection {
   label: string;
@@ -27,9 +27,9 @@ const navSections: NavSection[] = [
   {
     label: 'Steuerung',
     items: [
+      { id: 'start', label: 'Start', icon: Home },
       { id: 'command', label: 'Command', icon: Command },
       { id: 'chat', label: 'Chat', icon: MessageCircle },
-      { id: 'twin', label: 'Twin', icon: LayoutGrid },
       { id: 'projects', label: 'Projekte', icon: FolderKanban },
       { id: 'input', label: 'Input', icon: PlusCircle },
     ],
