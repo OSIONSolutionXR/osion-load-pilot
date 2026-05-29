@@ -33,10 +33,73 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
 
     try {
       const result = await analyzeProjectInput(text)
-      setAnalysis(result.analysis)
+      
+      // Robust: Prüfe ob result gültig ist
+      if (!result) {
+        throw new Error('Analyse lieferte kein Ergebnis zurück')
+      }
+      
+      // Robust: Prüfe ob analysis vorhanden ist
+      if (!result.analysis) {
+        throw new Error('Analyse enthält keine Daten')
+      }
+      
+      // Robust: Prüfe ob projectId vorhanden ist
+      if (!result.projectId) {
+        console.warn('[InputScreen] Warning: Backend returned no projectId, using fallback')
+        // Fallback: Erzeuge eine ID aus dem Titel oder Timestamp
+        result.projectId = `proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }
+      
+      // Defensive Normalisierung des Analysis-Objekts
+      const normalizedAnalysis: ProjectTwinAnalysis = {
+        ...result.analysis,
+        // Sichere quality Felder
+        quality: {
+          inputQuality: result.analysis.quality?.inputQuality || 'insufficient',
+          isActionable: Boolean(result.analysis.quality?.isActionable),
+          confidence: result.analysis.quality?.confidence || 'low',
+          missingContext: Array.isArray(result.analysis.quality?.missingContext) 
+            ? result.analysis.quality.missingContext 
+            : [],
+          reason: result.analysis.quality?.reason || 'Keine Bewertung verfügbar'
+        },
+        // Sichere meta Felder
+        meta: {
+          domain: result.analysis.meta?.domain || 'general',
+          analysisMode: result.analysis.meta?.analysisMode || 'openclaw-kimi',
+          promptVersion: result.analysis.meta?.promptVersion || 'unknown',
+          generatedAt: result.analysis.meta?.generatedAt || new Date().toISOString()
+        },
+        // Sichere project Felder
+        project: {
+          title: result.analysis.project?.title || 'Unbenanntes Projekt',
+          description: result.analysis.project?.description || '',
+          type: result.analysis.project?.type || 'general',
+          status: result.analysis.project?.status || 'active'
+        },
+        // Sichere nextMove Felder - deadline ist optional (string | null)
+        nextMove: {
+          title: result.analysis.nextMove?.title || 'Nächster Schritt planen',
+          reason: result.analysis.nextMove?.reason || 'Keine nächste Aktion definiert',
+          effort: result.analysis.nextMove?.effort || 'medium',
+          impact: result.analysis.nextMove?.impact || 'medium',
+          deadline: result.analysis.nextMove?.deadline ?? null
+        },
+        // Sichere Listen
+        actors: Array.isArray(result.analysis.actors) ? result.analysis.actors : [],
+        dependencies: Array.isArray(result.analysis.dependencies) ? result.analysis.dependencies : [],
+        risks: Array.isArray(result.analysis.risks) ? result.analysis.risks : [],
+        scenarios: Array.isArray(result.analysis.scenarios) ? result.analysis.scenarios : [],
+        actions: Array.isArray(result.analysis.actions) ? result.analysis.actions : []
+      }
+      
+      console.log('[InputScreen] Normalized analysis:', normalizedAnalysis)
+      setAnalysis(normalizedAnalysis)
       setProjectId(result.projectId)
     } catch (err) {
       const message = err instanceof ProjectAnalysisError ? err.message : 'Die Analyse konnte nicht durchgeführt werden.'
+      console.error('[InputScreen] Analyze error:', err)
       setError(message)
     } finally {
       setIsAnalyzing(false)
