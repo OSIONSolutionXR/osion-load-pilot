@@ -18,7 +18,12 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
   const [analysis, setAnalysis] = useState<ProjectTwinAnalysis | null>(null)
   const [projectId, setProjectId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const isActionable = analysis?.quality.isActionable ?? false
+  
+  // NEUE LOGIK: Speicherbar wenn Projektwille erkennbar (Titel vorhanden oder Input > 10 Zeichen)
+  const hasProjectIntent = Boolean(analysis?.project?.title && analysis.project.title !== 'Unbenanntes Projekt') || text.trim().length > 10
+  const isActionable = hasProjectIntent // Früher: analysis?.quality.isActionable ?? false
+  const needsClarification = analysis?.quality.confidence === 'low' || analysis?.quality.inputQuality === 'insufficient'
+  const isDiscovery = needsClarification && isActionable
 
   const handleAnalyze = async () => {
     if (!text.trim()) {
@@ -51,6 +56,20 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
         result.projectId = `proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       }
       
+      // Intelligente Titel-Extraktion aus Input
+      const inputText = text.trim()
+      const extractedTitle = result.analysis.project?.title && result.analysis.project.title !== 'Unbenanntes Projekt'
+        ? result.analysis.project.title
+        : (inputText.length > 0 
+            ? inputText.replace(/^(Ich möchte|Ich will|Ich muss|Ich plane|Ich mache|Ich erstelle)\s*/i, '').replace(/\.$/, '').trim()
+            : 'Neues Projekt')
+      
+      // Discovery-Status ermitteln
+      const discoveryMode = (
+        result.analysis.quality?.confidence === 'low' || 
+        result.analysis.quality?.inputQuality === 'insufficient'
+      ) && inputText.length > 10
+      
       // Defensive Normalisierung des Analysis-Objekts
       const normalizedAnalysis: ProjectTwinAnalysis = {
         ...result.analysis,
@@ -71,12 +90,12 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
           promptVersion: result.analysis.meta?.promptVersion || 'unknown',
           generatedAt: result.analysis.meta?.generatedAt || new Date().toISOString()
         },
-        // Sichere project Felder
+        // Sichere project Felder - mit intelligenter Titel-Extraktion aus Input
         project: {
-          title: result.analysis.project?.title || 'Unbenanntes Projekt',
+          title: extractedTitle,
           description: result.analysis.project?.description || '',
           type: result.analysis.project?.type || 'general',
-          status: result.analysis.project?.status || 'active'
+          status: discoveryMode ? 'active' : (result.analysis.project?.status || 'active')
         },
         // Sichere nextMove Felder - deadline ist optional (string | null)
         nextMove: {
@@ -196,30 +215,42 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
                   <div>
                     <h3 className="text-xl font-semibold text-[var(--lp-text)] mb-1">Project-Twin Preview</h3>
                     <p className="text-sm text-[var(--lp-muted)]">
-                      {isActionable
-                        ? 'Die Analyse ist speicherfähig und kann als lokaler Twin übernommen werden.'
-                        : 'Die Analyse ist noch nicht speicherfähig. Ergänze den Input, bevor ein Twin angelegt wird.'}
+                      {isDiscovery
+                        ? 'Projekt aus früher Idee erstellt. Kann jetzt gespeichert und später konkretisiert werden.'
+                        : isActionable
+                          ? 'Die Analyse ist speicherfähig und kann als lokaler Twin übernommen werden.'
+                          : 'Die Analyse ist noch nicht speicherfähig. Ergänze den Input, bevor ein Twin angelegt wird.'}
                     </p>
                   </div>
                   <Button disabled={!isActionable} onClick={() => analysis && projectId && onCreateTwin(text, analysis, projectId)}>
                     <ArrowRight className="w-4 h-4" />
-                    {isActionable ? 'Project Twin öffnen' : 'Input ergänzen'}
+                    {isDiscovery ? 'Projekt anlegen & konkretisieren' : (isActionable ? 'Project Twin öffnen' : 'Input ergänzen')}
                   </Button>
                 </div>
 
                 <div className="lp-card lp-card--padded">
                   <div className="flex flex-wrap gap-2 mb-3">
-                    <Badge variant={isActionable ? 'blue' : 'rose'}>Speicherbar: {isActionable ? 'ja' : 'nein'}</Badge>
+                    <Badge variant={isActionable ? 'success' : 'rose'}>Speicherbar: {isActionable ? 'ja' : 'nein'}</Badge>
+                    {isDiscovery && (
+                      <Badge variant="amber">Reifegrad: niedrig (Discovery)</Badge>
+                    )}
                     <Badge variant="neutral">Input: {analysis.quality.inputQuality}</Badge>
                     <Badge variant="neutral">Confidence: {analysis.quality.confidence}</Badge>
                     <Badge variant="neutral">Domain: {analysis.meta.domain}</Badge>
                   </div>
                   <p className="text-sm text-[var(--lp-muted)]">{analysis.quality.reason}</p>
-                  {!isActionable && analysis.quality.missingContext.length > 0 ? (
+                  {needsClarification && analysis.quality.missingContext.length > 0 ? (
                     <div className="text-sm text-[var(--lp-text)] mt-2">
-                      Es fehlen noch: {analysis.quality.missingContext.join(', ')}
+                      {isDiscovery 
+                        ? `Zur Konkretisierung: ${analysis.quality.missingContext.join(', ')}` 
+                        : `Es fehlen noch: ${analysis.quality.missingContext.join(', ')}`}
                     </div>
                   ) : null}
+                  {isDiscovery && (
+                    <div className="text-xs text-amber-400 mt-2">
+                      ℹ️ Dieses Projekt wurde aus einer frühen Projektidee erstellt und kann im nächsten Schritt weiter konkretisiert werden.
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
