@@ -7,7 +7,7 @@
 
 // API Base URL from environment or fallback
 // In Vite müssen ENV-Variablen mit VITE_ beginnen
-const RAW_API_URL = import.meta.env.VITE_LOADPILOT_API_BASE_URL || 'http://localhost:8789'
+const RAW_API_URL = import.meta.env.VITE_LOADPILOT_API_BASE_URL || 'https://loadpilot-api.srv1550219.hstgr.cloud'
 
 // Sicherstellen: keine doppelten Slashes, korrektes Format
 export const API_BASE_URL = RAW_API_URL.replace(/\/$/, '')
