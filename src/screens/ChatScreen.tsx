@@ -214,18 +214,18 @@ export default function ChatScreen({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-7 py-5 border-b border-slate-700/30">
+      {/* Header - Fixed at top */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700/30 flex-shrink-0 bg-[#0d1320]">
         <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
             mode === 'general' 
               ? 'bg-cyan-500/10 border border-cyan-500/30' 
               : 'bg-violet-500/10 border border-violet-500/30'
           }`}>
-            <Sparkles className={`w-5 h-5 ${mode === 'general' ? 'text-cyan-400' : 'text-violet-400'}`} />
+            <Sparkles className={`w-4 h-4 ${mode === 'general' ? 'text-cyan-400' : 'text-violet-400'}`} />
           </div>
           <div>
-            <h2 className="font-semibold text-slate-100">{mode === 'general' ? 'Allgemeiner Chat' : 'Projekt-Chat'}</h2>
+            <h2 className="font-semibold text-slate-100 text-sm">{mode === 'general' ? 'Allgemeiner Chat' : 'Projekt-Chat'}</h2>
             <p className="text-xs text-slate-500">
               {mode === 'general' 
                 ? 'Projektübergreifende Steuerung' 
@@ -239,19 +239,19 @@ export default function ChatScreen({
         <StatusChip />
       </div>
 
-      {/* Messages Area */}
+      {/* Messages Area - SCROLLABLE ONLY THIS PART */}
       <div 
-        className="flex-1 overflow-y-auto"
-        style={{ padding: '28px 34px' }}
+        className="flex-1 overflow-y-auto bg-[#0a0f1a]"
+        style={{ padding: '20px 24px' }}
       >
         {session.messages.length === 0 && (
           <div className="h-full flex flex-col items-center justify-center text-center">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${
               mode === 'general'
                 ? 'bg-cyan-500/10 border border-cyan-500/20'
                 : 'bg-violet-500/10 border border-violet-500/20'
             }`}>
-              <Sparkles className={`w-8 h-8 ${mode === 'general' ? 'text-cyan-400' : 'text-violet-400'}`} />
+              <Sparkles className={`w-7 h-7 ${mode === 'general' ? 'text-cyan-400' : 'text-violet-400'}`} />
             </div>
             <p className="text-lg font-medium text-slate-300 mb-2">
               {mode === 'general' ? 'Allgemeiner Chat' : 'Projekt-Chat'}
@@ -271,11 +271,11 @@ export default function ChatScreen({
             className={`flex ${
               message.role === 'user' ? 'justify-end' : 'justify-start'
             }`}
-            style={{ marginBottom: '18px' }}
+            style={{ marginBottom: '16px' }}
           >
             {message.role === 'assistant' && (
-              <div className="mr-4 flex-shrink-0">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30 flex items-center justify-center">
+              <div className="mr-3 flex-shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30 flex items-center justify-center">
                   <Sparkles className="h-4 w-4 text-violet-300" />
                 </div>
               </div>
@@ -292,7 +292,7 @@ export default function ChatScreen({
             )}
 
             {message.role !== 'system' && (
-              <div style={{ maxWidth: 'min(720px, 78%)' }}>
+              <div style={{ maxWidth: 'min(680px, 82%)' }}>
                 <div
                   className={`text-sm leading-relaxed ${
                     message.role === 'user'
@@ -302,12 +302,12 @@ export default function ChatScreen({
                         : 'bg-slate-800/80 text-slate-100 border border-slate-700/50 rounded-bl-xl'
                   }`}
                   style={{ 
-                    padding: '14px 18px', 
-                    borderRadius: '18px',
+                    padding: '12px 16px', 
+                    borderRadius: '16px',
                   }}
                 >
                   <div className="whitespace-pre-wrap">{message.content}</div>
-                  <div className={`mt-2 text-[10px] ${
+                  <div className={`mt-1.5 text-[10px] ${
                     message.role === 'user' ? 'text-blue-200/70' : 'text-slate-500'
                   }`}>
                     {formatTime(message.timestamp)}
@@ -317,8 +317,8 @@ export default function ChatScreen({
             )}
 
             {message.role === 'user' && (
-              <div className="ml-4 flex-shrink-0">
-                <div className="w-9 h-9 rounded-xl bg-slate-700 flex items-center justify-center">
+              <div className="ml-3 flex-shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-slate-700 flex items-center justify-center">
                   <User className="h-4 w-4 text-slate-300" />
                 </div>
               </div>
@@ -327,15 +327,15 @@ export default function ChatScreen({
         ))}
 
         {isLoading && (
-          <div className="flex justify-start" style={{ marginBottom: '18px' }}>
-            <div className="mr-4 flex-shrink-0">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30 flex items-center justify-center">
+          <div className="flex justify-start" style={{ marginBottom: '16px' }}>
+            <div className="mr-3 flex-shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30 flex items-center justify-center">
                 <Sparkles className="h-4 w-4 text-violet-300" />
               </div>
             </div>
             <div 
               className="border border-slate-700/50 bg-slate-800/80 rounded-bl-xl"
-              style={{ padding: '14px 18px', borderRadius: '18px' }}
+              style={{ padding: '12px 16px', borderRadius: '16px' }}
             >
               <div className="flex items-center gap-3">
                 <Loader2 className="h-4 w-4 animate-spin text-violet-400" />
@@ -348,10 +348,10 @@ export default function ChatScreen({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
+      {/* Input Area - Fixed at bottom */}
       <div 
-        className="border-t border-slate-700/30"
-        style={{ padding: '18px 22px 22px', background: 'rgba(2, 6, 23, 0.34)' }}
+        className="border-t border-slate-700/30 flex-shrink-0"
+        style={{ padding: '14px 18px 18px', background: '#0d1320' }}
       >
         <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="relative">
           <div 
@@ -359,12 +359,12 @@ export default function ChatScreen({
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr auto',
-              gap: '12px',
+              gap: '10px',
               alignItems: 'end',
-              borderRadius: '18px',
-              background: 'rgba(15, 23, 42, 0.90)',
+              borderRadius: '16px',
+              background: '#1a2236',
               border: '1px solid rgba(148, 163, 184, 0.22)',
-              padding: '12px 12px 12px 16px'
+              padding: '10px 10px 10px 14px'
             }}
           >
             <textarea
@@ -386,9 +386,9 @@ export default function ChatScreen({
               disabled={isLoading || connectionStatus === 'error'}
               className="bg-transparent border-0 outline-0 text-slate-100 placeholder:text-slate-500 resize-none"
               style={{
-                minHeight: '54px',
-                maxHeight: '180px',
-                fontSize: '15px',
+                minHeight: '48px',
+                maxHeight: '160px',
+                fontSize: '14px',
                 lineHeight: '1.5'
               }}
               rows={1}
@@ -398,9 +398,9 @@ export default function ChatScreen({
               disabled={!inputText.trim() || isLoading || connectionStatus === 'error'}
               className="text-white transition-all hover:scale-105 disabled:scale-100 disabled:opacity-40 flex items-center justify-center"
               style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '16px',
+                width: '44px',
+                height: '44px',
+                borderRadius: '14px',
                 background: 'linear-gradient(135deg, #2563eb, #7c3aed)'
               }}
             >
