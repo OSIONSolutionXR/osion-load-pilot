@@ -44,29 +44,29 @@ export default function ChatSelectScreen({
   if (showProjectPicker) {
     return (
       <div 
-        className="min-h-[calc(100vh-72px)] py-7 px-8"
+        className="min-h-[calc(100vh-72px)] py-10 px-8"
         style={{ background: '#050914' }}
       >
-        {/* Back Button */}
-        <button
-          onClick={() => setShowProjectPicker(false)}
-          className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors mb-6 mx-auto w-fit"
-          style={{ maxWidth: '1520px' }}
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="text-sm font-medium">Zurück zur Auswahl</span>
-        </button>
-
         {/* Main Stage */}
         <div
-          className="mx-auto rounded-3xl p-7"
+          className="mx-auto rounded-3xl"
           style={{
             width: 'min(calc(100% - 32px), 1560px)',
             background: 'linear-gradient(135deg, #07101f 0%, #0b1020 52%, #120b24 100%)',
-            border: '1px solid rgba(148, 163, 184, 0.12)'
+            border: '1px solid rgba(148, 163, 184, 0.12)',
+            padding: '42px 32px 56px'
           }}
         >
           <div style={{ width: 'min(100%, 1180px)', margin: '0 auto' }}>
+            {/* Back Button */}
+            <button
+              onClick={() => setShowProjectPicker(false)}
+              className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors mb-8"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="text-sm font-medium">Zurück zur Auswahl</span>
+            </button>
+
             {/* Header - Centered */}
             <motion.header
               initial={{ opacity: 0, y: -10 }}

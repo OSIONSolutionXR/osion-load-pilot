@@ -100,7 +100,7 @@ export default function ChatWorkspace({
     </motion.div>
   )
 
-  // Project Chat Header
+  // Project Chat Header - STICKY
   const renderProjectHeader = () => {
     if (!activeProject) return null
 
@@ -109,9 +109,14 @@ export default function ChatWorkspace({
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full mb-6"
+        style={{
+          position: 'sticky',
+          top: '24px',
+          zIndex: 10
+        }}
       >
         {/* Project Context Card */}
-        <div className="w-full rounded-3xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 via-violet-500/5 to-blue-500/10 p-6 md:p-8">
+        <div className="w-full rounded-3xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 via-violet-500/5 to-blue-500/10 p-6 md:p-8 backdrop-blur-sm">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="flex items-center gap-5">
               <div className="w-14 h-14 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
@@ -189,41 +194,47 @@ export default function ChatWorkspace({
 
   return (
     <div 
-      className="min-h-[calc(100vh-72px)] py-7 px-8"
+      className="min-h-[calc(100vh-72px)] py-10 px-8"
       style={{
         background: '#050914',
         color: '#F8FAFC'
       }}
     >
-      {/* Back Button - Above the stage */}
-      <button
-        onClick={onBackToSelection}
-        className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors mb-6 mx-auto w-fit"
-        style={{ maxWidth: '1520px' }}
-      >
-        <ArrowLeft className="w-5 h-5" />
-        <span className="text-sm font-medium">Zurück zur Auswahl</span>
-      </button>
-
       {/* Main Chat Stage - Centered */}
       <div 
-        className="mx-auto rounded-3xl p-7"
+        className="mx-auto rounded-3xl"
         style={{
           width: 'min(calc(100% - 32px), 1560px)',
           background: 'linear-gradient(135deg, #07101f 0%, #0b1020 52%, #120b24 100%)',
-          border: '1px solid rgba(148, 163, 184, 0.12)'
+          border: '1px solid rgba(148, 163, 184, 0.12)',
+          padding: '42px 32px 56px'
         }}
       >
         {/* Inner Workspace - Centered with max-width */}
         <div style={{ width: 'min(100%, 1380px)', margin: '0 auto' }}>
-          {/* Header - Part of the scrollable content */}
-          {mode === 'general' ? renderGeneralHeader() : renderProjectHeader()}
+          {/* Back Button */}
+          <button
+            onClick={onBackToSelection}
+            className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors mb-6"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="text-sm font-medium">Zurück zur Auswahl</span>
+          </button>
+
+          {/* Header - Part of the scrollable content, STICKY */}
+          {mode === 'general' ? (
+            <div style={{ position: 'sticky', top: '24px', zIndex: 10 }}>
+              {renderGeneralHeader()}
+            </div>
+          ) : renderProjectHeader()}
 
           {/* Chat Workspace Grid */}
           <div 
-            className="grid gap-7"
+            className="grid"
             style={{
-              gridTemplateColumns: 'minmax(760px, 1fr) 360px'
+              gridTemplateColumns: 'minmax(760px, 1fr) 360px',
+              gap: '28px',
+              alignItems: 'start'
             }}
           >
             {/* Chat Panel */}
@@ -245,14 +256,18 @@ export default function ChatWorkspace({
               />
             </div>
 
-            {/* Suggestions Panel */}
+            {/* Suggestions Panel - STICKY */}
             <aside
+              className="hidden lg:block"
               style={{
                 minHeight: '420px',
                 borderRadius: '24px',
                 padding: '22px',
                 background: 'rgba(8, 13, 28, 0.88)',
-                border: '1px solid rgba(148, 163, 184, 0.20)'
+                border: '1px solid rgba(148, 163, 184, 0.20)',
+                position: 'sticky',
+                top: '24px',
+                alignSelf: 'start'
               }}
             >
               {/* Header */}
