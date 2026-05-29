@@ -17,7 +17,7 @@ const ENDPOINTS = {
   health: '/health',
   analyzeProject: '/api/analyze-project',
   updateProjectTwin: '/api/update-project-twin',
-  chat: '/api/osion-chat'
+  chat: '/api/ai-chat'
 } as const
 
 /**

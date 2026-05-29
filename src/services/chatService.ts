@@ -13,18 +13,27 @@ import type {
 import { buildChatProjectContext, formatContextForAI } from './chatContextBuilder'
 import { getChatUrl } from '../lib/apiConfig'
 
-export const CHAT_STORAGE_KEY = 'osion-load-pilot-chat-session.v1'
+export const CHAT_STORAGE_KEY_BASE = 'osion-load-pilot-chat-session'
+
+// Get storage key based on mode and projectId
+export function getChatStorageKey(mode: 'general' | 'project', projectId?: string | null): string {
+  if (mode === 'project' && projectId) {
+    return `${CHAT_STORAGE_KEY_BASE}:project:${projectId}`
+  }
+  return `${CHAT_STORAGE_KEY_BASE}:general`
+}
 
 export type { ChatMessage, ChatSuggestion }
 
 // ============================================================================
-// CHAT SESSION STORAGE
+// CHAT SESSION STORAGE - MODE/PROJECT ISOLATED
 // ============================================================================
 
-export function loadChatSession(): ChatSession | null {
+export function loadChatSession(mode: 'general' | 'project', projectId?: string | null): ChatSession | null {
   if (typeof window === 'undefined') return null
   try {
-    const raw = localStorage.getItem(CHAT_STORAGE_KEY)
+    const key = getChatStorageKey(mode, projectId)
+    const raw = localStorage.getItem(key)
     if (!raw) return null
     return JSON.parse(raw) as ChatSession
   } catch {
@@ -32,18 +41,39 @@ export function loadChatSession(): ChatSession | null {
   }
 }
 
-export function saveChatSession(session: ChatSession): void {
+export function saveChatSession(session: ChatSession, mode: 'general' | 'project', projectId?: string | null): void {
   if (typeof window === 'undefined') return
   try {
-    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(session))
+    const key = getChatStorageKey(mode, projectId)
+    localStorage.setItem(key, JSON.stringify(session))
   } catch (e) {
     console.error('[ChatService] Failed to save session:', e)
   }
 }
 
-export function clearChatSession(): void {
+export function clearChatSession(mode: 'general' | 'project', projectId?: string | null): void {
   if (typeof window === 'undefined') return
-  localStorage.removeItem(CHAT_STORAGE_KEY)
+  try {
+    const key = getChatStorageKey(mode, projectId)
+    localStorage.removeItem(key)
+  } catch (e) {
+    console.error('[ChatService] Failed to clear session:', e)
+  }
+}
+
+// Clear ALL chat sessions (use with caution)
+export function clearAllChatSessions(): void {
+  if (typeof window === 'undefined') return
+  try {
+    const keys = Object.keys(localStorage)
+    keys.forEach(key => {
+      if (key.startsWith(CHAT_STORAGE_KEY_BASE)) {
+        localStorage.removeItem(key)
+      }
+    })
+  } catch (e) {
+    console.error('[ChatService] Failed to clear all sessions:', e)
+  }
 }
 
 export function createNewSession(selectedProjectId: string | null): ChatSession {

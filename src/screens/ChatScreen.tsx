@@ -9,7 +9,8 @@ import {
   RefreshCw,
   Sparkles,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Trash2
 } from 'lucide-react'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
 import type { ChatMessage, ChatSession } from '../types/chat'
@@ -18,7 +19,8 @@ import {
   checkChatConnection,
   loadChatSession,
   saveChatSession,
-  createNewSession
+  createNewSession,
+  clearChatSession
 } from '../services/chatService'
 
 interface ChatScreenProps {
@@ -51,9 +53,9 @@ export default function ChatScreen({
   activeTwinId,
   mode = 'project'
 }: ChatScreenProps) {
-  // Session State
+  // Session State - ISOLATED by mode and projectId
   const [session, setSession] = useState(() => {
-    const saved = loadChatSession()
+    const saved = loadChatSession(mode, activeTwinId)
     return saved || createNewSession(activeTwinId)
   })
 
@@ -65,22 +67,20 @@ export default function ChatScreen({
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Persist session
+  // Persist session - ISOLATED by mode and projectId
   useEffect(() => {
-    saveChatSession(session)
-  }, [session])
+    saveChatSession(session, mode, activeTwinId)
+  }, [session, mode, activeTwinId])
 
-  // Update session when activeTwinId changes
+  // Load correct session when mode or project changes
   useEffect(() => {
-    if (activeTwinId && activeTwinId !== session.selectedProjectId) {
-      setSession((prev: ChatSession) => ({
-        ...prev,
-        selectedProjectId: activeTwinId,
-        scope: 'selected',
-        updatedAt: new Date().toISOString()
-      }))
+    const saved = loadChatSession(mode, activeTwinId)
+    if (saved) {
+      setSession(saved)
+    } else {
+      setSession(createNewSession(activeTwinId))
     }
-  }, [activeTwinId])
+  }, [mode, activeTwinId])
 
   // Check connection
   useEffect(() => {
@@ -105,6 +105,13 @@ export default function ChatScreen({
     const result = await checkChatConnection()
     setConnectionStatus(result.connected ? 'connected' : 'error')
   }, [])
+
+  const handleResetChat = useCallback(() => {
+    if (confirm('Diesen Chatverlauf wirklich zurücksetzen?')) {
+      clearChatSession(mode, activeTwinId)
+      setSession(createNewSession(activeTwinId))
+    }
+  }, [mode, activeTwinId])
 
   const handleSend = useCallback(async () => {
     if (!inputText.trim() || isLoading) return
@@ -175,7 +182,7 @@ export default function ChatScreen({
     } finally {
       setIsLoading(false)
     }
-  }, [inputText, isLoading, twins, activeTwinId, session.messages])
+  }, [inputText, isLoading, twins, activeTwinId, session.messages, mode])
 
   const handleStop = useCallback(() => {
     abortControllerRef.current?.abort()
@@ -214,7 +221,7 @@ export default function ChatScreen({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header - Fixed at top */}
+      {/* Header - Fixed at top with Reset Button */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700/30 flex-shrink-0 bg-[#0d1320]">
         <div className="flex items-center gap-3">
           <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
@@ -236,7 +243,18 @@ export default function ChatScreen({
             </p>
           </div>
         </div>
-        <StatusChip />
+        <div className="flex items-center gap-2">
+          {/* Reset Chat Button */}
+          <button
+            onClick={handleResetChat}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200 hover:border-slate-600 text-xs transition-colors"
+            title="Chat zurücksetzen"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Zurücksetzen</span>
+          </button>
+          <StatusChip />
+        </div>
       </div>
 
       {/* Messages Area - SCROLLABLE ONLY THIS PART */}
