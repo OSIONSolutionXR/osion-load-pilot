@@ -56,7 +56,7 @@ export default function ChatScreen({
   // Session State - ISOLATED by mode and projectId
   const [session, setSession] = useState(() => {
     const saved = loadChatSession(mode, activeTwinId)
-    return saved || createNewSession(activeTwinId)
+    return saved || createNewSession(activeTwinId, mode)
   })
 
   const [inputText, setInputText] = useState('')
@@ -78,7 +78,7 @@ export default function ChatScreen({
     if (saved) {
       setSession(saved)
     } else {
-      setSession(createNewSession(activeTwinId))
+      setSession(createNewSession(activeTwinId, mode))
     }
   }, [mode, activeTwinId])
 
@@ -109,7 +109,7 @@ export default function ChatScreen({
   const handleResetChat = useCallback(() => {
     if (confirm('Diesen Chatverlauf wirklich zurücksetzen?')) {
       clearChatSession(mode, activeTwinId)
-      setSession(createNewSession(activeTwinId))
+      setSession(createNewSession(activeTwinId, mode))
     }
   }, [mode, activeTwinId])
 

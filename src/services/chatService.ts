@@ -11,7 +11,7 @@ import type {
   ChatSession
 } from '../types/chat'
 import { buildChatProjectContext, formatContextForAI } from './chatContextBuilder'
-import { getChatUrl } from '../lib/apiConfig'
+import { getChatUrl, getHealthUrl } from '../lib/apiConfig'
 
 export const CHAT_STORAGE_KEY_BASE = 'osion-load-pilot-chat-session'
 
@@ -76,11 +76,11 @@ export function clearAllChatSessions(): void {
   }
 }
 
-export function createNewSession(selectedProjectId: string | null): ChatSession {
+export function createNewSession(selectedProjectId: string | null, mode: 'general' | 'project' = 'project'): ChatSession {
   const now = new Date().toISOString()
   return {
     id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-    messages: [createWelcomeMessage()],
+    messages: [createWelcomeMessage(mode)],
     suggestions: [],
     selectedProjectId,
     scope: selectedProjectId ? 'selected' : 'all',
@@ -89,21 +89,15 @@ export function createNewSession(selectedProjectId: string | null): ChatSession 
   }
 }
 
-function createWelcomeMessage(): ChatMessage {
+function createWelcomeMessage(mode: 'general' | 'project'): ChatMessage {
+  const content = mode === 'general'
+    ? 'Willkommen im OSION KI-Chat. Ich bin Deine KI-Assistenz für OSION Load Pilot.'
+    : 'Willkommen im OSION KI-Chat. Ich bin Deine KI-Assistenz für dieses Projekt.'
+
   return {
     id: `msg-${Date.now()}-welcome`,
     role: 'assistant',
-    content: `Willkommen im **OSION KI-Chat**.
-
-Ich bin OSION X ONE, deine KI-Assistenz für Projektsteuerung. Ich kann:
-
-• **Projekte auflisten** → "Zeig mir alle Projekte"
-• **Maßnahmen anzeigen** → "Liste alle Maßnahmen"
-• **Maßnahmen erstellen** → "Erstelle Maßnahme XY"
-• **Projektkontext speichern** → "Budget ist 150.000 Euro"
-• **Twin öffnen** → "Öffne Projekt XY"
-
-Wähle ein Projekt aus dem Dropdown oder frag mich projektübergreifend.`,
+    content,
     timestamp: new Date().toISOString()
   }
 }
@@ -454,24 +448,20 @@ function generateSuggestions(
 }
 
 // ============================================================================
-// CONNECTION CHECK
+// CONNECTION CHECK - Uses /health endpoint
 // ============================================================================
 
 export async function checkChatConnection(): Promise<{ connected: boolean; error?: string }> {
   try {
-    await fetch(getChatUrl(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: 'ping',
-        history: [],
-        projects: [],
-        activeProjectId: null
-      })
-    })
-
-    // Even if we get an error response, the connection works
-    return { connected: true }
+    const response = await fetch(getHealthUrl())
+    if (response.ok) {
+      const data = await response.json()
+      if (data.ok && data.ai?.configured) {
+        return { connected: true }
+      }
+      return { connected: false, error: 'AI not configured' }
+    }
+    return { connected: false, error: `HTTP ${response.status}` }
   } catch (error) {
     return {
       connected: false,
