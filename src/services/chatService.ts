@@ -26,6 +26,76 @@ export function getChatStorageKey(mode: 'general' | 'project', projectId?: strin
 export type { ChatMessage, ChatSuggestion }
 
 // ============================================================================
+// WELCOME MESSAGE HELPERS
+// ============================================================================
+
+export function getWelcomeMessage(mode: 'general' | 'project'): string {
+  if (mode === 'general') {
+    return 'Willkommen im OSION KI-Chat. Ich bin Deine KI-Assistenz für OSION Load Pilot.'
+  }
+  return 'Willkommen im OSION KI-Chat. Ich bin Deine KI-Assistenz für dieses Projekt.'
+}
+
+const LEGACY_WELCOME_PATTERNS = [
+  'Ich bin OSION X ONE',
+  'Ich kann:',
+  '**Projekte auflisten**',
+  '**Maßnahmen anzeigen**',
+  '**Maßnahmen erstellen**',
+  '**Projektkontext speichern**',
+  '**Twin öffnen**',
+  'Wähle ein Projekt aus dem Dropdown'
+]
+
+export function isLegacyWelcomeMessage(content: string): boolean {
+  return LEGACY_WELCOME_PATTERNS.some(pattern => content.includes(pattern))
+}
+
+function migrateWelcomeMessage(session: ChatSession, mode: 'general' | 'project'): ChatSession {
+  if (!session.messages || session.messages.length === 0) {
+    return {
+      ...session,
+      messages: [createWelcomeMessage(mode)]
+    }
+  }
+
+  let migrated = false
+  const newWelcomeContent = getWelcomeMessage(mode)
+
+  const migratedMessages = session.messages.map((message) => {
+    // Check first assistant message or any message that looks like old welcome
+    if (
+      message.role === 'assistant' &&
+      isLegacyWelcomeMessage(message.content)
+    ) {
+      migrated = true
+      return {
+        ...message,
+        content: newWelcomeContent
+      }
+    }
+    return message
+  })
+
+  // If first message was removed or no welcome exists, ensure we have one
+  if (migratedMessages.length === 0 || 
+      (migratedMessages[0].role !== 'assistant' && migratedMessages[0].role !== 'system')) {
+    migratedMessages.unshift(createWelcomeMessage(mode))
+    migrated = true
+  }
+
+  if (migrated) {
+    return {
+      ...session,
+      messages: migratedMessages,
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  return session
+}
+
+// ============================================================================
 // CHAT SESSION STORAGE - MODE/PROJECT ISOLATED
 // ============================================================================
 
@@ -35,7 +105,19 @@ export function loadChatSession(mode: 'general' | 'project', projectId?: string 
     const key = getChatStorageKey(mode, projectId)
     const raw = localStorage.getItem(key)
     if (!raw) return null
-    return JSON.parse(raw) as ChatSession
+    
+    const session = JSON.parse(raw) as ChatSession
+    
+    // Migrate legacy welcome messages
+    const migratedSession = migrateWelcomeMessage(session, mode)
+    
+    // Save back if migration occurred
+    if (migratedSession !== session) {
+      localStorage.setItem(key, JSON.stringify(migratedSession))
+      console.log('[ChatService] Migrated legacy welcome message for', key)
+    }
+    
+    return migratedSession
   } catch {
     return null
   }
@@ -89,7 +171,7 @@ export function createNewSession(selectedProjectId: string | null, mode: 'genera
   }
 }
 
-function createWelcomeMessage(mode: 'general' | 'project'): ChatMessage {
+export function createWelcomeMessage(mode: 'general' | 'project'): ChatMessage {
   const content = mode === 'general'
     ? 'Willkommen im OSION KI-Chat. Ich bin Deine KI-Assistenz für OSION Load Pilot.'
     : 'Willkommen im OSION KI-Chat. Ich bin Deine KI-Assistenz für dieses Projekt.'
