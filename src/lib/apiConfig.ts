@@ -13,9 +13,10 @@ const RAW_API_URL = import.meta.env.VITE_LOADPILOT_API_BASE_URL || 'https://load
 function normalizeApiBaseUrl(value: string): string {
   return value
     .trim()
-    .replace(/^yhtps:\/\//i, 'https://')
     .replace(/^yhttps:\/\//i, 'https://')
+    .replace(/^yhtps:\/\//i, 'https://')
     .replace(/^htps:\/\//i, 'https://')
+    .replace(/^http:\/\//i, 'https://')
     .replace(/\/$/, '')
 }
 
