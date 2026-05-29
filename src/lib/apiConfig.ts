@@ -1,52 +1,90 @@
 /**
  * OSION Load Pilot - API Configuration
  * Phase 5: External Hostinger API
- * 
+ *
  * WICHTIG: Verwendet immer window.fetch für Browser-Kompatibilität
  */
 
-// API Base URL from environment or fallback
-// In Vite müssen ENV-Variablen mit VITE_ beginnen
-const RAW_API_URL = import.meta.env.VITE_LOADPILOT_API_BASE_URL || 'https://loadpilot-api.srv1550219.hstgr.cloud'
+const DEFAULT_API_BASE_URL = 'https://loadpilot-api.srv1550219.hstgr.cloud'
 
-// Defensive Normalisierung: Korrigiere häufige Protokoll-Tippfehler
-function normalizeApiBaseUrl(value: string): string {
-  return value
-    .trim()
+/**
+ * Normalisiert die API-Base-URL mit defensiven Korrekturen
+ * für häufige Protokoll-Tippfehler
+ * Wird zur Laufzeit aufgerufen, um Build-Zeit ENV-Fehler zu korrigieren
+ */
+function normalizeApiBaseUrl(value: string | undefined): string {
+  // Sicherstellen, dass wir einen String haben
+  const raw = String(value || DEFAULT_API_BASE_URL).trim()
+
+  // Defensive Korrektur: Ersetze offensichtliche Tippfehler
+  let fixed = raw
     .replace(/^yhttps:\/\//i, 'https://')
     .replace(/^yhtps:\/\//i, 'https://')
     .replace(/^htps:\/\//i, 'https://')
     .replace(/^http:\/\//i, 'https://')
-    .replace(/\/$/, '')
+
+  // Entferne doppelte trailing slashes
+  fixed = fixed.replace(/\/+$/, '')
+
+  // Validierung: Muss mit https:// beginnen
+  if (!fixed.startsWith('https://')) {
+    console.warn('[API Config] Invalid API base URL detected:', raw)
+    console.warn('[API Config] Using default URL:', DEFAULT_API_BASE_URL)
+    return DEFAULT_API_BASE_URL
+  }
+
+  return fixed
 }
 
-// Sicherstellen: keine doppelten Slashes, korrektes Format
-export const API_BASE_URL = normalizeApiBaseUrl(RAW_API_URL)
+// Hole die ENV-Variable (kann fehlerhaft sein wenn Vercel falsch konfiguriert)
+const RAW_ENV_VALUE: string | undefined = import.meta.env.VITE_LOADPILOT_API_BASE_URL
 
-// API Endpoints (nur Pfade, keine vollständigen URLs)
-const ENDPOINTS = {
-  health: '/health',
-  analyzeProject: '/api/analyze-project',
-  updateProjectTwin: '/api/update-project-twin',
-  chat: '/api/ai-chat'
-} as const
+// Normalisiere zur Laufzeit - korrigiert Build-Zeit-Fehler
+export const API_BASE_URL = normalizeApiBaseUrl(RAW_ENV_VALUE)
+
+// Debug: Zeige was passiert ist
+console.log('[API Config] Raw ENV:', RAW_ENV_VALUE)
+console.log('[API Config] Normalized:', API_BASE_URL)
 
 /**
- * Baue vollständige API-URL
- * @param endpoint API-Endpunkt-Pfad
+ * Baut eine vollständige API-URL
+ * @param path API-Endpunkt-Pfad
  * @returns Vollständige HTTPS-URL
  */
-export function getApiUrl(endpoint: string): string {
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
-  return `${API_BASE_URL}${cleanEndpoint}`
+function buildApiUrl(path: string): string {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  const fullUrl = `${API_BASE_URL}${cleanPath}`
+
+  // Sicherheitsprüfung: URL muss gültig sein
+  if (!fullUrl.startsWith('https://')) {
+    console.error('[API Config] CRITICAL: Built invalid URL:', fullUrl)
+    throw new Error(`Invalid API URL generated: ${fullUrl}`)
+  }
+
+  return fullUrl
 }
 
-// Spezifische URL-Builder
-export const getHealthUrl = (): string => getApiUrl(ENDPOINTS.health)
-export const getAnalyzeUrl = (): string => getApiUrl(ENDPOINTS.analyzeProject)
-export const getUpdateTwinUrl = (): string => getApiUrl(ENDPOINTS.updateProjectTwin)
-export const getChatUrl = (): string => getApiUrl(ENDPOINTS.chat)
+// URL-Builder Funktionen mit Debug-Logging
+export function getHealthUrl(): string {
+  const url = buildApiUrl('/health')
+  console.log('[API Config] getHealthUrl():', url)
+  return url
+}
 
-// Für Debugging: URL im Console-Log ausgeben
-console.log('[API Config] Base URL:', API_BASE_URL)
+export function getChatUrl(): string {
+  const url = buildApiUrl('/api/ai-chat')
+  console.log('[API Config] getChatUrl():', url)
+  return url
+}
 
+export function getAnalyzeUrl(): string {
+  const url = buildApiUrl('/api/analyze-project')
+  console.log('[API Config] getAnalyzeUrl():', url)
+  return url
+}
+
+export function getUpdateTwinUrl(): string {
+  const url = buildApiUrl('/api/update-project-twin')
+  console.log('[API Config] getUpdateTwinUrl():', url)
+  return url
+}
