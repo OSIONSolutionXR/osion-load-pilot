@@ -84,7 +84,11 @@ function App() {
   const activeTwin = twins.find((twin) => twin.id === activeTwinId) ?? twins[0] ?? null
 
   const handleCreateTwin = (sourceInput: string, analysis: StoredProjectTwin['analysis'], projectId?: string) => {
-    if (!analysis.quality.isActionable) {
+    // NEUE REGEL: Projekt anlegen wenn Projektwille erkennbar (Titel vorhanden oder Input > 10 Zeichen)
+    const hasProjectIntent = Boolean(analysis.project?.title) || sourceInput.trim().length > 10
+    const isNonsenseInput = ['test', 'abc', 'hallo', 'was geht', 'testen'].includes(sourceInput.trim().toLowerCase())
+    
+    if (!hasProjectIntent || isNonsenseInput) {
       navigateTo('input')
       return
     }

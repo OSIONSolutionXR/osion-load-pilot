@@ -216,7 +216,7 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
                     <h3 className="text-xl font-semibold text-[var(--lp-text)] mb-1">Project-Twin Preview</h3>
                     <p className="text-sm text-[var(--lp-muted)]">
                       {isDiscovery
-                        ? 'Projekt aus früher Idee erstellt. Kann jetzt gespeichert und später konkretisiert werden.'
+                        ? 'Projektidee erkannt. Dieses Projekt kann gespeichert und im nächsten Schritt konkretisiert werden.'
                         : isActionable
                           ? 'Die Analyse ist speicherfähig und kann als lokaler Twin übernommen werden.'
                           : 'Die Analyse ist noch nicht speicherfähig. Ergänze den Input, bevor ein Twin angelegt wird.'}
