@@ -81,124 +81,10 @@ export default function ChatWorkspace({
     console.log('Suggestion clicked:', text)
   }, [])
 
-  // General Chat Header
-  const renderGeneralHeader = () => (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full mb-6"
-    >
-      <div className="flex items-start gap-5">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
-          <Globe className="w-7 h-7 text-cyan-300" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-50 mb-1">OSION Allgemeiner Chat</h1>
-          <p className="text-slate-400 text-lg">Projektübergreifende Steuerung, Übersicht und OSION-Systemfragen</p>
-        </div>
-      </div>
-    </motion.div>
-  )
-
-  // Project Chat Header - STICKY
-  const renderProjectHeader = () => {
-    if (!activeProject) return null
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full mb-6"
-        style={{
-          position: 'sticky',
-          top: '24px',
-          zIndex: 10
-        }}
-      >
-        {/* Project Context Card */}
-        <div className="w-full rounded-3xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 via-violet-500/5 to-blue-500/10 p-6 md:p-8 backdrop-blur-sm">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
-                <FolderKanban className="w-7 h-7 text-violet-300" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-violet-300 mb-1">Du arbeitest im Projekt</p>
-                <h2 className="text-2xl font-bold text-slate-50">{activeProject.title}</h2>
-                {activeProject.description && (
-                  <p className="text-sm text-slate-400 mt-1 max-w-xl line-clamp-1">{activeProject.description}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => onOpenTwin(activeProject.id)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/80 text-slate-300 border border-slate-700 hover:border-slate-600 text-sm font-medium transition-colors"
-              >
-                <LayoutGrid className="w-4 h-4" />
-                Twin öffnen
-              </button>
-              <button
-                onClick={onSwitchProject}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500/10 text-violet-300 border border-violet-500/30 text-sm font-medium hover:bg-violet-500/20 transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Projekt wechseln
-              </button>
-            </div>
-          </div>
-
-          {/* Stats Row */}
-          {projectStats && (
-            <div className="flex flex-wrap items-center gap-6 mt-6 pt-6 border-t border-violet-500/20">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-800/60 flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div>
-                  <span className="text-2xl font-bold text-slate-100">{projectStats.measures}</span>
-                  <span className="text-sm text-slate-400 ml-2">Maßnahmen</span>
-                </div>
-              </div>
-
-              {projectStats.risks > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                    <AlertCircle className="w-5 h-5 text-amber-400" />
-                  </div>
-                  <div>
-                    <span className="text-2xl font-bold text-amber-400">{projectStats.risks}</span>
-                    <span className="text-sm text-slate-400 ml-2">Risiken</span>
-                  </div>
-                </div>
-              )}
-
-              {projectStats.openPoints > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                    <Zap className="w-5 h-5 text-violet-400" />
-                  </div>
-                  <div>
-                    <span className="text-2xl font-bold text-violet-400">{projectStats.openPoints}</span>
-                    <span className="text-sm text-slate-400 ml-2">offene Punkte</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </motion.div>
-    )
-  }
-
   return (
     <div 
       className="min-h-[calc(100vh-72px)] py-10 px-8"
-      style={{
-        background: '#050914',
-        color: '#F8FAFC'
-      }}
+      style={{ background: '#050914' }}
     >
       {/* Main Chat Stage - Centered */}
       <div 
@@ -212,6 +98,7 @@ export default function ChatWorkspace({
       >
         {/* Inner Workspace - Centered with max-width */}
         <div style={{ width: 'min(100%, 1380px)', margin: '0 auto' }}>
+          
           {/* Back Button */}
           <button
             onClick={onBackToSelection}
@@ -221,14 +108,126 @@ export default function ChatWorkspace({
             <span className="text-sm font-medium">Zurück zur Auswahl</span>
           </button>
 
-          {/* Header - Part of the scrollable content, STICKY */}
-          {mode === 'general' ? (
-            <div style={{ position: 'sticky', top: '24px', zIndex: 10 }}>
-              {renderGeneralHeader()}
-            </div>
-          ) : renderProjectHeader()}
+          {/* General Chat Header - OPAQUE, STICKY */}
+          {mode === 'general' && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full mb-6"
+              style={{
+                position: 'sticky',
+                top: '24px',
+                zIndex: 10,
+                background: '#111827',
+                borderRadius: '22px',
+                border: '1px solid rgba(6, 182, 212, 0.35)',
+                boxShadow: '0 16px 40px rgba(0, 0, 0, 0.35)',
+                padding: '24px 28px'
+              }}
+            >
+              <div className="flex items-start gap-5">
+                <div className="w-14 h-14 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
+                  <Globe className="w-7 h-7 text-cyan-300" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-slate-50 mb-1">OSION Allgemeiner Chat</h1>
+                  <p className="text-slate-400 text-lg">Projektübergreifende Steuerung, Übersicht und OSION-Systemfragen</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
-          {/* Chat Workspace Grid */}
+          {/* Project Chat Header - OPAQUE, STICKY */}
+          {mode === 'project' && activeProject && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full mb-6"
+              style={{
+                position: 'sticky',
+                top: '24px',
+                zIndex: 10,
+                background: '#111827',
+                borderRadius: '22px',
+                border: '1px solid rgba(124, 58, 237, 0.45)',
+                boxShadow: '0 16px 40px rgba(0, 0, 0, 0.35)',
+                padding: '24px 28px'
+              }}
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+                    <FolderKanban className="w-7 h-7 text-violet-300" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-violet-300 mb-1">Du arbeitest im Projekt</p>
+                    <h2 className="text-2xl font-bold text-slate-50">{activeProject.title}</h2>
+                    {activeProject.description && (
+                      <p className="text-sm text-slate-400 mt-1 max-w-xl line-clamp-1">{activeProject.description}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => onOpenTwin(activeProject.id)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 border border-slate-600 hover:border-slate-500 text-sm font-medium transition-colors"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                    Twin öffnen
+                  </button>
+                  <button
+                    onClick={onSwitchProject}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500/20 text-violet-300 border border-violet-500/40 text-sm font-medium hover:bg-violet-500/30 transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Projekt wechseln
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats Row */}
+              {projectStats && (
+                <div className="flex flex-wrap items-center gap-6 mt-6 pt-6 border-t border-slate-700">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <span className="text-2xl font-bold text-slate-100">{projectStats.measures}</span>
+                      <span className="text-sm text-slate-400 ml-2">Maßnahmen</span>
+                    </div>
+                  </div>
+
+                  {projectStats.risks > 0 && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                        <AlertCircle className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <span className="text-2xl font-bold text-amber-400">{projectStats.risks}</span>
+                        <span className="text-sm text-slate-400 ml-2">Risiken</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {projectStats.openPoints > 0 && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                        <Zap className="w-5 h-5 text-violet-400" />
+                      </div>
+                      <div>
+                        <span className="text-2xl font-bold text-violet-400">{projectStats.openPoints}</span>
+                        <span className="text-sm text-slate-400 ml-2">offene Punkte</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Chat Workspace Grid - Starts below header */}
           <div 
             className="grid"
             style={{
@@ -243,7 +242,7 @@ export default function ChatWorkspace({
               style={{
                 minHeight: '720px',
                 borderRadius: '24px',
-                background: 'rgba(8, 13, 28, 0.92)',
+                background: '#0d1320',
                 border: '1px solid rgba(148, 163, 184, 0.20)',
                 overflow: 'hidden'
               }}
@@ -256,15 +255,16 @@ export default function ChatWorkspace({
               />
             </div>
 
-            {/* Suggestions Panel - STICKY */}
+            {/* Suggestions Panel - OPAQUE, STICKY */}
             <aside
               className="hidden lg:block"
               style={{
                 minHeight: '420px',
-                borderRadius: '24px',
+                borderRadius: '22px',
                 padding: '22px',
-                background: 'rgba(8, 13, 28, 0.88)',
-                border: '1px solid rgba(148, 163, 184, 0.20)',
+                background: '#111827',
+                border: '1px solid rgba(148, 163, 184, 0.22)',
+                boxShadow: '0 16px 40px rgba(0, 0, 0, 0.30)',
                 position: 'sticky',
                 top: '24px',
                 alignSelf: 'start'
@@ -274,7 +274,7 @@ export default function ChatWorkspace({
               <div className="flex items-center gap-3 mb-6">
                 <div 
                   className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    mode === 'general' ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-violet-500/10 border border-violet-500/30'
+                    mode === 'general' ? 'bg-cyan-500/20 border border-cyan-500/40' : 'bg-violet-500/20 border border-violet-500/40'
                   }`}
                 >
                   <Sparkles className={`w-5 h-5 ${mode === 'general' ? 'text-cyan-400' : 'text-violet-400'}`} />
@@ -298,8 +298,8 @@ export default function ChatWorkspace({
                     onClick={() => handleSuggestionClick(suggestion.text)}
                     className={`w-full text-left p-3.5 rounded-xl border transition-all group ${
                       mode === 'general'
-                        ? 'border-slate-700/50 bg-slate-800/40 hover:bg-slate-700/60 hover:border-cyan-500/30'
-                        : 'border-slate-700/50 bg-slate-800/40 hover:bg-slate-700/60 hover:border-violet-500/30'
+                        ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 hover:border-cyan-500/40'
+                        : 'bg-slate-800 border-slate-700 hover:bg-slate-700 hover:border-violet-500/40'
                     }`}
                   >
                     <span className="text-sm text-slate-300 group-hover:text-slate-100">
