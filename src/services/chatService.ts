@@ -95,9 +95,46 @@ function migrateWelcomeMessage(session: ChatSession, mode: 'general' | 'project'
   return session
 }
 
-// ============================================================================
-// CHAT SESSION STORAGE - MODE/PROJECT ISOLATED
-// ============================================================================
+// Legacy connection error patterns to clean up
+const LEGACY_ERROR_PATTERNS = [
+  'KI-Verbindung nicht erreichbar',
+  'Not found',
+  'Bitte prüfe die Verbindung',
+  'Failed to fetch'
+]
+
+function isLegacyConnectionErrorMessage(content: string): boolean {
+  return LEGACY_ERROR_PATTERNS.some(pattern => content.includes(pattern))
+}
+
+function migrateLegacyErrors(session: ChatSession): ChatSession {
+  if (!session.messages || session.messages.length === 0) {
+    return session
+  }
+
+  const filteredMessages = session.messages.filter((message) => {
+    // Remove old technical error messages
+    if (
+      message.role === 'assistant' &&
+      message.isError &&
+      isLegacyConnectionErrorMessage(message.content)
+    ) {
+      console.log('[ChatService] Removed legacy error message:', message.content.substring(0, 50))
+      return false
+    }
+    return true
+  })
+
+  if (filteredMessages.length !== session.messages.length) {
+    return {
+      ...session,
+      messages: filteredMessages,
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  return session
+}
 
 export function loadChatSession(mode: 'general' | 'project', projectId?: string | null): ChatSession | null {
   if (typeof window === 'undefined') return null
@@ -109,12 +146,15 @@ export function loadChatSession(mode: 'general' | 'project', projectId?: string 
     const session = JSON.parse(raw) as ChatSession
     
     // Migrate legacy welcome messages
-    const migratedSession = migrateWelcomeMessage(session, mode)
+    let migratedSession = migrateWelcomeMessage(session, mode)
+    
+    // Migrate legacy error messages
+    migratedSession = migrateLegacyErrors(migratedSession)
     
     // Save back if migration occurred
     if (migratedSession !== session) {
       localStorage.setItem(key, JSON.stringify(migratedSession))
-      console.log('[ChatService] Migrated legacy welcome message for', key)
+      console.log('[ChatService] Migrated session for', key)
     }
     
     return migratedSession
@@ -459,7 +499,7 @@ export async function sendChatMessageEnhanced(
     )
 
     return {
-      text: data.answer || data.text || 'Keine Antwort erhalten',
+      text: data.message || data.answer || data.text || data.reply || data.response || 'Keine Antwort erhalten',
       suggestions,
       intent: intentMatch.intent
     }
@@ -535,7 +575,7 @@ function generateSuggestions(
 
 export async function checkChatConnection(): Promise<{ connected: boolean; error?: string }> {
   try {
-    const response = await fetch(getHealthUrl())
+    const response = await window.fetch(getHealthUrl())
     if (response.ok) {
       const data = await response.json()
       if (data.ok && data.ai?.configured) {
