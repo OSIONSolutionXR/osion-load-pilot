@@ -36,36 +36,23 @@ interface ChatWorkspaceProps {
 
 // General Chat Suggestions
 const generalSuggestions = [
-  { id: 'gen-1', text: 'Zeig mir alle aktiven Projekte', icon: 'list' },
-  { id: 'gen-2', text: 'Welche Projekte brauchen Aufmerksamkeit?', icon: 'alert' },
-  { id: 'gen-3', text: 'Welche Maßnahmen sind heute wichtig?', icon: 'check' },
-  { id: 'gen-4', text: 'Welche Projekte haben Risiken?', icon: 'warning' },
-  { id: 'gen-5', text: 'Welche offenen Punkte gibt es?', icon: 'message' },
-  { id: 'gen-6', text: 'Erstelle eine Wochenübersicht', icon: 'calendar' },
+  { id: 'gen-1', text: 'Zeig mir alle aktiven Projekte' },
+  { id: 'gen-2', text: 'Welche Projekte brauchen Aufmerksamkeit?' },
+  { id: 'gen-3', text: 'Welche Maßnahmen sind heute wichtig?' },
+  { id: 'gen-4', text: 'Welche Projekte haben Risiken?' },
+  { id: 'gen-5', text: 'Welche offenen Punkte gibt es?' },
+  { id: 'gen-6', text: 'Erstelle eine Wochenübersicht' },
 ]
 
 // Project Chat Suggestions
 const projectSuggestions = [
-  { id: 'proj-1', text: 'Was ist der nächste sinnvolle Schritt?', icon: 'arrow' },
-  { id: 'proj-2', text: 'Welche Maßnahme sollte zuerst erledigt werden?', icon: 'check' },
-  { id: 'proj-3', text: 'Welche Risiken brauchen Aufmerksamkeit?', icon: 'warning' },
-  { id: 'proj-4', text: 'Welche Blocker verhindern Fortschritt?', icon: 'block' },
-  { id: 'proj-5', text: 'Projektstatus zusammenfassen', icon: 'summary' },
-  { id: 'proj-6', text: 'Neue Maßnahme vorbereiten', icon: 'plus' },
+  { id: 'proj-1', text: 'Was ist der nächste sinnvolle Schritt?' },
+  { id: 'proj-2', text: 'Welche Maßnahme sollte zuerst erledigt werden?' },
+  { id: 'proj-3', text: 'Welche Risiken brauchen Aufmerksamkeit?' },
+  { id: 'proj-4', text: 'Welche Blocker verhindern Fortschritt?' },
+  { id: 'proj-5', text: 'Projektstatus zusammenfassen' },
+  { id: 'proj-6', text: 'Neue Maßnahme vorbereiten' },
 ]
-
-// Premium Dark Theme
-const chatTheme = {
-  pageBg: "#070A12",
-  panelBg: "#0B1020",
-  border: "rgba(148, 163, 184, 0.18)",
-  textPrimary: "#F8FAFC",
-  textSecondary: "#CBD5E1",
-  textMuted: "#94A3B8",
-  accent: "#8B5CF6",
-  accentCyan: "#06B6D4",
-  accentAmber: "#F59E0B"
-}
 
 export default function ChatWorkspace({
   mode,
@@ -74,12 +61,8 @@ export default function ChatWorkspace({
   onBackToSelection,
   onSwitchProject,
   onOpenTwin,
-  onCreateTwin,
-  onAddMeasure,
-  onUpdateMeasure,
-  onUpdateTwin
 }: ChatWorkspaceProps) {
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId || null)
+  const [selectedProjectId] = useState<string | null>(projectId || null)
   
   // Get project info for project mode
   const activeProject = mode === 'project' && selectedProjectId
@@ -93,23 +76,15 @@ export default function ChatWorkspace({
     openPoints: activeProject.contextQuestions?.length || 0
   } : null
 
-  // Handle project switch
-  const handleSwitchProject = useCallback(() => {
-    setSelectedProjectId(null)
-    onSwitchProject()
-  }, [onSwitchProject])
-
-  // Handle suggestion click - would set input text in real implementation
+  // Handle suggestion click
   const handleSuggestionClick = useCallback((text: string) => {
-    // This would set the input text in ChatScreen
-    // For now, we'll pass this through context or prop drilling if needed
     console.log('Suggestion clicked:', text)
   }, [])
 
   // General Chat Header
   const renderGeneralHeader = () => (
-    <div className="mb-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-[1480px] mx-auto mb-6">
+      <div className="flex items-center justify-between">
         <button
           onClick={onBackToSelection}
           className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors"
@@ -122,26 +97,25 @@ export default function ChatWorkspace({
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-start gap-5"
+        className="flex items-start gap-5 mt-6"
       >
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
-          <Globe className="w-8 h-8 text-cyan-300" />
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
+          <Globe className="w-7 h-7 text-cyan-300" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-slate-50 mb-2">OSION Allgemeiner Chat</h1>
+          <h1 className="text-3xl font-bold text-slate-50 mb-1">OSION Allgemeiner Chat</h1>
           <p className="text-slate-400 text-lg">Projektübergreifende Steuerung, Übersicht und OSION-Systemfragen</p>
         </div>
       </motion.div>
     </div>
   )
 
-  // Project Chat Header with fixed context card
+  // Project Chat Header
   const renderProjectHeader = () => {
     if (!activeProject) return null
 
     return (
-      <div className="mb-8">
-        {/* Top bar with back button */}
+      <div className="max-w-[1480px] mx-auto mb-6">
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={onBackToSelection}
@@ -152,34 +126,22 @@ export default function ChatWorkspace({
           </button>
         </div>
 
-        {/* Project Context Card - FIXED and VISIBLE */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          {/* Mode Badge */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="px-3 py-1 rounded-full bg-violet-500/10 text-violet-300 text-xs font-medium border border-violet-500/30">
-              OSION Projekt-Chat
-            </span>
-          </div>
-
-          {/* Main Project Card */}
-          <div className="rounded-3xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 via-violet-500/5 to-blue-500/10 p-8">
-            <div className="flex items-start justify-between gap-6">
+          {/* Project Context Card */}
+          <div className="rounded-3xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 via-violet-500/5 to-blue-500/10 p-6 md:p-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="flex items-center gap-5">
-                <div className="w-16 h-16 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center">
-                  <FolderKanban className="w-8 h-8 text-violet-300" />
+                <div className="w-14 h-14 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+                  <FolderKanban className="w-7 h-7 text-violet-300" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-violet-300 mb-1">
-                    Du arbeitest im Projekt
-                  </p>
+                  <p className="text-sm font-medium text-violet-300 mb-1">Du arbeitest im Projekt</p>
                   <h2 className="text-2xl font-bold text-slate-50">{activeProject.title}</h2>
                   {activeProject.description && (
-                    <p className="text-sm text-slate-400 mt-1 max-w-xl">
-                      {activeProject.description}
-                    </p>
+                    <p className="text-sm text-slate-400 mt-1 max-w-xl line-clamp-1">{activeProject.description}</p>
                   )}
                 </div>
               </div>
@@ -193,7 +155,7 @@ export default function ChatWorkspace({
                   Twin öffnen
                 </button>
                 <button
-                  onClick={handleSwitchProject}
+                  onClick={onSwitchProject}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500/10 text-violet-300 border border-violet-500/30 text-sm font-medium hover:bg-violet-500/20 transition-colors"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -204,7 +166,7 @@ export default function ChatWorkspace({
 
             {/* Stats Row */}
             {projectStats && (
-              <div className="flex items-center gap-8 mt-6 pt-6 border-t border-violet-500/20">
+              <div className="flex flex-wrap items-center gap-6 mt-6 pt-6 border-t border-violet-500/20">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-slate-800/60 flex items-center justify-center">
                     <CheckCircle2 className="w-5 h-5 text-emerald-400" />
@@ -246,100 +208,45 @@ export default function ChatWorkspace({
     )
   }
 
-  // Suggestions Sidebar for General Chat
-  const renderGeneralSidebar = () => (
-    <div className="space-y-3">
-      {generalSuggestions.map((suggestion, index) => (
-        <motion.button
-          key={suggestion.id}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: index * 0.05 }}
-          onClick={() => handleSuggestionClick(suggestion.text)}
-          className="w-full text-left p-4 rounded-xl border border-slate-700/50 bg-slate-800/30 hover:bg-slate-700/50 hover:border-cyan-500/30 transition-all group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-            </div>
-            <span className="text-sm text-slate-300 group-hover:text-slate-100">
-              {suggestion.text}
-            </span>
-          </div>
-        </motion.button>
-      ))}
-    </div>
-  )
-
-  // Suggestions Sidebar for Project Chat
-  const renderProjectSidebar = () => (
-    <div className="space-y-3">
-      {projectSuggestions.map((suggestion, index) => (
-        <motion.button
-          key={suggestion.id}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: index * 0.05 }}
-          onClick={() => handleSuggestionClick(suggestion.text)}
-          className="w-full text-left p-4 rounded-xl border border-slate-700/50 bg-slate-800/30 hover:bg-slate-700/50 hover:border-violet-500/30 transition-all group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
-              <Zap className="w-4 h-4 text-violet-400" />
-            </div>
-            <span className="text-sm text-slate-300 group-hover:text-slate-100">
-              {suggestion.text}
-            </span>
-          </div>
-        </motion.button>
-      ))}
-    </div>
-  )
-
   return (
     <div 
-      className="min-h-full p-6 sm:p-8 lg:p-10"
+      className="min-h-full py-8 px-6"
       style={{
         background: mode === 'general' 
           ? `radial-gradient(circle at top left, rgba(6, 182, 212, 0.08), transparent 40%),
              radial-gradient(circle at top right, rgba(16, 185, 129, 0.06), transparent 35%),
-             ${chatTheme.pageBg}`
+             #070A12`
           : `radial-gradient(circle at top left, rgba(139, 92, 246, 0.12), transparent 40%),
              radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 35%),
-             ${chatTheme.pageBg}`,
-        color: chatTheme.textPrimary
+             #070A12`,
+        color: '#F8FAFC'
       }}
     >
-      <div className="max-w-7xl mx-auto">
-        {/* Header based on mode */}
-        {mode === 'general' ? renderGeneralHeader() : renderProjectHeader()}
+      {/* Header */}
+      {mode === 'general' ? renderGeneralHeader() : renderProjectHeader()}
 
-        {/* Main Content Grid */}
-        <div className="grid xl:grid-cols-[1fr_380px] gap-6">
-          {/* Chat Area - Takes full width in general mode, or shares with sidebar */}
-          <div className="h-[calc(100vh-280px)] min-h-[500px]">
+      {/* Main Content - Centered Workspace Layout */}
+      <div className="max-w-[1480px] mx-auto">
+        <div className="grid lg:grid-cols-[1fr_380px] gap-7">
+          {/* Chat Panel */}
+          <div className="min-h-[660px] rounded-3xl border border-slate-700/30 bg-slate-900/60 overflow-hidden flex flex-col">
             <ChatScreen
               twins={twins}
               activeTwinId={mode === 'project' ? selectedProjectId : null}
               onOpenTwin={onOpenTwin}
-              onCreateTwin={onCreateTwin}
-              onAddMeasure={onAddMeasure}
-              onUpdateMeasure={onUpdateMeasure}
-              onUpdateTwin={onUpdateTwin}
               mode={mode}
             />
           </div>
 
-          {/* Suggestions Sidebar */}
-          <aside className="hidden xl:block">
-            <div className="sticky top-6">
-              <div className="flex items-center gap-3 mb-5">
+          {/* Suggestions Panel */}
+          <aside className="hidden lg:block">
+            <div className="sticky top-6 rounded-3xl border border-slate-700/30 bg-slate-900/60 p-6 min-h-[420px]">
+              {/* Header */}
+              <div className="flex items-center gap-3 mb-6">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  mode === 'general' ? 'bg-cyan-500/10' : 'bg-violet-500/10'
+                  mode === 'general' ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-violet-500/10 border border-violet-500/30'
                 }`}>
-                  <Sparkles className={`w-5 h-5 ${
-                    mode === 'general' ? 'text-cyan-400' : 'text-violet-400'
-                  }`} />
+                  <Sparkles className={`w-5 h-5 ${mode === 'general' ? 'text-cyan-400' : 'text-violet-400'}`} />
                 </div>
                 <div>
                   <h3 className="font-semibold text-slate-100">KI-Vorschläge</h3>
@@ -349,7 +256,31 @@ export default function ChatWorkspace({
                 </div>
               </div>
 
-              {mode === 'general' ? renderGeneralSidebar() : renderProjectSidebar()}
+              {/* Suggestions List */}
+              <div className="space-y-3">
+                {(mode === 'general' ? generalSuggestions : projectSuggestions).map((suggestion, index) => (
+                  <motion.button
+                    key={suggestion.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    onClick={() => handleSuggestionClick(suggestion.text)}
+                    className={`w-full text-left p-4 rounded-xl border transition-all group ${
+                      mode === 'general'
+                        ? 'border-slate-700/50 bg-slate-800/40 hover:bg-slate-700/60 hover:border-cyan-500/30'
+                        : 'border-slate-700/50 bg-slate-800/40 hover:bg-slate-700/60 hover:border-violet-500/30'
+                    }`}
+                  >
+                    <span className={`text-sm ${
+                      mode === 'general' 
+                        ? 'text-slate-300 group-hover:text-slate-100' 
+                        : 'text-slate-300 group-hover:text-slate-100'
+                    }`}>
+                      {suggestion.text}
+                    </span>
+                  </motion.button>
+                ))}
+              </div>
             </div>
           </aside>
         </div>

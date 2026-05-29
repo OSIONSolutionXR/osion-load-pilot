@@ -62,7 +62,7 @@ export default function ChatSelectScreen({
   if (showProjectPicker) {
     return (
       <div 
-        className="min-h-full p-8 sm:p-12"
+        className="min-h-full py-8 px-6"
         style={{
           background: `radial-gradient(circle at top right, rgba(139, 92, 246, 0.12), transparent 40%),
                       radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.08), transparent 35%),
@@ -70,129 +70,139 @@ export default function ChatSelectScreen({
           color: chatTheme.textPrimary
         }}
       >
-        {/* Header */}
-        <header className="mb-10 max-w-6xl mx-auto">
-          <button 
-            onClick={() => setShowProjectPicker(false)}
-            className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors mb-8"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">Zurück zur Auswahl</span>
-          </button>
-          
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h1 className="text-4xl font-bold text-slate-50 mb-3">
-              Projekt-Chat starten
-            </h1>
-            <p className="text-lg text-slate-400">
-              Wähle den Project Twin, mit dem OSION arbeiten soll.
-            </p>
-          </motion.div>
-        </header>
+        {/* Centered Container */}
+        <div className="max-w-[1180px] mx-auto">
+          {/* Header - Centered */}
+          <header className="mb-10 text-center">
+            <button 
+              onClick={() => setShowProjectPicker(false)}
+              className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors mb-8 mx-auto"
+            >
+              <ChevronLeft className="w-5 h-5" />
+              <span className="text-sm font-medium">Zurück zur Auswahl</span>
+            </button>
+            
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-[760px] mx-auto"
+            >
+              <h1 className="text-4xl font-bold text-slate-50 mb-3">
+                Projekt-Chat starten
+              </h1>
+              <p className="text-lg text-slate-400">
+                Wähle den Project Twin, mit dem OSION arbeiten soll.
+              </p>
+            </motion.div>
+          </header>
 
-        {/* Search - only if many projects */}
-        {twins.length > 4 && (
-          <div className="mb-8 max-w-6xl mx-auto">
-            <div className="relative max-w-2xl">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Projekt suchen..."
-                className="w-full pl-14 pr-5 py-4 rounded-2xl border border-slate-700 bg-slate-900/80 text-slate-100 placeholder:text-slate-500 focus:border-violet-500/50 focus:outline-none transition-colors text-base"
-              />
+          {/* Search - only if many projects */}
+          {twins.length > 4 && (
+            <div className="mb-8">
+              <div className="relative max-w-2xl mx-auto">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Projekt suchen..."
+                  className="w-full pl-14 pr-5 py-4 rounded-2xl border border-slate-700 bg-slate-900/80 text-slate-100 placeholder:text-slate-500 focus:border-violet-500/50 focus:outline-none transition-colors text-base"
+                />
+              </div>
             </div>
+          )}
+
+          {/* Project Grid - 3 Columns on Desktop */}
+          <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
+            <AnimatePresence mode="popLayout">
+              {filteredProjects.length > 0 ? (
+                filteredProjects.map((twin, index) => {
+                  const stats = getProjectStats(twin)
+
+                  return (
+                    <motion.div
+                      key={twin.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="group relative rounded-[22px] border border-violet-500/20 bg-slate-900/80 p-6 cursor-pointer transition-all hover:border-violet-500/40 hover:bg-slate-800/90 hover:shadow-2xl hover:shadow-violet-500/10 flex flex-col justify-between min-h-[190px]"
+                      onClick={() => onSelectProject(twin.id)}
+                    >
+                      {/* Top section */}
+                      <div>
+                        {/* Icon */}
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30 flex items-center justify-center mb-4">
+                          <FolderKanban className="w-6 h-6 text-violet-300" />
+                        </div>
+
+                        {/* Content */}
+                        <h3 className="font-bold text-slate-100 text-lg mb-2">{twin.title}</h3>
+                        {twin.description && (
+                          <p className="text-sm text-slate-400 mb-4 line-clamp-2 leading-relaxed">{twin.description}</p>
+                        )}
+                      </div>
+
+                      {/* Bottom section */}
+                      <div>
+                        {/* Stats Row */}
+                        <div className="flex flex-wrap items-center gap-2 mb-4">
+                          <span className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800/60 px-2.5 py-1 rounded-full">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                            {stats.openMeasures}/{stats.measures}
+                          </span>
+                          
+                          {stats.risks > 0 && (
+                            <span className="flex items-center gap-1.5 text-xs text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                              <AlertCircle className="w-3 h-3" />
+                              {stats.risks} Risiken
+                            </span>
+                          )}
+                          
+                          {stats.openPoints > 0 && (
+                            <span className="flex items-center gap-1.5 text-xs text-violet-300 bg-violet-500/10 px-2.5 py-1 rounded-full border border-violet-500/20">
+                              <MessageCircle className="w-3 h-3" />
+                              {stats.openPoints} offen
+                            </span>
+                          )}
+                        </div>
+
+                        {/* CTA Button */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-500">
+                            {(twin.progress?.stage as string) === 'active' ? 'Aktiv' : (twin.progress?.stage as string) === 'blocked' ? 'Blockiert' : 'In Planung'}
+                          </span>
+                          <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-500/10 text-violet-300 border border-violet-500/30 font-medium text-xs group-hover:bg-violet-500/20 group-hover:border-violet-500/50 transition-all">
+                            Chat öffnen
+                            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )
+                })
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="col-span-full text-center py-16 rounded-3xl border border-dashed border-slate-700 bg-slate-900/40"
+                >
+                  <FolderKanban className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+                  <p className="text-slate-400 mb-2 text-lg">Keine Projekte gefunden</p>
+                  <p className="text-sm text-slate-500">Erstelle zuerst ein Projekt über "Neuer Input"</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        )}
-
-        {/* Project Grid - 2 Columns */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-6xl mx-auto">
-          <AnimatePresence mode="popLayout">
-            {filteredProjects.length > 0 ? (
-              filteredProjects.map((twin, index) => {
-                const stats = getProjectStats(twin)
-
-                return (
-                  <motion.div
-                    key={twin.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="group relative rounded-3xl border border-slate-700/50 bg-slate-900/60 p-8 cursor-pointer transition-all hover:border-violet-500/40 hover:bg-slate-800/80 hover:shadow-2xl hover:shadow-violet-500/10"
-                    onClick={() => onSelectProject(twin.id)}
-                  >
-                    {/* Icon */}
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30 flex items-center justify-center mb-5">
-                      <FolderKanban className="w-7 h-7 text-violet-300" />
-                    </div>
-
-                    {/* Content */}
-                    <h3 className="font-bold text-slate-100 text-xl mb-2">{twin.title}</h3>
-                    {twin.description && (
-                      <p className="text-sm text-slate-400 mb-5 line-clamp-2 leading-relaxed">{twin.description}</p>
-                    )}
-
-                    {/* Stats Row */}
-                    <div className="flex flex-wrap items-center gap-3 mb-6">
-                      <span className="flex items-center gap-1.5 text-sm text-slate-400 bg-slate-800/60 px-3 py-1.5 rounded-full">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                        {stats.openMeasures}/{stats.measures} Maßnahmen
-                      </span>
-                      
-                      {stats.risks > 0 && (
-                        <span className="flex items-center gap-1.5 text-sm text-amber-300 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20">
-                          <AlertCircle className="w-3.5 h-3.5" />
-                          {stats.risks} Risiken
-                        </span>
-                      )}
-                      
-                      {stats.openPoints > 0 && (
-                        <span className="flex items-center gap-1.5 text-sm text-violet-300 bg-violet-500/10 px-3 py-1.5 rounded-full border border-violet-500/20">
-                          <MessageCircle className="w-3.5 h-3.5" />
-                          {stats.openPoints} offen
-                        </span>
-                      )}
-                    </div>
-
-                    {/* CTA Button */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-500">
-                        {(twin.progress?.stage as string) === 'active' ? 'Aktiv' : (twin.progress?.stage as string) === 'blocked' ? 'Blockiert' : 'In Planung'}
-                      </span>
-                      <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-500/10 text-violet-300 border border-violet-500/30 font-medium text-sm group-hover:bg-violet-500/20 group-hover:border-violet-500/50 transition-all">
-                        Chat öffnen
-                        <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                      </button>
-                    </div>
-                  </motion.div>
-                )
-              })
-            ) : (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="col-span-2 text-center py-16 rounded-3xl border border-dashed border-slate-700 bg-slate-900/40"
-              >
-                <FolderKanban className="w-16 h-16 mx-auto text-slate-600 mb-4" />
-                <p className="text-slate-400 mb-2 text-lg">Keine Projekte gefunden</p>
-                <p className="text-sm text-slate-500">Erstelle zuerst ein Projekt über "Neuer Input"</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
     )
   }
 
-  // Main Selection Screen - PREMIUM VERSION
+  // Main Selection Screen - CENTERED VERSION
   return (
     <div 
-      className="min-h-full flex flex-col items-center justify-center p-8 sm:p-12 lg:p-16"
+      className="min-h-full py-12 px-6 flex items-center justify-center"
       style={{
         background: `radial-gradient(circle at top center, rgba(139, 92, 246, 0.1), transparent 50%),
                     radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.06), transparent 40%),
@@ -201,96 +211,95 @@ export default function ChatSelectScreen({
         color: chatTheme.textPrimary
       }}
     >
-      {/* Header */}
-      <motion.header 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-16"
-      >
-        <h1 className="text-5xl sm:text-6xl font-bold text-slate-50 mb-5 tracking-tight">
-          Womit möchtest Du arbeiten?
-        </h1>
-        <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-          Wähle, ob Du mit einem konkreten Projekt arbeitest oder OSION projektübergreifend steuerst.
-        </p>
-      </motion.header>
-
-      {/* Selection Cards - PREMIUM LARGER CARDS */}
-      <div className="grid lg:grid-cols-2 gap-8 w-full max-w-5xl">
-        {/* Project Chat Card */}
-        <motion.button
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-          whileHover={{ scale: 1.01, y: -6 }}
-          whileTap={{ scale: 0.99 }}
-          onClick={() => setShowProjectPicker(true)}
-          className="relative group text-left rounded-[2rem] border border-slate-700/50 bg-slate-900/80 p-10 transition-all hover:border-violet-500/50 hover:bg-slate-800/90 hover:shadow-2xl hover:shadow-violet-500/10"
+      {/* Centered Container */}
+      <div className="w-full max-w-[920px] mx-auto">
+        {/* Header - Centered */}
+        <motion.header 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-14"
         >
-          {/* Subtle Glow Effect */}
-          <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-violet-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          
-          <div className="relative">
-            {/* Icon - Top Left with spacing */}
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30 flex items-center justify-center mb-8">
-              <FolderKanban className="w-10 h-10 text-violet-300" />
-            </div>
+          <h1 className="text-5xl sm:text-6xl font-bold text-slate-50 mb-5 tracking-tight">
+            Womit möchtest Du arbeiten?
+          </h1>
+          <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            Wähle, ob Du mit einem konkreten Projekt arbeitest oder OSION projektübergreifend steuerst.
+          </p>
+        </motion.header>
 
-            <h2 className="text-3xl font-bold text-slate-50 mb-4">
-              Projekt-Chat
-            </h2>
+        {/* Selection Cards - 2 Columns, Centered */}
+        <div className="grid md:grid-cols-2 gap-7 w-full">
+          {/* Project Chat Card */}
+          <motion.button
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            whileHover={{ scale: 1.01, y: -4 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={() => setShowProjectPicker(true)}
+            className="relative group text-left rounded-[26px] border border-slate-700/50 bg-slate-900/80 p-8 transition-all hover:border-violet-500/50 hover:bg-slate-800/90 hover:shadow-2xl hover:shadow-violet-500/10 min-h-[230px] flex flex-col"
+          >
+            {/* Glow Effect */}
+            <div className="absolute inset-0 rounded-[26px] bg-gradient-to-br from-violet-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             
-            <p className="text-slate-400 mb-10 leading-relaxed text-lg">
-              Arbeite mit einem konkreten Project Twin. OSION nutzt den aktuellen Projektstand, 
-              Maßnahmen, Blocker und offene Punkte für kontextsensitive Antworten.
-            </p>
+            <div className="relative flex flex-col h-full">
+              {/* Icon */}
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30 flex items-center justify-center mb-5">
+                <FolderKanban className="w-8 h-8 text-violet-300" />
+              </div>
 
-            {/* CTA Button - Premium styled */}
-            <div className="inline-flex items-center gap-3 px-6 py-3.5 rounded-xl bg-violet-500 text-white font-semibold shadow-lg shadow-violet-500/25 transition-all group-hover:bg-violet-400 group-hover:shadow-violet-400/30">
-              <span>Projekt auswählen</span>
-              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+              <h2 className="text-2xl font-bold text-slate-50 mb-3">
+                Projekt-Chat
+              </h2>
+              
+              <p className="text-slate-400 mb-6 leading-relaxed flex-grow">
+                Arbeite mit einem konkreten Project Twin. OSION nutzt den aktuellen Projektstand für kontextsensitive Antworten.
+              </p>
+
+              {/* CTA Button */}
+              <div className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-violet-500 text-white font-semibold shadow-lg shadow-violet-500/25 transition-all group-hover:bg-violet-400 group-hover:shadow-violet-400/30 self-start">
+                <span>Projekt auswählen</span>
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+              </div>
             </div>
-          </div>
-        </motion.button>
+          </motion.button>
 
-        {/* General Chat Card */}
-        <motion.button
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-          whileHover={{ scale: 1.01, y: -6 }}
-          whileTap={{ scale: 0.99 }}
-          onClick={onSelectGeneral}
-          className="relative group text-left rounded-[2rem] border border-slate-700/50 bg-slate-900/80 p-10 transition-all hover:border-cyan-500/50 hover:bg-slate-800/90 hover:shadow-2xl hover:shadow-cyan-500/10"
-        >
-          {/* Subtle Glow Effect */}
-          <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-cyan-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          
-          <div className="relative">
-            {/* Icon - Top Left with spacing */}
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 border border-cyan-500/30 flex items-center justify-center mb-8">
-              <BrainCircuit className="w-10 h-10 text-cyan-300" />
-            </div>
-
-            <h2 className="text-3xl font-bold text-slate-50 mb-4">
-              Allgemeiner Chat
-            </h2>
+          {/* General Chat Card */}
+          <motion.button
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            whileHover={{ scale: 1.01, y: -4 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={onSelectGeneral}
+            className="relative group text-left rounded-[26px] border border-slate-700/50 bg-slate-900/80 p-8 transition-all hover:border-cyan-500/50 hover:bg-slate-800/90 hover:shadow-2xl hover:shadow-cyan-500/10 min-h-[230px] flex flex-col"
+          >
+            {/* Glow Effect */}
+            <div className="absolute inset-0 rounded-[26px] bg-gradient-to-br from-cyan-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             
-            <p className="text-slate-400 mb-10 leading-relaxed text-lg">
-              Stelle projektübergreifende Fragen, prüfe Prioritäten über alle Projekte hinweg 
-              und steuere OSION auf Systemebene.
-            </p>
+            <div className="relative flex flex-col h-full">
+              {/* Icon */}
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 border border-cyan-500/30 flex items-center justify-center mb-5">
+                <BrainCircuit className="w-8 h-8 text-cyan-300" />
+              </div>
 
-            {/* CTA Button - Premium styled */}
-            <div className="inline-flex items-center gap-3 px-6 py-3.5 rounded-xl bg-cyan-500 text-white font-semibold shadow-lg shadow-cyan-500/25 transition-all group-hover:bg-cyan-400 group-hover:shadow-cyan-400/30">
-              <span>Allgemeinen Chat öffnen</span>
-              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+              <h2 className="text-2xl font-bold text-slate-50 mb-3">
+                Allgemeiner Chat
+              </h2>
+              
+              <p className="text-slate-400 mb-6 leading-relaxed flex-grow">
+                Stelle projektübergreifende Fragen, prüfe Prioritäten und steuere OSION auf Systemebene.
+              </p>
+
+              {/* CTA Button */}
+              <div className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-500 text-white font-semibold shadow-lg shadow-cyan-500/25 transition-all group-hover:bg-cyan-400 group-hover:shadow-cyan-400/30 self-start">
+                <span>Allgemeinen Chat öffnen</span>
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+              </div>
             </div>
-          </div>
-        </motion.button>
+          </motion.button>
+        </div>
       </div>
-
-      {/* Footer - Removed explanatory text as requested */}
     </div>
   )
 }
