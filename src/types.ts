@@ -80,7 +80,11 @@ export interface AnalysisResult {
 export type ViewState = 
   | 'start'        // Startscreen - Einstieg
   | 'command'      // Command-Zentrale
-  | 'chat'         // OSION KI-Chat
+  | 'chat'         // OSION KI-Chat (legacy, mapped to chatSelect)
+  | 'chatSelect'   // Chat-Auswahl: Projekt vs Allgemein
+  | 'chatProjectPicker'  // Projekt-Auswahl für Chat
+  | 'chatGeneral'  // Allgemeiner Chat
+  | 'chatProject'  // Projekt-Chat mit festem Kontext
   | 'projects'     // Projekte-Übersicht
   | 'input'        // Freitext-Eingabe
   | 'measures'     // Maßnahmen-Übersicht

@@ -16,7 +16,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 
-type ViewId = 'start' | 'command' | 'chat' | 'projects' | 'input' | 'measures' | 'deadlines' | 'simulation' | 'agents' | 'memory' | 'settings' | 'twin';
+type ViewId = 'start' | 'command' | 'chat' | 'chatSelect' | 'chatGeneral' | 'chatProject' | 'chatProjectPicker' | 'projects' | 'input' | 'measures' | 'deadlines' | 'simulation' | 'agents' | 'memory' | 'settings' | 'twin';
 
 interface NavSection {
   label: string;
@@ -148,7 +148,8 @@ export default function SidebarNavigation({
 
               {section.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = activeView === item.id;
+                const isActive = activeView === item.id || 
+                  (item.id === 'chat' && ['chatSelect', 'chatGeneral', 'chatProject', 'chatProjectPicker'].includes(activeView));
 
                 return (
                   <button

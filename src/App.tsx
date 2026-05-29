@@ -11,7 +11,8 @@ import StartScreen from './screens/StartScreen'
 import ProjectTwinScreen from './screens/ProjectTwinScreen'
 import ProjectsScreen from './screens/ProjectsScreen'
 import InputScreen from './screens/InputScreen'
-import ChatScreen from './screens/ChatScreen'
+import ChatSelectScreen from './screens/ChatSelectScreen'
+import ChatWorkspace from './screens/ChatWorkspace'
 import AddMeasurePanel from './components/twin/AddMeasurePanel'
 import {
   createStoredProjectTwin,
@@ -28,6 +29,10 @@ const VIEW_TITLES: Record<ViewState, string> = {
   start: 'Start',
   command: 'Command',
   chat: 'OSION KI-Chat',
+  chatSelect: 'Chat-Auswahl',
+  chatProjectPicker: 'Projekt auswählen',
+  chatGeneral: 'Allgemeiner Chat',
+  chatProject: 'Projekt-Chat',
   projects: 'Projekte',
   input: 'Input',
   measures: 'Maßnahmen',
@@ -303,9 +308,48 @@ function App() {
             )}
 
             {currentView === 'chat' && (
-              <ChatScreen
+              <ChatSelectScreen
                 twins={twins}
-                activeTwinId={activeTwinId}
+                onSelectGeneral={() => navigateTo('chatGeneral')}
+                onSelectProject={(id) => {
+                  setActiveTwinId(id)
+                  navigateTo('chatProject')
+                }}
+              />
+            )}
+
+            {currentView === 'chatSelect' && (
+              <ChatSelectScreen
+                twins={twins}
+                onSelectGeneral={() => navigateTo('chatGeneral')}
+                onSelectProject={(id) => {
+                  setActiveTwinId(id)
+                  navigateTo('chatProject')
+                }}
+              />
+            )}
+
+            {currentView === 'chatGeneral' && (
+              <ChatWorkspace
+                mode="general"
+                twins={twins}
+                onBackToSelection={() => navigateTo('chatSelect')}
+                onSwitchProject={() => navigateTo('chatSelect')}
+                onOpenTwin={handleOpenTwin}
+                onCreateTwin={handleCreateTwinFromChat}
+                onAddMeasure={handleAddMeasureFromChat}
+                onUpdateMeasure={handleUpdateMeasureFromChat}
+                onUpdateTwin={handleUpdateTwinFromChat}
+              />
+            )}
+
+            {currentView === 'chatProject' && (
+              <ChatWorkspace
+                mode="project"
+                projectId={activeTwinId}
+                twins={twins}
+                onBackToSelection={() => navigateTo('chatSelect')}
+                onSwitchProject={() => navigateTo('chatSelect')}
                 onOpenTwin={handleOpenTwin}
                 onCreateTwin={handleCreateTwinFromChat}
                 onAddMeasure={handleAddMeasureFromChat}
