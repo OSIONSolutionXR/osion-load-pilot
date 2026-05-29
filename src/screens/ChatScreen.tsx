@@ -215,7 +215,7 @@ export default function ChatScreen({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/30">
+      <div className="flex items-center justify-between px-7 py-5 border-b border-slate-700/30">
         <div className="flex items-center gap-3">
           <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
             mode === 'general' 
@@ -240,7 +240,10 @@ export default function ChatScreen({
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-950/30">
+      <div 
+        className="flex-1 overflow-y-auto"
+        style={{ padding: '28px 34px' }}
+      >
         {session.messages.length === 0 && (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
@@ -268,6 +271,7 @@ export default function ChatScreen({
             className={`flex ${
               message.role === 'user' ? 'justify-end' : 'justify-start'
             }`}
+            style={{ marginBottom: '18px' }}
           >
             {message.role === 'assistant' && (
               <div className="mr-4 flex-shrink-0">
@@ -288,17 +292,21 @@ export default function ChatScreen({
             )}
 
             {message.role !== 'system' && (
-              <div className="max-w-[75%]">
+              <div style={{ maxWidth: 'min(720px, 78%)' }}>
                 <div
-                  className={`rounded-2xl px-5 py-4 ${
+                  className={`text-sm leading-relaxed ${
                     message.role === 'user'
-                      ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-md'
+                      ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-xl'
                       : message.isError
-                        ? 'border border-rose-500/30 bg-rose-500/10 text-rose-100 rounded-bl-md'
-                        : 'bg-slate-800/80 text-slate-100 border border-slate-700/50 rounded-bl-md'
+                        ? 'border border-rose-500/30 bg-rose-500/10 text-rose-100 rounded-bl-xl'
+                        : 'bg-slate-800/80 text-slate-100 border border-slate-700/50 rounded-bl-xl'
                   }`}
+                  style={{ 
+                    padding: '14px 18px', 
+                    borderRadius: '18px',
+                  }}
                 >
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
+                  <div className="whitespace-pre-wrap">{message.content}</div>
                   <div className={`mt-2 text-[10px] ${
                     message.role === 'user' ? 'text-blue-200/70' : 'text-slate-500'
                   }`}>
@@ -319,13 +327,16 @@ export default function ChatScreen({
         ))}
 
         {isLoading && (
-          <div className="flex justify-start">
+          <div className="flex justify-start" style={{ marginBottom: '18px' }}>
             <div className="mr-4 flex-shrink-0">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30 flex items-center justify-center">
                 <Sparkles className="h-4 w-4 text-violet-300" />
               </div>
             </div>
-            <div className="rounded-2xl border border-slate-700/50 bg-slate-800/80 px-5 py-4 rounded-bl-md">
+            <div 
+              className="border border-slate-700/50 bg-slate-800/80 rounded-bl-xl"
+              style={{ padding: '14px 18px', borderRadius: '18px' }}
+            >
               <div className="flex items-center gap-3">
                 <Loader2 className="h-4 w-4 animate-spin text-violet-400" />
                 <span className="text-sm text-slate-400">OSION denkt nach...</span>
@@ -338,9 +349,24 @@ export default function ChatScreen({
       </div>
 
       {/* Input Area */}
-      <div className="px-6 py-4 border-t border-slate-700/30 bg-slate-900/40">
+      <div 
+        className="border-t border-slate-700/30"
+        style={{ padding: '18px 22px 22px', background: 'rgba(2, 6, 23, 0.34)' }}
+      >
         <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="relative">
-          <div className="flex items-end gap-3 rounded-2xl border border-slate-700 bg-slate-900/60 p-2 focus-within:border-violet-500/40 focus-within:bg-slate-900/80 transition-all">
+          <div 
+            className="flex items-end gap-3 transition-all"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr auto',
+              gap: '12px',
+              alignItems: 'end',
+              borderRadius: '18px',
+              background: 'rgba(15, 23, 42, 0.90)',
+              border: '1px solid rgba(148, 163, 184, 0.22)',
+              padding: '12px 12px 12px 16px'
+            }}
+          >
             <textarea
               ref={inputRef}
               value={inputText}
@@ -358,18 +384,30 @@ export default function ChatScreen({
                   : "Nachricht an OSION..."
               }
               disabled={isLoading || connectionStatus === 'error'}
-              className="min-h-[44px] flex-1 resize-none bg-transparent text-sm text-slate-100 placeholder:text-slate-500 outline-none py-2.5 px-3"
+              className="bg-transparent border-0 outline-0 text-slate-100 placeholder:text-slate-500 resize-none"
+              style={{
+                minHeight: '54px',
+                maxHeight: '180px',
+                fontSize: '15px',
+                lineHeight: '1.5'
+              }}
               rows={1}
             />
             <button
               type="submit"
               disabled={!inputText.trim() || isLoading || connectionStatus === 'error'}
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white shadow-lg shadow-violet-500/20 transition-all hover:bg-violet-400 hover:scale-105 disabled:scale-100 disabled:opacity-40"
+              className="text-white transition-all hover:scale-105 disabled:scale-100 disabled:opacity-40 flex items-center justify-center"
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #2563eb, #7c3aed)'
+              }}
             >
               {isLoading ? (
-                <StopCircle className="h-4 w-4" onClick={(e) => { e.stopPropagation(); handleStop(); }} />
+                <StopCircle className="h-5 w-5" onClick={(e) => { e.stopPropagation(); handleStop(); }} />
               ) : (
-                <Send className="h-4 w-4" />
+                <Send className="h-5 w-5" />
               )}
             </button>
           </div>

@@ -7,8 +7,8 @@ import {
   Search,
   CheckCircle2,
   AlertCircle,
-  ChevronLeft,
-  MessageCircle
+  MessageCircle,
+  ArrowLeft
 } from 'lucide-react'
 import type { StoredProjectTwin } from '../lib/projectTwinStore'
 
@@ -16,24 +16,6 @@ interface ChatSelectScreenProps {
   twins: StoredProjectTwin[]
   onSelectGeneral: () => void
   onSelectProject: (projectId: string) => void
-}
-
-// Premium Dark Theme for Chat Area
-const chatTheme = {
-  pageBg: "#070A12",
-  panelBg: "#0B1020",
-  cardBg: "#121826",
-  cardBgHover: "#172033",
-  border: "rgba(148, 163, 184, 0.18)",
-  borderStrong: "rgba(148, 163, 184, 0.32)",
-  textPrimary: "#F8FAFC",
-  textSecondary: "#CBD5E1",
-  textMuted: "#94A3B8",
-  accent: "#8B5CF6",
-  accent2: "#EC4899",
-  accentBlue: "#3B82F6",
-  accentGreen: "#10B981",
-  accentAmber: "#F59E0B"
 }
 
 export default function ChatSelectScreen({ 
@@ -62,30 +44,34 @@ export default function ChatSelectScreen({
   if (showProjectPicker) {
     return (
       <div 
-        className="min-h-full py-8 px-6"
-        style={{
-          background: `radial-gradient(circle at top right, rgba(139, 92, 246, 0.12), transparent 40%),
-                      radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.08), transparent 35%),
-                      ${chatTheme.pageBg}`,
-          color: chatTheme.textPrimary
-        }}
+        className="min-h-[calc(100vh-72px)] py-7 px-8"
+        style={{ background: '#050914' }}
       >
-        {/* Centered Container */}
-        <div className="max-w-[1180px] mx-auto">
-          {/* Header - Centered */}
-          <header className="mb-10 text-center">
-            <button 
-              onClick={() => setShowProjectPicker(false)}
-              className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors mb-8 mx-auto"
-            >
-              <ChevronLeft className="w-5 h-5" />
-              <span className="text-sm font-medium">Zurück zur Auswahl</span>
-            </button>
-            
-            <motion.div
+        {/* Back Button */}
+        <button
+          onClick={() => setShowProjectPicker(false)}
+          className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors mb-6 mx-auto w-fit"
+          style={{ maxWidth: '1520px' }}
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="text-sm font-medium">Zurück zur Auswahl</span>
+        </button>
+
+        {/* Main Stage */}
+        <div
+          className="mx-auto rounded-3xl p-7"
+          style={{
+            width: 'min(calc(100% - 32px), 1560px)',
+            background: 'linear-gradient(135deg, #07101f 0%, #0b1020 52%, #120b24 100%)',
+            border: '1px solid rgba(148, 163, 184, 0.12)'
+          }}
+        >
+          <div style={{ width: 'min(100%, 1180px)', margin: '0 auto' }}>
+            {/* Header - Centered */}
+            <motion.header
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="max-w-[760px] mx-auto"
+              className="mb-8 text-center"
             >
               <h1 className="text-4xl font-bold text-slate-50 mb-3">
                 Projekt-Chat starten
@@ -93,126 +79,120 @@ export default function ChatSelectScreen({
               <p className="text-lg text-slate-400">
                 Wähle den Project Twin, mit dem OSION arbeiten soll.
               </p>
-            </motion.div>
-          </header>
+            </motion.header>
 
-          {/* Search - only if many projects */}
-          {twins.length > 4 && (
-            <div className="mb-8">
-              <div className="relative max-w-2xl mx-auto">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Projekt suchen..."
-                  className="w-full pl-14 pr-5 py-4 rounded-2xl border border-slate-700 bg-slate-900/80 text-slate-100 placeholder:text-slate-500 focus:border-violet-500/50 focus:outline-none transition-colors text-base"
-                />
+            {/* Search */}
+            {twins.length > 4 && (
+              <div className="mb-8">
+                <div className="relative max-w-2xl mx-auto">
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Projekt suchen..."
+                    className="w-full pl-14 pr-5 py-4 rounded-2xl border border-slate-700 bg-slate-900/80 text-slate-100 placeholder:text-slate-500 focus:border-violet-500/50 focus:outline-none transition-colors text-base"
+                  />
+                </div>
               </div>
+            )}
+
+            {/* Project Grid - 3 Columns */}
+            <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
+              <AnimatePresence mode="popLayout">
+                {filteredProjects.length > 0 ? (
+                  filteredProjects.map((twin, index) => {
+                    const stats = getProjectStats(twin)
+
+                    return (
+                      <motion.div
+                        key={twin.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="group relative rounded-[22px] border border-violet-500/20 bg-slate-900/80 p-6 cursor-pointer transition-all hover:border-violet-500/40 hover:bg-slate-800/90 hover:shadow-2xl hover:shadow-violet-500/10 flex flex-col justify-between min-h-[190px]"
+                        onClick={() => onSelectProject(twin.id)}
+                      >
+                        {/* Top section */}
+                        <div>
+                          {/* Icon */}
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30 flex items-center justify-center mb-4">
+                            <FolderKanban className="w-6 h-6 text-violet-300" />
+                          </div>
+
+                          {/* Content */}
+                          <h3 className="font-bold text-slate-100 text-lg mb-2">{twin.title}</h3>
+                          {twin.description && (
+                            <p className="text-sm text-slate-400 mb-4 line-clamp-2 leading-relaxed">{twin.description}</p>
+                          )}
+                        </div>
+
+                        {/* Bottom section */}
+                        <div>
+                          {/* Stats Row */}
+                          <div className="flex flex-wrap items-center gap-2 mb-4">
+                            <span className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800/60 px-2.5 py-1 rounded-full">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              {stats.openMeasures}/{stats.measures}
+                            </span>
+                            
+                            {stats.risks > 0 && (
+                              <span className="flex items-center gap-1.5 text-xs text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                                <AlertCircle className="w-3 h-3" />
+                                {stats.risks} Risiken
+                              </span>
+                            )}
+                            
+                            {stats.openPoints > 0 && (
+                              <span className="flex items-center gap-1.5 text-xs text-violet-300 bg-violet-500/10 px-2.5 py-1 rounded-full border border-violet-500/20">
+                                <MessageCircle className="w-3 h-3" />
+                                {stats.openPoints} offen
+                              </span>
+                            )}
+                          </div>
+
+                          {/* CTA Button */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-slate-500">
+                              {(twin.progress?.stage as string) === 'active' ? 'Aktiv' : (twin.progress?.stage as string) === 'blocked' ? 'Blockiert' : 'In Planung'}
+                            </span>
+                            <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-500/10 text-violet-300 border border-violet-500/30 font-medium text-xs group-hover:bg-violet-500/20 group-hover:border-violet-500/50 transition-all">
+                              Chat öffnen
+                              <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )
+                  })
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="col-span-full text-center py-16 rounded-3xl border border-dashed border-slate-700 bg-slate-900/40"
+                  >
+                    <FolderKanban className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+                    <p className="text-slate-400 mb-2 text-lg">Keine Projekte gefunden</p>
+                    <p className="text-sm text-slate-500">Erstelle zuerst ein Projekt über "Neuer Input"</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-          )}
-
-          {/* Project Grid - 3 Columns on Desktop */}
-          <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
-            <AnimatePresence mode="popLayout">
-              {filteredProjects.length > 0 ? (
-                filteredProjects.map((twin, index) => {
-                  const stats = getProjectStats(twin)
-
-                  return (
-                    <motion.div
-                      key={twin.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="group relative rounded-[22px] border border-violet-500/20 bg-slate-900/80 p-6 cursor-pointer transition-all hover:border-violet-500/40 hover:bg-slate-800/90 hover:shadow-2xl hover:shadow-violet-500/10 flex flex-col justify-between min-h-[190px]"
-                      onClick={() => onSelectProject(twin.id)}
-                    >
-                      {/* Top section */}
-                      <div>
-                        {/* Icon */}
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30 flex items-center justify-center mb-4">
-                          <FolderKanban className="w-6 h-6 text-violet-300" />
-                        </div>
-
-                        {/* Content */}
-                        <h3 className="font-bold text-slate-100 text-lg mb-2">{twin.title}</h3>
-                        {twin.description && (
-                          <p className="text-sm text-slate-400 mb-4 line-clamp-2 leading-relaxed">{twin.description}</p>
-                        )}
-                      </div>
-
-                      {/* Bottom section */}
-                      <div>
-                        {/* Stats Row */}
-                        <div className="flex flex-wrap items-center gap-2 mb-4">
-                          <span className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800/60 px-2.5 py-1 rounded-full">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                            {stats.openMeasures}/{stats.measures}
-                          </span>
-                          
-                          {stats.risks > 0 && (
-                            <span className="flex items-center gap-1.5 text-xs text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
-                              <AlertCircle className="w-3 h-3" />
-                              {stats.risks} Risiken
-                            </span>
-                          )}
-                          
-                          {stats.openPoints > 0 && (
-                            <span className="flex items-center gap-1.5 text-xs text-violet-300 bg-violet-500/10 px-2.5 py-1 rounded-full border border-violet-500/20">
-                              <MessageCircle className="w-3 h-3" />
-                              {stats.openPoints} offen
-                            </span>
-                          )}
-                        </div>
-
-                        {/* CTA Button */}
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-slate-500">
-                            {(twin.progress?.stage as string) === 'active' ? 'Aktiv' : (twin.progress?.stage as string) === 'blocked' ? 'Blockiert' : 'In Planung'}
-                          </span>
-                          <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-500/10 text-violet-300 border border-violet-500/30 font-medium text-xs group-hover:bg-violet-500/20 group-hover:border-violet-500/50 transition-all">
-                            Chat öffnen
-                            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )
-                })
-              ) : (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="col-span-full text-center py-16 rounded-3xl border border-dashed border-slate-700 bg-slate-900/40"
-                >
-                  <FolderKanban className="w-16 h-16 mx-auto text-slate-600 mb-4" />
-                  <p className="text-slate-400 mb-2 text-lg">Keine Projekte gefunden</p>
-                  <p className="text-sm text-slate-500">Erstelle zuerst ein Projekt über "Neuer Input"</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </div>
       </div>
     )
   }
 
-  // Main Selection Screen - CENTERED VERSION
+  // Main Selection Screen
   return (
     <div 
-      className="min-h-full py-12 px-6 flex items-center justify-center"
-      style={{
-        background: `radial-gradient(circle at top center, rgba(139, 92, 246, 0.1), transparent 50%),
-                    radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.06), transparent 40%),
-                    radial-gradient(circle at bottom right, rgba(236, 72, 153, 0.05), transparent 35%),
-                    ${chatTheme.pageBg}`,
-        color: chatTheme.textPrimary
-      }}
+      className="min-h-[calc(100vh-72px)] py-12 px-8 flex items-center justify-center"
+      style={{ background: '#050914' }}
     >
       {/* Centered Container */}
-      <div className="w-full max-w-[920px] mx-auto">
+      <div style={{ width: 'min(100%, 920px)', margin: '0 auto' }}>
         {/* Header - Centered */}
         <motion.header 
           initial={{ opacity: 0, y: -20 }}
