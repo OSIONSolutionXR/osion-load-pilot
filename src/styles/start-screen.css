@@ -1,17 +1,17 @@
 /* ==========================================================================
-   OSION Load Pilot - Start Screen v2
-   Offen, hochwertig, flache Hierarchie
+   OSION Load Pilot - Start Screen v3 (Veredelt)
+   Hochwertig, ruhig, weißer Hintergrund
    ========================================================================== */
 
 .start-screen {
   max-width: 1400px;
   margin: 0 auto;
   padding: 48px 40px 80px;
-  background: #fafafa;
+  background: #ffffff;
 }
 
 /* ==========================================================================
-   HERO: Links Titel, Rechts KPIs - Keine verschachtelten Boxen
+   HERO: Links Titel, Rechts KPIs
    ========================================================================== */
 
 .hero {
@@ -72,7 +72,7 @@
   max-width: 420px;
 }
 
-/* KPIs rechts - flache Pillen */
+/* KPIs rechts */
 .hero__stats {
   display: flex;
   gap: 16px;
@@ -85,16 +85,17 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  padding: 16px 24px;
+  padding: 18px 26px;
   background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 14px;
   min-width: 100px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .stat-pill--alert {
   background: #fffbeb;
-  border-color: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.25);
 }
 
 .stat-pill--alert .stat-pill__value {
@@ -118,7 +119,7 @@
 }
 
 /* ==========================================================================
-   4 HAUPTAKTIONEN - Leichte farbliche Absetzung
+   4 HAUPTAKTIONEN - Verstärkte, aber dezent edle Präsenz
    ========================================================================== */
 
 .actions {
@@ -140,7 +141,12 @@
   }
 }
 
-/* Action Card - Leichte Hintergrundfarben für sofortige Erkennbarkeit */
+/* Action Card - Stärkere Präsenz durch:
+   - Solide Hintergrundfarben (nicht nur leicht getönt)
+   - Stärkere Border für klare Abgrenzung
+   - Ausgeprägterer Schatten für Tiefe
+   - Deutlichere Hover-Animation
+*/
 .action-card {
   display: flex;
   flex-direction: column;
@@ -149,69 +155,97 @@
   text-align: left;
   cursor: pointer;
   transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid transparent;
   position: relative;
+  overflow: hidden;
 }
 
-.action-card:hover {
-  transform: translateY(-3px);
-}
-
-/* Projekte - Indigio-Ton */
+/* Stärkere visuelle Präsenz der Karten */
 .action-card--projects {
-  background: #eef2ff;
-  border-color: rgba(99, 102, 241, 0.12);
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  box-shadow: 
+    0 2px 4px rgba(99, 102, 241, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.action-card--new {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  box-shadow: 
+    0 2px 4px rgba(16, 185, 129, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.action-card--command {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  box-shadow: 
+    0 2px 4px rgba(245, 158, 11, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.action-card--chat {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow: 
+    0 2px 4px rgba(139, 92, 246, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* Stärkere Hover-Effekte */
+.action-card:hover {
+  transform: translateY(-4px);
 }
 
 .action-card--projects:hover {
-  background: #e0e7ff;
-  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.15);
-}
-
-/* Neues Projekt - Grün-Ton */
-.action-card--new {
-  background: #ecfdf5;
-  border-color: rgba(16, 185, 129, 0.12);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 
+    0 12px 40px rgba(99, 102, 241, 0.18),
+    0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .action-card--new:hover {
-  background: #d1fae5;
-  box-shadow: 0 12px 32px rgba(16, 185, 129, 0.15);
-}
-
-/* Command - Gelb/Orange-Ton */
-.action-card--command {
-  background: #fffbeb;
-  border-color: rgba(245, 158, 11, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 
+    0 12px 40px rgba(16, 185, 129, 0.18),
+    0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .action-card--command:hover {
-  background: #fef3c7;
-  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.15);
-}
-
-/* Chat - Violett-Ton */
-.action-card--chat {
-  background: #f5f3ff;
-  border-color: rgba(139, 92, 246, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+  box-shadow: 
+    0 12px 40px rgba(245, 158, 11, 0.18),
+    0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .action-card--chat:hover {
-  background: #ede9fe;
-  box-shadow: 0 12px 32px rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.35);
+  box-shadow: 
+    0 12px 40px rgba(139, 92, 246, 0.18),
+    0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
-/* Icon - Weiß mit Farbe */
+/* Icon - Weiß mit Farbe, stärkerer Schatten */
 .action-card__icon {
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   background: #ffffff;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.action-card:hover .action-card__icon {
+  transform: scale(1.05);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .action-card--projects .action-card__icon {
@@ -245,18 +279,19 @@
   flex: 1;
 }
 
+/* Pfeil - jetzt immer sichtbar, aber dezent */
 .action-card__arrow {
   width: 20px;
   height: 20px;
-  color: #94a3b8;
-  opacity: 0;
-  transform: translateX(-8px);
+  color: #cbd5e1;
+  opacity: 0.6;
+  transform: translateX(0);
   transition: all 0.3s ease;
 }
 
 .action-card:hover .action-card__arrow {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateX(4px);
 }
 
 .action-card--projects:hover .action-card__arrow { color: #6366f1; }
@@ -350,187 +385,6 @@
 }
 
 /* ==========================================================================
-   AUFMERKSAMKEITSLISTE
-   ========================================================================== */
-
-.attention {
-  margin-top: 16px;
-}
-
-.attention__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.attention__title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.attention__title-icon {
-  width: 20px;
-  height: 20px;
-  color: #f59e0b;
-}
-
-.attention__title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0;
-}
-
-.attention__count {
-  font-size: 13px;
-  font-weight: 600;
-  color: #f59e0b;
-  padding: 6px 12px;
-  background: #fffbeb;
-  border-radius: 100px;
-}
-
-.attention__list {
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 14px;
-  overflow: hidden;
-}
-
-.attention__item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 20px;
-  cursor: pointer;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-  transition: background 0.15s ease;
-}
-
-.attention__item:last-child {
-  border-bottom: none;
-}
-
-.attention__item:hover {
-  background: #fafafa;
-}
-
-.attention__item-dot {
-  width: 8px;
-  height: 8px;
-  background: #f59e0b;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.attention__item-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.attention__item-project {
-  font-size: 15px;
-  font-weight: 600;
-  color: #334155;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.attention__item-meta {
-  font-size: 13px;
-  color: #64748b;
-}
-
-.attention__item-tag {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 5px 10px;
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-
-.attention__item-tag--risk {
-  background: #fffbeb;
-  color: #f59e0b;
-}
-
-.attention__item-tag--blocked {
-  background: #fef2f2;
-  color: #ef4444;
-}
-
-.attention__item-arrow {
-  width: 16px;
-  height: 16px;
-  color: #cbd5e1;
-  opacity: 0;
-  transition: all 0.15s ease;
-}
-
-.attention__item:hover .attention__item-arrow {
-  opacity: 1;
-  color: #6366f1;
-}
-
-.attention__more {
-  display: block;
-  width: 100%;
-  padding: 16px;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 500;
-  color: #6366f1;
-  background: transparent;
-  border: none;
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
-  cursor: pointer;
-}
-
-.attention__more:hover {
-  background: #fafafa;
-}
-
-/* Empty State */
-.attention--empty {
-  opacity: 0.6;
-}
-
-.attention__empty {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 24px;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 14px;
-}
-
-.attention__empty-icon {
-  width: 40px;
-  height: 40px;
-  color: #10b981;
-}
-
-.attention__empty-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #334155;
-  margin: 0 0 4px 0;
-}
-
-.attention__empty-text {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0;
-}
-
-/* ==========================================================================
    RESPONSIVE
    ========================================================================== */
 
@@ -562,11 +416,7 @@
   }
   
   .action-card__arrow {
-    opacity: 1;
-  }
-  
-  .attention__item-arrow {
-    opacity: 1;
+    opacity: 0.6;
   }
 }
 

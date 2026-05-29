@@ -9,10 +9,8 @@ import {
   BrainCircuit,
   Bot,
   Database,
-  AlertCircle,
   ArrowRight,
-  Sparkles,
-  Zap
+  Sparkles
 } from 'lucide-react'
 
 interface StartScreenProps {
@@ -26,7 +24,6 @@ interface StartScreenProps {
 
 export default function StartScreen({ 
   twins, 
-  onOpenTwin, 
   onNewInput, 
   onOpenCommand, 
   onOpenChat,
@@ -35,15 +32,10 @@ export default function StartScreen({
   const projectCount = twins.length
   const openMeasures = twins.reduce((acc, t) => acc + (t.measures?.filter(m => m.status === 'open').length || 0), 0)
   const criticalRisks = twins.reduce((acc, t) => acc + (t.analysis?.risks?.filter(r => r.severity === 'high').length || 0), 0)
-  
-  const criticalItems = twins.filter(t => 
-    t.analysis?.risks?.some(r => r.severity === 'high') ||
-    t.progress?.stage === 'blocked'
-  )
 
   return (
     <div className="start-screen">
-      {/* HERO: Links Titel, Rechts KPIs - keine verschachtelte Box */}
+      {/* HERO: Links Titel, Rechts KPIs */}
       <section className="hero">
         <div className="hero__left">
           <div className="hero__badge">
@@ -76,7 +68,7 @@ export default function StartScreen({
         )}
       </section>
 
-      {/* 4 HAUPTAKTIONEN - mit farblicher Absetzung */}
+      {/* 4 HAUPTAKTIONEN - verstärkte Präsenz */}
       <section className="actions">
         <button 
           className="action-card action-card--projects"
@@ -168,62 +160,6 @@ export default function StartScreen({
           </button>
         </div>
       </section>
-
-      {/* AUFMERKSAMKEITSLISTE - unten */}
-      {criticalItems.length > 0 ? (
-        <section className="attention">
-          <div className="attention__header">
-            <div className="attention__title-wrap">
-              <Zap className="attention__title-icon" />
-              <h2 className="attention__title">Aufmerksamkeitsliste</h2>
-            </div>
-            <span className="attention__count">{criticalItems.length} Punkte</span>
-          </div>
-          
-          <div className="attention__list">
-            {criticalItems.slice(0, 5).map((twin) => {
-              const risk = twin.analysis?.risks?.find(r => r.severity === 'high')
-              const isBlocked = twin.progress?.stage === 'blocked'
-              
-              return (
-                <div 
-                  key={twin.id} 
-                  className="attention__item"
-                  onClick={() => onOpenTwin(twin.id)}
-                >
-                  <div className="attention__item-dot" />
-                  <div className="attention__item-content">
-                    <span className="attention__item-project">{twin.title}</span>
-                    <span className="attention__item-meta">
-                      {isBlocked ? 'Blockiert' : risk?.title || 'Kritisch'}
-                    </span>
-                  </div>
-                  <span className={`attention__item-tag ${isBlocked ? 'attention__item-tag--blocked' : 'attention__item-tag--risk'}`}>
-                    {isBlocked ? 'Blockiert' : 'Hohes Risiko'}
-                  </span>
-                  <ArrowRight className="attention__item-arrow" />
-                </div>
-              )
-            })}
-            
-            {criticalItems.length > 5 && (
-              <button className="attention__more" onClick={onOpenCommand}>
-                + {criticalItems.length - 5} weitere in Command anzeigen
-              </button>
-            )}
-          </div>
-        </section>
-      ) : projectCount > 0 ? (
-        <section className="attention attention--empty">
-          <div className="attention__empty">
-            <AlertCircle className="attention__empty-icon" />
-            <div>
-              <h3 className="attention__empty-title">Alles im Griff</h3>
-              <p className="attention__empty-text">Aktuell keine kritischen Punkte.</p>
-            </div>
-          </div>
-        </section>
-      ) : null}
     </div>
   )
 }
