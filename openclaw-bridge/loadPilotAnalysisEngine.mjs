@@ -1,34 +1,12 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { analyzeComplexity, getOutputDepthGuidelines } from './complexityEngine.mjs'
 
 const execFileAsync = promisify(execFile)
 const MAX_INPUT_LENGTH = 4000
 const REQUEST_TIMEOUT_MS = 180000
 const PROMPT_VERSION = 'loadpilot_v2'
 const PROMPT_VERSION_DEEP = 'loadpilot_v3_deep'
-
-// Komplexitätsindikatoren für adaptive Analyse
-const COMPLEXITY_INDICATORS = {
-  high_end: [
-    'infrastruktur', 'katastrophe', 'krise', 'notfall', 'versorgung',
-    'klinik', 'krankenhaus', 'flughafen', 'deich', 'hochwasser',
-    'lebensmittelversorgung', 'satelliteninternet', 'shelter', 'evakuierung',
-    'system', 'plattform', 'multi', 'enterprise', 'organisation',
-    'region', 'bundesweit', 'überregional', 'gesetzlich', 'regulatorisch',
-    'versorgungssicherheit', 'geschlossenes system', 'nährstoffkreislauf',
-    'forschungsstation', 'offshore', 'polarexpedition', 'weltraum', 'habitat'
-  ],
-  complex: [
-    'app', 'datenbank', 'backend', 'frontend', 'ki', 'ai', 'api',
-    'integration', 'automation', 'prozess', 'workflow',
-    'funnel', 'conversion', 'marketing', 'vertikale pflanzenzucht',
-    'pilzzucht', 'mikroalgen', 'wasserrecycling', 'sensorik'
-  ],
-  simple: [
-    'wohnwagen', 'mieten', 'kaufen', 'einfach', 'klein',
-    'ferienhaus', 'auto', 'motorrad', 'website', 'büro'
-  ]
-}
 
 const DISALLOWED_FALLBACK_PHRASES = [
   'Projektlage mit mehreren offenen Punkten',
@@ -97,26 +75,8 @@ function detectDomainFromInput(input) {
   return 'internal_project'
 }
 
-// Phase 2: Adaptive Komplexitätserkennung
-function detectComplexityFromInput(input) {
-  const normalized = input.toLowerCase()
-  const length = input.length
-
-  // High-End Indikatoren (kritische Infrastruktur, Versorgungssysteme)
-  const highEndMatches = COMPLEXITY_INDICATORS.high_end.filter(k => normalized.includes(k)).length
-  if (highEndMatches >= 2 || length > 500) return 'high_end'
-
-  // Complex Indikatoren (Technik-Projekte)
-  const complexMatches = COMPLEXITY_INDICATORS.complex.filter(k => normalized.includes(k)).length
-  if (complexMatches >= 2 || length > 300) return 'complex'
-
-  // Simple Indikatoren (kleine Projekte)
-  const simpleMatches = COMPLEXITY_INDICATORS.simple.filter(k => normalized.includes(k)).length
-  if (simpleMatches >= 1 || length < 100) return 'simple'
-
-  // Default: medium für moderate Länge
-  return length > 200 ? 'medium' : 'simple'
-}
+// Phase 3: Verwende generalisierte Complexity Engine
+// Die alte detectComplexityFromInput wurde durch analyzeComplexity aus complexityEngine.mjs ersetzt
 
 // Kompakte Twin-Zusammenfassung für Updates bauen
 function buildCompactTwinContext(existingTwin) {
@@ -197,8 +157,9 @@ Schema:
   "dependencies": [{"from": "string", "to": "string", "status": "required|blocked|waiting|done", "isBlocker": true, "explanation": "string"}],
   "risks": [{"title": "string", "severity": "low|medium|high", "explanation": "string"}],
   "scenarios": [{"title": "string", "outcome": "string", "riskLevel": "low|medium|high", "recommendation": "string"}],
-  "actions": [{"title": "string", "owner": "string", "priority": "low|medium|high", "messageDraft": "string|null"}],
+  "actions": [{"title": "string", "description": "string", "owner": "string", "priority": "low|medium|high|critical", "effort": "low|medium|high", "impact": "low|medium|high", "deadline": "string|null", "messageDraft": "string|null"}],
   "processSteps": [{"id": "string", "title": "string", "description": "string", "status": "done|active|blocked|next|pending|skipped", "order": 1, "dependsOn": ["string"], "blockerReason": "string", "linkedMeasureIds": ["string"], "updatedAt": "string"}],
+  "questions": [{"id": "string", "question": "string", "category": "string", "priority": "low|medium|high"}],
   "quality": { "inputQuality": "insufficient|usable|strong", "isActionable": true, "confidence": "low|medium|high", "missingContext": ["string"], "reason": "string" }
 }
 
@@ -281,37 +242,55 @@ export async function analyzeProjectInput(input) {
   if (trimmed.length > MAX_INPUT_LENGTH) throw new Error(`Input too long. Max ${MAX_INPUT_LENGTH} chars.`)
 
   try {
-    // Phase 2: Komplexität erkennen
-    const complexity = detectComplexityFromInput(trimmed)
-    console.log('[Bridge Engine] Detected complexity:', complexity)
+    // Phase 3: Generalisierte Complexity Engine verwenden
+    const complexityAnalysis = analyzeComplexity(trimmed)
+    const { complexity, complexityScore, complexitySignals, domain } = complexityAnalysis
+    const guidelines = getOutputDepthGuidelines(complexity)
+    
+    console.log('[Bridge Engine] Complexity analysis:', {
+      complexity,
+      score: complexityScore,
+      signals: complexitySignals.slice(0, 5),
+      domain
+    })
 
-    // Phase 2: Deep Prompt für komplexe/high-end Projekte
+    // Phase 3: Dynamischen Prompt basierend auf Complexity erstellen
     const useDeepPrompt = complexity === 'complex' || complexity === 'high_end'
     const promptVersion = useDeepPrompt ? PROMPT_VERSION_DEEP : PROMPT_VERSION
     
-    // Phase 2: Komplexität im Prompt berücksichtigen
-    const prompt = useDeepPrompt
-      ? `Erstelle einen hochwertigen Project Twin mit ADAPTIVE TIEFE.
+    // Phase 3: Generalisierter Prompt ohne Projektspezifika
+    const prompt = `${guidelines.promptInstruction}
 
-ERKANNTE KOMPLEXITÄT: ${complexity.toUpperCase()}
+RICHTWERTE:
+- processSteps: ${guidelines.processSteps.min}-${guidelines.processSteps.max} (Ziel: ${guidelines.processSteps.target})
+- actions: ${guidelines.actions.min}-${guidelines.actions.max} (Ziel: ${guidelines.actions.target})
+- risks: ${guidelines.risks.min}-${guidelines.risks.max} (Ziel: ${guidelines.risks.target})
+- questions: ${guidelines.questions.min}-${guidelines.questions.max} (Ziel: ${guidelines.questions.target})
+- blockers/dependencies: ${guidelines.blockers.min}-${guidelines.blockers.max} (Ziel: ${guidelines.blockers.target})
+- scenarios/options: ${guidelines.options.min}-${guidelines.options.max} (Ziel: ${guidelines.options.target})
 
-RICHTWERTE FÜR ${complexity.toUpperCase()}:
-- Prozessschritte: ${complexity === 'high_end' ? '14-24' : '12-18'}
-- Maßnahmen: ${complexity === 'high_end' ? '35-80' : '25-50'}
-- Risiken: ${complexity === 'high_end' ? '12-25' : '8-15'}
-- Fragen: ${complexity === 'high_end' ? '12-25' : '8-15'}
-- Blocker: ${complexity === 'high_end' ? '8-15' : '5-10'}
-- Optionen: ${complexity === 'high_end' ? '5-10' : '4-8'}
+QUALITÄTSREGELN FÜR ACTIONS:
+- Jede Action muss ein echter Arbeitsauftrag sein (nicht "Konzept prüfen", sondern "MVP-Umfang für ersten Prototyp festlegen")
+- Titel max 90 Zeichen, Beschreibung 180-320 Zeichen
+- Priorität, effort, impact, dependency angeben
+- Pro Dimension mehrere operative Actions erzeugen
 
-REGELN:
-1. NIEMALS generische Schritte wie "Schritt 1", "Phase 2" verwenden.
-2. Jeder Prozessschritt muss fachlich konkret und projektspezifisch sein.
-3. Maßnahmen müssen echte Arbeitsaufträge enthalten, keine Platzhalter.
-4. Risiken, Blocker, Fragen und Optionen klar getrennt und qualitativ hochwertig.
-5. Next Best Action aus Hebelwirkung ableiten.
+QUALITÄTSREGELN FÜR PROZESSSCHRITTE:
+- NIEMALS "Schritt 1", "Phase 2" verwenden
+- Fachlich konkret und projektspezifisch
+- Titel max 64 Zeichen, Beschreibung 140-260 Zeichen
 
-Antworte nur mit validem JSON ohne Markdown.`
-      : 'Erstelle einen konkreten Project Twin basierend auf dem Nutzereingang. Alle Details müssen zum Input passen.'
+TRENNUNG VON BEGRIFFEN:
+- Risiko = mögliches zukünftiges Problem
+- Blocker = aktuelles Hindernis
+- Dependency = Vorbedingung für späteren Schritt
+- Question = offene Entscheidung oder Informationslücke
+- Option = strategische Alternative
+
+ZUSÄTZLICHE ANFORDERUNGEN:
+- Gib result.questions als separates Array mit offenen Fragen aus
+- Blocker in dependencies mit isBlocker: true markieren
+- Für complex/high_end: Mehrere Dimensionen abdecken (Zielbild, Stakeholder, Architektur, Module, Betrieb, Recht, Finanzierung, Partner, Daten, Sicherheit)`
     
     const analysis = await callOpenClawGateway(prompt, trimmed)
 
@@ -321,13 +300,16 @@ Antworte nur mit validem JSON ohne Markdown.`
 
     assertNoGenericOutput(analysis)
 
+    // Phase 3: Erweiterte Meta-Daten
     return {
       ...analysis,
       meta: {
-        domain: analysis.project?.type || 'unclear',
+        domain: domain || analysis.project?.type || 'unclear',
+        complexity: complexity,
+        complexityScore: complexityScore,
+        complexitySignals: complexitySignals.slice(0, 15),
         analysisMode: 'openclaw-kimi',
         promptVersion: promptVersion,
-        complexity: complexity,
         generatedAt: new Date().toISOString()
       }
     }
