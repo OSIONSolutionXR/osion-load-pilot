@@ -2,69 +2,23 @@
  * OSION Load Pilot - Measures Normalization
  * 
  * Maßnahmen aus Twin-Daten tolerant ableiten und normalisieren
+ * Phase 1 Fix: Schema-Normalisierung mit dynamischer Output-Tiefe
  */
 
-import type { Measure, MeasureStatus, MeasurePriority, DueDateCategory } from '../types/measures'
+import type { Measure, DueDateCategory, MeasureStatus, MeasurePriority } from '../types/measures'
 import type { StoredProjectTwinV2 } from '../types/projectTwinV2'
+import { 
+  extractMeasures, 
+  convertActionsToMeasures,
+  normalizeTitle,
+  normalizeDescription
+} from './schemaNormalize'
 
 /**
  * Generiert eine eindeutige Measure-ID
  */
 function generateMeasureId(projectId: string, index: number, suffix?: string): string {
   return `M-${projectId.slice(-8)}-${index.toString().padStart(3, '0')}${suffix ? `-${suffix}` : ''}`
-}
-
-/**
- * Normalisiert Twin-Actions zu Measures
- */
-function normalizeActionsToMeasures(twin: StoredProjectTwinV2): Measure[] {
-  if (!twin.analysis?.actions || twin.analysis.actions.length === 0) {
-    return []
-  }
-
-  return twin.analysis.actions.map((action, index) => ({
-    id: generateMeasureId(twin.id, index, 'action'),
-    projectId: twin.id,
-    projectTitle: twin.title,
-    parentId: null,
-    title: action.title,
-    description: action.messageDraft || undefined,
-    status: mapPriorityToStatus(action.priority),
-    priority: mapActionPriorityToMeasurePriority(action.priority),
-    dueDate: null,
-    createdAt: twin.createdAt,
-    owner: action.owner || 'Unassigned',
-    valueScore: action.priority === 'high' ? 9 : action.priority === 'medium' ? 6 : 3,
-    strategicGoal: twin.analysis?.project?.type || 'Project Goal',
-    notes: '',
-    linkedProcessStepId: undefined,
-    tags: [action.priority],
-    source: 'twin_action' as const
-  }))
-}
-
-/**
- * Mappt Action-Priorität zu Measure-Status
- */
-function mapPriorityToStatus(priority: string): MeasureStatus {
-  switch (priority) {
-    case 'high': return 'open'
-    case 'medium': return 'open'
-    case 'low': return 'idea'
-    default: return 'open'
-  }
-}
-
-/**
- * Mappt Action-Priorität zu Measure-Priorität
- */
-function mapActionPriorityToMeasurePriority(priority: string): MeasurePriority {
-  switch (priority) {
-    case 'high': return 'high'
-    case 'medium': return 'medium'
-    case 'low': return 'low'
-    default: return 'medium'
-  }
 }
 
 /**
@@ -76,14 +30,16 @@ function normalizeNextMoveToMeasure(twin: StoredProjectTwinV2): Measure[] {
   }
 
   const nextMove = twin.analysis.nextMove
+  const title = normalizeTitle(nextMove.title, 90)
+  const description = normalizeDescription(nextMove.reason || '', 360)
   
   return [{
     id: generateMeasureId(twin.id, 0, 'next'),
     projectId: twin.id,
     projectTitle: twin.title,
     parentId: null,
-    title: nextMove.title,
-    description: nextMove.reason,
+    title,
+    description: description || undefined,
     status: 'open',
     priority: nextMove.impact === 'high' ? 'critical' : nextMove.impact === 'medium' ? 'high' : 'medium',
     dueDate: nextMove.deadline,
@@ -99,34 +55,47 @@ function normalizeNextMoveToMeasure(twin: StoredProjectTwinV2): Measure[] {
 }
 
 /**
- * Extrahiert Measures aus verschiedenen Twin-Datenquellen
+ * Normalisiert Twin-Actions zu Measures
+ * Verwendet jetzt schemaNormalize.ts für robustes Multi-Path Mapping
  */
-export function extractMeasuresFromTwin(twin: StoredProjectTwinV2): Measure[] {
-  const measures: Measure[] = []
+function normalizeActionsToMeasures(twin: StoredProjectTwinV2): Measure[] {
+  // Extrahiere Actions aus allen möglichen Pfaden
+  const rawActions = extractMeasures(twin as unknown as Record<string, unknown>)
+  
+  if (!rawActions || rawActions.length === 0) {
+    return []
+  }
 
-  // Aus Actions
-  const actionMeasures = normalizeActionsToMeasures(twin)
-  measures.push(...actionMeasures)
-
-  // Aus Next Move (falls nicht bereits als Action vorhanden)
-  const nextMoveMeasures = normalizeNextMoveToMeasure(twin)
-  const existingTitles = new Set(actionMeasures.map(m => m.title.toLowerCase()))
-  const uniqueNextMoveMeasures = nextMoveMeasures.filter(m => 
-    !existingTitles.has(m.title.toLowerCase())
+  // Konvertiere zu Measures mit robustem Mapping
+  return convertActionsToMeasures(
+    rawActions,
+    twin.id,
+    twin.title,
+    twin.createdAt
   )
-  measures.push(...uniqueNextMoveMeasures)
+}
 
-  // Aus Dependencies (Blocker werden als blocked Measures)
-  if (twin.analysis?.dependencies) {
-    const blockerMeasures = twin.analysis.dependencies
-      .filter(dep => dep.isBlocker || dep.status === 'blocked')
-      .map((dep, index) => ({
+/**
+ * Extrahiert Measures aus Dependencies (Blocker)
+ */
+function normalizeDependenciesToMeasures(twin: StoredProjectTwinV2): Measure[] {
+  if (!twin.analysis?.dependencies?.length) {
+    return []
+  }
+
+  return twin.analysis.dependencies
+    .filter(dep => dep.isBlocker || dep.status === 'blocked')
+    .map((dep, index) => {
+      const title = normalizeTitle(`Blocker auflösen: ${dep.from}`, 90)
+      const description = normalizeDescription(dep.explanation, 360)
+      
+      return {
         id: generateMeasureId(twin.id, index, 'blocker'),
         projectId: twin.id,
         projectTitle: twin.title,
         parentId: null,
-        title: `Blocker auflösen: ${dep.from}`,
-        description: dep.explanation,
+        title,
+        description: description || undefined,
         status: 'blocked' as MeasureStatus,
         priority: 'critical' as MeasurePriority,
         dueDate: null,
@@ -138,9 +107,32 @@ export function extractMeasuresFromTwin(twin: StoredProjectTwinV2): Measure[] {
         linkedProcessStepId: undefined,
         tags: ['blocker', 'dependency'],
         source: 'twin_recommended' as const
-      }))
-    measures.push(...blockerMeasures)
-  }
+      }
+    })
+}
+
+/**
+ * Extrahiert Measures aus verschiedenen Twin-Datenquellen
+ * Phase 1 Fix: Robustes Schema-Mapping aus analysis.actions
+ */
+export function extractMeasuresFromTwin(twin: StoredProjectTwinV2): Measure[] {
+  const measures: Measure[] = []
+
+  // Aus Actions (jetzt mit robustem Multi-Path Mapping)
+  const actionMeasures = normalizeActionsToMeasures(twin)
+  measures.push(...actionMeasures)
+
+  // Aus Next Move (falls nicht bereits als Action vorhanden)
+  const nextMoveMeasures = normalizeNextMoveToMeasure(twin)
+  const existingTitles = new Set(actionMeasures.map(m => m.title.toLowerCase()))
+  const uniqueNextMoveMeasures = nextMoveMeasures.filter(m => 
+    !existingTitles.has(m.title.toLowerCase())
+  )
+  measures.push(...uniqueNextMoveMeasures)
+
+  // Aus Dependencies (Blocker)
+  const blockerMeasures = normalizeDependenciesToMeasures(twin)
+  measures.push(...blockerMeasures)
 
   return measures
 }
@@ -148,6 +140,7 @@ export function extractMeasuresFromTwin(twin: StoredProjectTwinV2): Measure[] {
 /**
  * Normalisiert Measures aus allen Projekten
  * Bevorzugt twin.measures falls vorhanden, sonst wird aus twin.analysis.actions abgeleitet
+ * Phase 1 Fix: Keine künstliche Erzeugung von Measures, nur vorhandene Daten übernehmen
  */
 export function normalizeMeasures(projects: StoredProjectTwinV2[]): Measure[] {
   if (!projects || projects.length === 0) {

@@ -55,10 +55,16 @@ function isClearlyInsufficientInput(input) {
 
 function detectDomainFromInput(input) {
   const normalized = input.toLowerCase()
-  if (/(auto|fahrzeug|kaufen)/u.test(normalized)) return 'private_purchase'
-  if (/(ferienhaus|auslast|buchung|gäste)/u.test(normalized)) return 'hospitality_growth'
-  if (/(kunden|verkauf|leads|angebot)/u.test(normalized)) return 'sales'
-  if (/(website|webseite|seite|landingpage)/u.test(normalized)) return 'operations'
+  
+  // Phase 1 Fix: Katastrophen/Notfall/Infrastruktur (höchste Priorität)
+  if (/(katastrophe|krise|krisen|notfall|notfälle|überschwemmung|hochwasser|deich|deichverband|stromausfall|strom|blackout|hitze|hitzewelle|infrastruktur|infrastrukturversagen|versorgung|versorgungseinheit|trinkwasser|wasser|sanitär|kommunen|hilfsorgani|einsatzort|resilienz|krisenregion|satelliteninternet|kommunikation|mobiles versorgungsnetzwerk|shelter|unterkunft|evakuierung)/u.test(normalized)) {
+    return 'crisis_infrastructure'
+  }
+  
+  if (/(auto|fahrzeug|pkw|wohnwagen|kaufen|mieten|leasing)/u.test(normalized)) return 'private_purchase'
+  if (/(ferienhaus|auslast|buchung|gäste|airbnb|unterkunft|vermietung)/u.test(normalized)) return 'hospitality_growth'
+  if (/(kunden|verkauf|leads|angebot|funnel|conversion|pipeline)/u.test(normalized)) return 'sales'
+  if (/(website|webseite|seite|landingpage|webapp|frontend|backend)/u.test(normalized)) return 'operations'
   return 'internal_project'
 }
 

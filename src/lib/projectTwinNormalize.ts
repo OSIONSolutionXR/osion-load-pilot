@@ -3,22 +3,35 @@
  *
  * Konvertiert alte StoredProjectTwin (V1) zu StoredProjectTwinV2
  * Stellt sicher, dass alle neuen Felder mit sinnvollen Defaults gefüllt sind
+ * Phase 1 Fix: Schema-Normalisierung mit Titel-Extraktion und dynamischer Output-Tiefe
  */
 
+import type {
+  ProjectTwinAnalysis,
+  ProjectRisk,
+} from '../types/projectTwin'
 import type {
   StoredProjectTwinV2,
   ProjectTwinUpdate,
   ProjectTwinChangedField,
-  ProcessStep
+  ProcessStep,
+  ProjectContextQuestion,
 } from '../types/projectTwinV2'
-import type { ProjectTwinAnalysis } from '../types/projectTwin'
-import type { Measure } from '../types/measures'
+import { extractMeasuresFromTwin } from './measuresNormalize'
 import {
   createDefaultProgress,
   createDefaultMeta,
-  generateContextQuestionsFromMissing
+  generateContextQuestionsFromMissing,
 } from '../types/projectTwinV2'
-import { extractMeasuresFromTwin } from './measuresNormalize'
+import {
+  extractProjectTitle,
+  normalizeTitle,
+  normalizeDescription,
+  extractRisks,
+  extractQuestions,
+  extractProcessSteps,
+  detectComplexity,
+} from './schemaNormalize'
 
 // Legacy Typ für V1 Twins
 type StoredProjectTwinV1 = {
@@ -65,7 +78,7 @@ function migrateUpdateV1ToV2(update: unknown): ProjectTwinUpdate {
     previousProgressPercent: undefined,
     newProgressPercent: undefined,
     previousNextMoveTitle: undefined,
-    newNextMoveTitle: undefined
+    newNextMoveTitle: undefined,
   }
 }
 
@@ -94,7 +107,52 @@ export function normalizeStoredProjectTwin(raw: unknown): StoredProjectTwinV2 {
 }
 
 /**
+ * Extrahiert und normalisiert Risiken aus verschiedenen Quellen
+ */
+function normalizeRisks(
+  analysis: ProjectTwinAnalysis,
+  rawTwin: Record<string, unknown>
+): ProjectRisk[] {
+  // Zuerst aus analysis.risks
+  const analysisRisks = Array.isArray(analysis.risks) ? analysis.risks : []
+
+  // Dann aus anderen Pfaden (für Schema-Mismatch)
+  const extractedRisks = extractRisks(rawTwin)
+
+  // Kombinieren ohne Duplikate (basierend auf Titel)
+  const allRisks = [...analysisRisks]
+  const existingTitles = new Set(analysisRisks.map((r) => r.title?.toLowerCase()))
+
+  for (const risk of extractedRisks) {
+    const raw = risk as Record<string, unknown>
+    const title =
+      (raw.title as string) ||
+      (raw.name as string) ||
+      (raw.label as string) ||
+      'Unbekanntes Risiko'
+
+    if (!existingTitles.has(title.toLowerCase())) {
+      allRisks.push({
+        title: normalizeTitle(title, 90),
+        severity: (raw.severity as ProjectRisk['severity']) || 'medium',
+        explanation: normalizeDescription(
+          (raw.explanation as string) ||
+            (raw.description as string) ||
+            (raw.reason as string) ||
+            '',
+          320
+        ),
+      })
+      existingTitles.add(title.toLowerCase())
+    }
+  }
+
+  return allRisks
+}
+
+/**
  * Normalisiert einen V2 Twin (füllt fehlende Felder)
+ * Phase 1 Fix: Intelligente Titel-Extraktion, robuste Risiken/Blocker/Fragen/Optionen
  */
 function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV2 {
   const now = new Date().toISOString()
@@ -104,57 +162,216 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
   const createdAt = twin.createdAt || now
   const updatedAt = twin.updatedAt || now
 
-  // Titel und Beschreibung
-  const title = twin.title || twin.analysis?.project?.title || 'Unbenanntes Projekt'
-  const description = twin.description || twin.analysis?.project?.description
-
-  // Input History
-  const originalInput = twin.originalInput || (twin as { sourceInput?: string }).sourceInput || ''
-  const latestInput = twin.latestInput || originalInput
-
   // Analysis (required - muss vorhanden sein)
   if (!twin.analysis) {
     throw new Error('StoredProjectTwinV2 requires analysis')
   }
 
-  // ProcessSteps: Falls vorhanden nutzen, sonst aus dependencies ableiten
-  const processSteps: ProcessStep[] = twin.processSteps || 
-    twin.analysis.dependencies?.map((dep, index) => ({
-      id: `dep-${index}`,
-      title: dep.from,
-      description: dep.explanation,
-      status: dep.isBlocker ? 'blocked' : dep.status === 'done' ? 'done' : dep.status === 'required' ? 'next' : 'pending',
-      order: index + 1,
-      dependsOn: [],
-      blockerReason: dep.isBlocker ? dep.explanation : '',
-      linkedMeasureIds: [],
-      updatedAt: updatedAt
-    })) || []
+  const analysis = twin.analysis
 
-  // Neue Arrays (mit Fallback auf V1-Updates)
-  const contextQuestions = twin.contextQuestions || 
-    generateContextQuestionsFromMissing(
-      twin.analysis.quality.missingContext || []
-    )
+  // Phase 1 Fix: Intelligente Titel-Extraktion
+  // Extrahiere Titel aus originalInput falls "Projekt namens" Muster
+  const rawTwin = twin as Record<string, unknown>
+  const extractedTitle = extractProjectTitle(twin.originalInput || '')
 
+  // Titel mit Priorität: extrahiert > analysis > twin > Fallback
+  const title =
+    extractedTitle ||
+    normalizeTitle(
+      twin.title ||
+        analysis.project?.title ||
+        (twin.originalInput
+          ? twin.originalInput.replace(/^(Ich\s+möchte|Ich\s+will)\s*/i, '').split('.')[0]
+          : ''),
+      60
+    ) ||
+    'Unbenanntes Projekt'
+
+  const description = normalizeDescription(
+    twin.description || analysis.project?.description || '',
+    700
+  )
+
+  // Input History
+  const originalInput = twin.originalInput || ''
+  const latestInput = twin.latestInput || originalInput
+
+  // Phase 1 Fix: Robuste Extraktion von Arrays
+  const processStepsRaw = extractProcessSteps(rawTwin)
+  const processSteps: ProcessStep[] =
+    twin.processSteps ||
+    (processStepsRaw.length > 0
+      ? processStepsRaw.map((step, index) => {
+          const raw = step as Record<string, unknown>
+          return {
+            id: String(raw.id || `step-${index}`),
+            title: normalizeTitle(
+              (raw.title as string) || (raw.name as string) || (raw.label as string) || `Schritt ${index + 1}`,
+              64
+            ),
+            description: normalizeDescription(
+              (raw.description as string) || (raw.summary as string) || '',
+              300
+            ),
+            status: (raw.status as ProcessStep['status']) || 'pending',
+            order: Number(raw.order) || index + 1,
+            dependsOn: Array.isArray(raw.dependsOn)
+              ? raw.dependsOn.map(String)
+              : [],
+            blockerReason: String(raw.blockerReason || raw.blocker || ''),
+            linkedMeasureIds: Array.isArray(raw.linkedMeasureIds)
+              ? raw.linkedMeasureIds.map(String)
+              : [],
+            updatedAt: String(raw.updatedAt || now),
+          }
+        })
+      : // Fallback: aus dependencies ableiten
+        analysis.dependencies?.map((dep, index) => ({
+          id: `dep-${index}`,
+          title: normalizeTitle(dep.from, 64),
+          description: normalizeDescription(dep.explanation, 300),
+          status: dep.isBlocker
+            ? 'blocked'
+            : dep.status === 'done'
+              ? 'done'
+              : dep.status === 'required'
+                ? 'next'
+                : 'pending',
+          order: index + 1,
+          dependsOn: [],
+          blockerReason: dep.isBlocker ? dep.explanation : '',
+          linkedMeasureIds: [],
+          updatedAt: updatedAt,
+        })) ||
+        [])
+
+  // Phase 1 Fix: Risiken, Blocker, Fragen, Optionen normalisieren
+  // Diese werden aktuell aus den Twin-Daten extrahiert und stehen für zukünftige Features bereit
+  const risks = normalizeRisks(analysis, rawTwin)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _questions = extractQuestions(rawTwin) 
+  
+  // Hinweis: Blocker und Options werden extrahiert, aber aktuell nicht direkt verwendet
+  // Sie können bei Bedarf hier verarbeitet werden:
+  // const blockers = normalizeBlockers(analysis, rawTwin)
+  // const options = extractOptions(rawTwin)
+
+  // Kontextfragen (kombiniert aus missingContext und extrahierten Fragen)
+  const contextQuestionsFromMissing = generateContextQuestionsFromMissing(
+    analysis.quality?.missingContext || []
+  )
+
+  // Extrahierte Fragen zu ContextQuestions konvertieren
+  const contextQuestionsFromExtracted: ProjectContextQuestion[] = _questions.map(
+    (q, index) => {
+      const raw = q as Record<string, unknown>
+      return {
+        id: String(raw.id || `ctxq-${now}-${index}`),
+        label: normalizeTitle(
+          (raw.label as string) || (raw.title as string) || 'Kontextfrage',
+          60
+        ),
+        question: normalizeTitle(
+          (raw.question as string) ||
+            (raw.text as string) ||
+            (raw.label as string) ||
+            'Zusätzliche Information benötigt',
+          180
+        ),
+        helperText: normalizeDescription((raw.helperText as string) || '', 200),
+        reason: normalizeDescription(
+          (raw.reason as string) ||
+            (raw.explanation as string) ||
+            'Für eine vollständige Analyse benötigt',
+          200
+        ),
+        sourceMissingContext: String(raw.sourceMissingContext || 'extracted'),
+        suggestedInputType:
+          (raw.suggestedInputType as ProjectContextQuestion['suggestedInputType']) ||
+          'text',
+        priority:
+          (raw.priority as ProjectContextQuestion['priority']) ||
+          (index < 3 ? 'high' : index < 5 ? 'medium' : 'low'),
+        options: Array.isArray(raw.options) ? raw.options.map(String) : undefined,
+        status: (raw.status as ProjectContextQuestion['status']) || 'open',
+      }
+    }
+  )
+
+  // Kombiniere ohne Duplikate
+  const existingQuestionLabels = new Set(
+    contextQuestionsFromMissing.map((q) => q.label.toLowerCase())
+  )
+  const combinedContextQuestions = [
+    ...contextQuestionsFromMissing,
+    ...contextQuestionsFromExtracted.filter(
+      (q) => !existingQuestionLabels.has(q.label.toLowerCase())
+    ),
+  ]
+
+  const contextQuestions = twin.contextQuestions || combinedContextQuestions
   const updates = twin.updates || []
-
   const generatedSolutions = twin.generatedSolutions || []
   const chatHistory = twin.chatHistory || []
 
   // Progress
-  const progress = twin.progress || createDefaultProgress(twin.analysis)
+  const progress = twin.progress || createDefaultProgress(analysis)
 
   // Meta
-  const meta = twin.meta || createDefaultMeta(twin.analysis)
+  const meta = twin.meta || createDefaultMeta(analysis)
+
+  // Phase 1 Fix: Komplexitätserkennung
+  const complexity = detectComplexity(originalInput, {
+    moduleCount: processSteps.length,
+    openQuestions: contextQuestions.filter((q) => q.status === 'open').length,
+    stakeholderCount: analysis.actors?.length || 0,
+    hasInfrastructure: /infrastruktur|versorgung|system/i.test(originalInput),
+    hasCrisis: /katastrophe|krise|notfall|überschwemmung|hochwasser/i.test(originalInput),
+    hasMultiLocation: /multi|region|standort|kommunen/i.test(originalInput),
+  })
 
   // Measures normalisieren
-  const measures: Measure[] = twin.measures || extractMeasuresFromTwin(twin as StoredProjectTwinV2)
+  const measures = twin.measures ||
+    extractMeasuresFromTwin({
+      id,
+      schemaVersion: 2,
+      title,
+      description,
+      createdAt,
+      updatedAt,
+      originalInput,
+      latestInput,
+      analysis: {
+        ...analysis,
+        // Überschreibe mit normalisierten Arrays
+        risks,
+        project: {
+          ...analysis.project,
+          title,
+          description,
+        },
+      },
+      processSteps,
+      contextQuestions,
+      updates,
+      progress,
+      generatedSolutions,
+      chatHistory,
+      futureSimulation: twin.futureSimulation,
+      attentionQueue: twin.attentionQueue || [],
+      measures: [],
+      activityLog: [],
+      meta: {
+        ...meta,
+        source: meta.source || 'analysis',
+        localOnly: meta.localOnly ?? true,
+      },
+    } as StoredProjectTwinV2)
 
   // Simulations normalisieren
   const simulations = twin.simulations || {
     scenarios: [],
-    results: []
+    results: [],
   }
 
   // Activity Log (neu in V2, Migration)
@@ -169,7 +386,15 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
     updatedAt,
     originalInput,
     latestInput,
-    analysis: twin.analysis,
+    analysis: {
+      ...analysis,
+      project: {
+        ...analysis.project,
+        title,
+        description,
+      },
+      risks,
+    },
     processSteps,
     contextQuestions,
     updates,
@@ -184,8 +409,10 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
     meta: {
       ...meta,
       source: meta.source || 'analysis',
-      localOnly: meta.localOnly ?? true
-    }
+      localOnly: meta.localOnly ?? true,
+      // Phase 1 Fix: Speichere Komplexität
+      promptVersion: `${meta.promptVersion || 'unknown'}_complexity:${complexity}`,
+    },
   }
 }
 
@@ -195,9 +422,20 @@ function normalizeV2Twin(twin: Partial<StoredProjectTwinV2>): StoredProjectTwinV
 function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
   const now = new Date().toISOString()
 
-  // Titel aus Analyse extrahieren
-  const title = v1.analysis?.project?.title || 'Migriertes Projekt'
-  const description = v1.analysis?.project?.description
+  // Phase 1 Fix: Intelligente Titel-Extraktion
+  const extractedTitle = extractProjectTitle(v1.sourceInput || '')
+
+  // Titel mit Priorität: extrahiert > analysis > Fallback
+  const title =
+    extractedTitle ||
+    normalizeTitle(
+      v1.analysis?.project?.title ||
+        v1.sourceInput?.replace(/^(Ich\s+möchte|Ich\s+will)\s*/i, '').split('.')[0],
+      60
+    ) ||
+    'Migriertes Projekt'
+
+  const description = normalizeDescription(v1.analysis?.project?.description || '', 700)
 
   // Input History
   const originalInput = v1.sourceInput || ''
@@ -217,20 +455,31 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
   )
 
   // ProcessSteps aus dependencies ableiten für V1 Migration
-  const processSteps: ProcessStep[] = v1.analysis?.dependencies?.map((dep, index) => ({
-    id: `dep-${index}`,
-    title: dep.from,
-    description: dep.explanation,
-    status: dep.isBlocker ? 'blocked' : dep.status === 'done' ? 'done' : dep.status === 'required' ? 'next' : 'pending',
-    order: index + 1,
-    dependsOn: [],
-    blockerReason: dep.isBlocker ? dep.explanation : '',
-    linkedMeasureIds: [],
-    updatedAt: v1.updatedAt || now
-  })) || []
+  const processSteps: ProcessStep[] =
+    v1.analysis?.dependencies?.map((dep, index) => ({
+      id: `dep-${index}`,
+      title: normalizeTitle(dep.from, 64),
+      description: normalizeDescription(dep.explanation, 300),
+      status: dep.isBlocker
+        ? 'blocked'
+        : dep.status === 'done'
+          ? 'done'
+          : dep.status === 'required'
+            ? 'next'
+            : 'pending',
+      order: index + 1,
+      dependsOn: [],
+      blockerReason: dep.isBlocker ? dep.explanation : '',
+      linkedMeasureIds: [],
+      updatedAt: v1.updatedAt || now,
+    })) || []
+
+  // Phase 1 Fix: Risiken normalisieren
+  const rawV1 = v1 as unknown as Record<string, unknown>
+  const risks = normalizeRisks(v1.analysis, rawV1)
 
   // Measures aus V1 Analyse ableiten
-  const measures: Measure[] = extractMeasuresFromTwin({
+  const measures: import('../types/measures').Measure[] = extractMeasuresFromTwin({
     id: v1.id || `twin-${now}-${Math.random().toString(36).slice(2, 8)}`,
     schemaVersion: 2,
     title,
@@ -239,7 +488,15 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     updatedAt: v1.updatedAt || now,
     originalInput,
     latestInput: originalInput,
-    analysis: v1.analysis,
+    analysis: {
+      ...v1.analysis,
+      project: {
+        ...v1.analysis.project,
+        title,
+        description,
+      },
+      risks,
+    },
     processSteps,
     contextQuestions,
     updates,
@@ -249,8 +506,8 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     futureSimulation: undefined,
     attentionQueue: [],
     measures: [],
+    activityLog: [],
     meta,
-    activityLog: []
   } as unknown as StoredProjectTwinV2)
 
   return {
@@ -262,7 +519,15 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     updatedAt: v1.updatedAt || now,
     originalInput,
     latestInput: originalInput,
-    analysis: v1.analysis,
+    analysis: {
+      ...v1.analysis,
+      project: {
+        ...v1.analysis.project,
+        title,
+        description,
+      },
+      risks,
+    },
     processSteps,
     contextQuestions,
     updates,
@@ -274,7 +539,7 @@ function migrateV1ToV2(v1: StoredProjectTwinV1): StoredProjectTwinV2 {
     measures,
     simulations: { scenarios: [], results: [] },
     activityLog: [],
-    meta
+    meta,
   }
 }
 

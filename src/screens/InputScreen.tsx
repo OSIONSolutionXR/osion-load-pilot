@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/Badge'
 import { analyzeProjectInput, ProjectAnalysisError } from '../services/projectAnalysisApi'
 import type { ProjectTwinAnalysis } from '../types/projectTwin'
 import { FadeIn } from '../components/animations/MicroAnimations'
+import { extractProjectTitle } from '../lib/schemaNormalize'
 
 interface InputScreenProps {
   onCreateTwin: (sourceInput: string, analysis: ProjectTwinAnalysis, projectId: string) => void
@@ -58,11 +59,23 @@ export default function InputScreen({ onCreateTwin, onCancel }: InputScreenProps
       
       // Intelligente Titel-Extraktion aus Input
       const inputText = text.trim()
-      const extractedTitle = result.analysis.project?.title && result.analysis.project.title !== 'Unbenanntes Projekt'
+      
+      // Phase 1 Fix: Erst extractProjectTitle verwenden, dann Fallback
+      const extractedTitleFromInput = extractProjectTitle(inputText)
+      
+      // Dann Analysis-Titel oder Fallback
+      const analysisTitle = result.analysis.project?.title && 
+        result.analysis.project.title !== 'Unbenanntes Projekt' &&
+        result.analysis.project.title.trim().length > 0
         ? result.analysis.project.title
-        : (inputText.length > 0 
-            ? inputText.replace(/^(Ich möchte|Ich will|Ich muss|Ich plane|Ich mache|Ich erstelle)\s*/i, '').replace(/\.$/, '').trim()
-            : 'Neues Projekt')
+        : null
+      
+      // Priorität: Extrahiert > Analysis > Sanitized Input
+      const extractedTitle = extractedTitleFromInput || 
+        analysisTitle ||
+        (inputText.length > 0 
+          ? inputText.replace(/^(Ich möchte|Ich will|Ich muss|Ich plane|Ich mache|Ich erstelle|Wir möchten|Wir wollen|Wir müssen|Wir planen)\s*/i, '').replace(/\.$/, '').trim()
+          : 'Neues Projekt')
       
       // Discovery-Status ermitteln
       const discoveryMode = (

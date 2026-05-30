@@ -73,7 +73,44 @@ function isGenericStepTitle(title: string): boolean {
 }
 
 /**
- * Ableitet Prozess-Schritte aus dem Twin-Projektdaten als Fallback
+ * Prüft ob ein Input wirklich Fahrzeug-bezogen ist (nicht nur "kaufen" enthält)
+ * Phase 1 Fix: Verhindert falsche Fahrzeug-Schritte bei Projekten wie "NOVA SHELTER GRID"
+ */
+function isVehicleRelatedInput(title: string, description: string): boolean {
+  const normalized = `${title} ${description}`.toLowerCase()
+  
+  // Starke Fahrzeug-Keywords (mindestens eines muss vorhanden sein)
+  const strongVehicleKeywords = [
+    'auto', 'pkw', 'fahrzeug', 'wagen', 'kraftwagen', 'kfz',
+    'wohnwagen', 'wohnmobil', 'caravan', 'camper',
+    'motorrad', 'roller', 'moped', 'bike',
+    'lastwagen', 'lkw', 'transporter', 'van',
+    'oldtimer', 'youngtimer', 'gebrauchtwagen', 'neuwagen',
+    'leasing', 'finanzierung auto', 'autokauf'
+  ]
+  
+  // Schwache Keywords (für zukünftige Erweiterung, aktuell nicht verwendet)
+  // const weakKeywords = ['kaufen', 'mieten', 'leasing', 'finanzierung']
+  
+  const hasStrongKeyword = strongVehicleKeywords.some(k => normalized.includes(k))
+  
+  // Ausschluss-Kriterien (verhindern Fahrzeug-Erkennung)
+  const exclusionKeywords = [
+    'katastrophe', 'krise', 'notfall', 'überschwemmung', 'hochwasser',
+    'infrastruktur', 'versorgung', 'shelter', 'grid', 'system',
+    'netzwerk', 'kommunen', 'hilfsorganisation', 'einsatz',
+    'resilienz', 'stromausfall', 'trinkwasser', 'sanitär'
+  ]
+  
+  const hasExclusion = exclusionKeywords.some(k => normalized.includes(k))
+  
+  // Logik: Starkes Keyword nötig, Ausschluss verhindert Fahrzeug-Erkennung
+  return hasStrongKeyword && !hasExclusion
+}
+
+/**
+ * Ableitet Prozessschritte aus dem Twin-Projektdaten als Fallback
+ * Phase 1 Fix: Robuste Domain-Erkennung mit Ausschlusskriterien
  */
 function deriveProcessStepsFromTwin(twin: StoredProjectTwin | null): ProcessStep[] {
   if (!twin) return []
@@ -83,9 +120,9 @@ function deriveProcessStepsFromTwin(twin: StoredProjectTwin | null): ProcessStep
   const combined = `${title} ${desc}`
   const timestamp = new Date().toISOString()
   
-  // Hauskauf / Immobilien
+  // Hauskauf / Immobilien - spezifische Keywords
   if (combined.includes("haus") || combined.includes("wohnung") || combined.includes("immobilie") || 
-      combined.includes("kaufen") || combined.includes("kauf") || combined.includes("eigen")) {
+      /\b(kauf|kaufen)\b/.test(combined) && (combined.includes("eigen") || combined.includes("wohn"))) {
     return [
       { id: "bedarf-zielbild", title: "Bedarf und Zielbild definieren", description: "Projektziel, Anforderungen, Einschränkungen und Entscheidungskriterien erfassen.", status: "pending", order: 1, dependsOn: [], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
       { id: "budget-pruefen", title: "Budget und Finanzierungsrahmen prüfen", description: "Finanzielle Möglichkeiten und Kreditrahmen klären.", status: "pending", order: 2, dependsOn: [], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
@@ -98,9 +135,8 @@ function deriveProcessStepsFromTwin(twin: StoredProjectTwin | null): ProcessStep
     ]
   }
   
-  // Auto / Fahrzeug
-  if (combined.includes("auto") || combined.includes("pkw") || combined.includes("fahrzeug") || 
-      combined.includes("wagen") || combined.includes("kauf")) {
+  // Auto / Fahrzeug - Phase 1 Fix: Nur bei echten Fahrzeug-Keywords
+  if (isVehicleRelatedInput(title, desc)) {
     return [
       { id: "bedarf-pkw", title: "Bedarf und Nutzungsprofil definieren", description: "Verwendungszweck, Kilometerleistung, Passagiere definieren.", status: "pending", order: 1, dependsOn: [], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
       { id: "budget-pkw", title: "Budgetverfügbarkeit prüfen", description: "Finanzierung oder Barkauf klären.", status: "pending", order: 2, dependsOn: [], blockerReason: "", linkedMeasureIds: [], updatedAt: timestamp },
