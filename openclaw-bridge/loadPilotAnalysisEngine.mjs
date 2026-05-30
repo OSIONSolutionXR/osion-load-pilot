@@ -5,6 +5,30 @@ const execFileAsync = promisify(execFile)
 const MAX_INPUT_LENGTH = 4000
 const REQUEST_TIMEOUT_MS = 180000
 const PROMPT_VERSION = 'loadpilot_v2'
+const PROMPT_VERSION_DEEP = 'loadpilot_v3_deep'
+
+// Komplexitätsindikatoren für adaptive Analyse
+const COMPLEXITY_INDICATORS = {
+  high_end: [
+    'infrastruktur', 'katastrophe', 'krise', 'notfall', 'versorgung',
+    'klinik', 'krankenhaus', 'flughafen', 'deich', 'hochwasser',
+    'lebensmittelversorgung', 'satelliteninternet', 'shelter', 'evakuierung',
+    'system', 'plattform', 'multi', 'enterprise', 'organisation',
+    'region', 'bundesweit', 'überregional', 'gesetzlich', 'regulatorisch',
+    'versorgungssicherheit', 'geschlossenes system', 'nährstoffkreislauf',
+    'forschungsstation', 'offshore', 'polarexpedition', 'weltraum', 'habitat'
+  ],
+  complex: [
+    'app', 'datenbank', 'backend', 'frontend', 'ki', 'ai', 'api',
+    'integration', 'automation', 'prozess', 'workflow',
+    'funnel', 'conversion', 'marketing', 'vertikale pflanzenzucht',
+    'pilzzucht', 'mikroalgen', 'wasserrecycling', 'sensorik'
+  ],
+  simple: [
+    'wohnwagen', 'mieten', 'kaufen', 'einfach', 'klein',
+    'ferienhaus', 'auto', 'motorrad', 'website', 'büro'
+  ]
+}
 
 const DISALLOWED_FALLBACK_PHRASES = [
   'Projektlage mit mehreren offenen Punkten',
@@ -55,17 +79,43 @@ function isClearlyInsufficientInput(input) {
 
 function detectDomainFromInput(input) {
   const normalized = input.toLowerCase()
-  
-  // Phase 1 Fix: Katastrophen/Notfall/Infrastruktur (höchste Priorität)
+
+  // Phase 2 Fix: Katastrophen/Notfall/Infrastruktur (höchste Priorität)
   if (/(katastrophe|krise|krisen|notfall|notfälle|überschwemmung|hochwasser|deich|deichverband|stromausfall|strom|blackout|hitze|hitzewelle|infrastruktur|infrastrukturversagen|versorgung|versorgungseinheit|trinkwasser|wasser|sanitär|kommunen|hilfsorgani|einsatzort|resilienz|krisenregion|satelliteninternet|kommunikation|mobiles versorgungsnetzwerk|shelter|unterkunft|evakuierung)/u.test(normalized)) {
     return 'crisis_infrastructure'
   }
-  
+
+  // Phase 2 Fix: Lebensmittelversorgung/Versorgungssysteme (ORBITAL FOOD CHAIN etc.)
+  if (/(lebensmittelversorgung|nahrungsmittel|produktionsmodul|vertikale pflanzenzucht|pilzzucht|mikroalgen|wasserrecycling|nährstoffkreislauf|sensorik|ki-dashboard|produktionsplanung|versorgungssicherheit|geschlossenes system|forschungsstation|offshore|polarexpedition|weltraum|habitat|isolierte umgebung|versorgungssystem)/u.test(normalized)) {
+    return 'food_supply_system'
+  }
+
   if (/(auto|fahrzeug|pkw|wohnwagen|kaufen|mieten|leasing)/u.test(normalized)) return 'private_purchase'
   if (/(ferienhaus|auslast|buchung|gäste|airbnb|unterkunft|vermietung)/u.test(normalized)) return 'hospitality_growth'
   if (/(kunden|verkauf|leads|angebot|funnel|conversion|pipeline)/u.test(normalized)) return 'sales'
   if (/(website|webseite|seite|landingpage|webapp|frontend|backend)/u.test(normalized)) return 'operations'
   return 'internal_project'
+}
+
+// Phase 2: Adaptive Komplexitätserkennung
+function detectComplexityFromInput(input) {
+  const normalized = input.toLowerCase()
+  const length = input.length
+
+  // High-End Indikatoren (kritische Infrastruktur, Versorgungssysteme)
+  const highEndMatches = COMPLEXITY_INDICATORS.high_end.filter(k => normalized.includes(k)).length
+  if (highEndMatches >= 2 || length > 500) return 'high_end'
+
+  // Complex Indikatoren (Technik-Projekte)
+  const complexMatches = COMPLEXITY_INDICATORS.complex.filter(k => normalized.includes(k)).length
+  if (complexMatches >= 2 || length > 300) return 'complex'
+
+  // Simple Indikatoren (kleine Projekte)
+  const simpleMatches = COMPLEXITY_INDICATORS.simple.filter(k => normalized.includes(k)).length
+  if (simpleMatches >= 1 || length < 100) return 'simple'
+
+  // Default: medium für moderate Länge
+  return length > 200 ? 'medium' : 'simple'
 }
 
 // Kompakte Twin-Zusammenfassung für Updates bauen
@@ -231,7 +281,38 @@ export async function analyzeProjectInput(input) {
   if (trimmed.length > MAX_INPUT_LENGTH) throw new Error(`Input too long. Max ${MAX_INPUT_LENGTH} chars.`)
 
   try {
-    const prompt = 'Erstelle einen konkreten Project Twin basierend auf dem Nutzereingang. Alle Details müssen zum Input passen.'
+    // Phase 2: Komplexität erkennen
+    const complexity = detectComplexityFromInput(trimmed)
+    console.log('[Bridge Engine] Detected complexity:', complexity)
+
+    // Phase 2: Deep Prompt für komplexe/high-end Projekte
+    const useDeepPrompt = complexity === 'complex' || complexity === 'high_end'
+    const promptVersion = useDeepPrompt ? PROMPT_VERSION_DEEP : PROMPT_VERSION
+    
+    // Phase 2: Komplexität im Prompt berücksichtigen
+    const prompt = useDeepPrompt
+      ? `Erstelle einen hochwertigen Project Twin mit ADAPTIVE TIEFE.
+
+ERKANNTE KOMPLEXITÄT: ${complexity.toUpperCase()}
+
+RICHTWERTE FÜR ${complexity.toUpperCase()}:
+- Prozessschritte: ${complexity === 'high_end' ? '14-24' : '12-18'}
+- Maßnahmen: ${complexity === 'high_end' ? '35-80' : '25-50'}
+- Risiken: ${complexity === 'high_end' ? '12-25' : '8-15'}
+- Fragen: ${complexity === 'high_end' ? '12-25' : '8-15'}
+- Blocker: ${complexity === 'high_end' ? '8-15' : '5-10'}
+- Optionen: ${complexity === 'high_end' ? '5-10' : '4-8'}
+
+REGELN:
+1. NIEMALS generische Schritte wie "Schritt 1", "Phase 2" verwenden.
+2. Jeder Prozessschritt muss fachlich konkret und projektspezifisch sein.
+3. Maßnahmen müssen echte Arbeitsaufträge enthalten, keine Platzhalter.
+4. Risiken, Blocker, Fragen und Optionen klar getrennt und qualitativ hochwertig.
+5. Next Best Action aus Hebelwirkung ableiten.
+
+Antworte nur mit validem JSON ohne Markdown.`
+      : 'Erstelle einen konkreten Project Twin basierend auf dem Nutzereingang. Alle Details müssen zum Input passen.'
+    
     const analysis = await callOpenClawGateway(prompt, trimmed)
 
     if (!validateAnalysis(analysis)) {
@@ -245,7 +326,8 @@ export async function analyzeProjectInput(input) {
       meta: {
         domain: analysis.project?.type || 'unclear',
         analysisMode: 'openclaw-kimi',
-        promptVersion: PROMPT_VERSION,
+        promptVersion: promptVersion,
+        complexity: complexity,
         generatedAt: new Date().toISOString()
       }
     }
@@ -368,7 +450,7 @@ export async function updateProjectTwin({ compactTwinContext, additionalInput, o
 
     // Nutze direkt den compactTwinContext (wurde schon vom API gebaut)
     const contextToUse = compactTwinContext || {}
-    
+
     console.log('[Bridge Engine] Using compact context:', {
       projectTitle: contextToUse.project?.title,
       actorsCount: contextToUse.actors?.length,
@@ -376,7 +458,7 @@ export async function updateProjectTwin({ compactTwinContext, additionalInput, o
     })
 
     const updatedAnalysis = await callOpenClawGatewayForUpdate(contextToUse, trimmedAdditional)
-    
+
     console.log('[Bridge Engine] Received updated analysis:', {
       projectTitle: updatedAnalysis?.project?.title,
       hasNextMove: !!updatedAnalysis?.nextMove,
